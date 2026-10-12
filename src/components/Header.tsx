@@ -10,7 +10,7 @@ interface HeaderProps {
 
 export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { session, profile, logout, role } = useAuth();
+  const { session, logout, role } = useAuth();
   const navigate = useNavigate();
 
   const isAdmin = role === 'admin';
@@ -54,7 +54,7 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
             <span className="text-2xl font-extrabold text-slate-800">فیکسیز</span>
           </button>
 
-          {/* منوی دسکتاپ با آیکون‌های مشابه سایت قبلی */}
+          {/* منوی دسکتاپ */}
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
