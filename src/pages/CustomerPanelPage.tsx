@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Home, Plus, List, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Home, Plus, List, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Loader2, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface RepairRequest {
@@ -79,7 +79,7 @@ export default function CustomerPanelPage() {
       toast.success('اطلاعات شما با موفقیت ثبت شد');
       setShowProfileModal(false);
       fetchRequests();
-      window.location.reload(); // برای آپدیت کانتکست
+      window.location.reload();
     } catch (error) {
       toast.error('خطا در ثبت اطلاعات');
     } finally {
@@ -94,7 +94,6 @@ export default function CustomerPanelPage() {
     }
     
     setIsLoading(true);
-    // تولید کد پیگیری رندوم مثل FIX-123456
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
 
     try {
@@ -153,9 +152,19 @@ export default function CustomerPanelPage() {
             <span className="text-xl font-extrabold tracking-wider">فیکسیز</span>
             <span className="bg-white/10 px-3 py-1 rounded-lg text-sm font-medium">پنل مشتری</span>
           </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/')} className="flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors">
-              <Home size={18} /> بازگشت به سایت
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/')} 
+              className="flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl transition-colors"
+            >
+              <Home size={16} /> بازگشت به سایت
+            </button>
+            <button 
+              onClick={() => logout()} 
+              className="flex items-center gap-1.5 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 px-3 py-2 rounded-xl transition-colors"
+              title="خروج از حساب"
+            >
+              <LogOut size={16} /> خروج
             </button>
           </div>
         </div>
@@ -250,7 +259,6 @@ export default function CustomerPanelPage() {
                     )}
                   </div>
                   
-                  {/* دکمه‌های عملیات فقط برای وضعیت ثبت اولیه */}
                   {req.status === 'registered' && (
                     <div className="flex items-center gap-2 md:flex-col shrink-0">
                       <button className="flex-1 md:w-full px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-bold flex justify-center items-center gap-2 transition-colors">
