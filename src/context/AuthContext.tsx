@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 
-const SESSION_KEY = 'fixiz_user_session';
 const OTP_EXPIRY_MINUTES = 5;
 
 // تعریف ۷ نقش دقیق پروژه
@@ -116,11 +115,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await supabase.from('otp_sessions').delete().eq('id', latestOtp.id);
     
-    // لاگین در سوپابیس (در اینجا به جای رمز عبور، شماره موبایل با یک رمز پیش‌فرض هش شده ذخیره می‌شود تا کاربر بسازد)
-    // برای پرسنل در مراحل بعدی متد ورود با نام کاربری را اضافه می‌کنیم
+    // لاگین در سوپابیس 
     const { error: signInError } = await supabase.auth.signInWithPassword({
         phone: formattedMobile,
-        password: `FxZ@${formattedMobile}` // یک رمز مجازی برای مشتریان که فقط با پیامک وارد می‌شوند
+        password: `FxZ@${formattedMobile}` 
     });
 
     if (signInError) {
