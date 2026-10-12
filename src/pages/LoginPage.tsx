@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Wrench, Phone, Activity, User, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -22,7 +22,8 @@ export default function LoginPage() {
   const [persOtp, setPersOtp] = useState('');
   const [persNewPassword, setPersNewPassword] = useState('');
   
-  const { session, profile, role, sendCustomerOtp, verifyCustomerOtp, personnelLogin, sendPersonnelOtp, completePersonnelFirstLogin } = useAuth();
+  // متغیر role حذف شد چون از profile.role استفاده می‌کنیم
+  const { session, profile, sendCustomerOtp, verifyCustomerOtp, personnelLogin, sendPersonnelOtp, completePersonnelFirstLogin } = useAuth();
   const navigate = useNavigate();
 
   // کنترل هدایت کاربر در صورت لاگین بودن
