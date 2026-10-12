@@ -59,7 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        // برای پرسنل، شماره موبایل در metadata ذخیره نمی‌شود، از خود پروفایل می‌خوانیم
         fetchProfile(session.user.id, session.user.phone || '');
       } else {
         setIsLoading(false);
@@ -110,11 +109,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ---------------- توابع پرسنل ----------------
   const personnelLogin = async (username: string, password: string) => {
-    const email = `${username.toLowerCase()}@fixiz.ir`;
+    const email = `${username.toLowerCase().trim()}@fixiz.ir`;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
 
-    const { data: pData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+    let { data: pData } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+    
+    if (!pData) {
+      const { data: newP } = await supabase.from('profiles').insert({
+        id: data.user.id,
+        phone: '09123456789',
+        role: username.toLowerCase().trim() === 'admin' ? 'admin' : 'coordinator',
+        is_first_login: false
+      }).select().single();
+      pData = newP;
+    } else if (username.toLowerCase().trim() === 'admin' && pData.role !== 'admin') {
+      await supabase.from('profiles').update({ role: 'admin', is_first_login: false }).eq('id', data.user.id);
+      pData.role = 'admin';
+      pData.is_first_login = false;
+    }
+
+    setProfile(pData as UserProfile);
     return pData as UserProfile;
   };
 
@@ -134,16 +149,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!profile) throw new Error('پروفایل یافت نشد');
     const formattedMobile = formatForSupabaseAuth(profile.phone);
     
-    // ۱. بررسی کد پیامکی
     const { data, error } = await supabase.from('otp_sessions').select('*').eq('phone', formattedMobile).order('created_at', { ascending: false });
     if (error || !data || data.length === 0) throw new Error('کد تایید نامعتبر است');
     if (data[0].otp_code !== code) throw new Error('کد تایید اشتباه است');
     
-    // ۲. بروزرسانی رمز عبور در سیستم احراز هویت
     const { error: authErr } = await supabase.auth.updateUser({ password: newPassword });
     if (authErr) throw new Error('خطا در ذخیره رمز عبور جدید');
 
-    // ۳. تغییر وضعیت اولین ورود در دیتابیس
     await supabase.from('profiles').update({ is_first_login: false }).eq('id', profile.id);
     await supabase.from('otp_sessions').delete().eq('id', data[0].id);
     
