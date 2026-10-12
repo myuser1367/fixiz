@@ -49,13 +49,11 @@ export default function HomePage() {
           </svg>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 py-24 sm:py-32 text-center z-10 animate-slide-up">
-          <div className="inline-flex items-center gap-2 bg-brand-primary/20 text-brand-400 px-5 py-2 rounded-full text-sm font-bold mb-8 border border-brand-primary/30">
-            <CheckCircle size={18} /> سامانه یکپارچه پرسنل و مشتریان
-          </div>
+        <div className="relative max-w-7xl mx-auto px-4 py-32 sm:py-40 text-center z-10 animate-slide-up">
           
-          <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight">
-            سامانه جامع <span className="text-brand-light text-gradient">مدیریت تعمیرات</span> <br/> و خدمات پس از فروش
+          {/* عنوان اصلی بدون متن اضافه */}
+          <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-6 leading-tight">
+            سامانه جامع <span className="text-brand-light text-gradient">مدیریت تعمیرات</span>
           </h1>
           
           <p className="text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed">
@@ -78,40 +76,21 @@ export default function HomePage() {
       {/* بخش ویژگی‌ها */}
       <section className="max-w-7xl mx-auto px-4 py-16 relative z-20 -mt-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
-          {/* کارت ۱ */}
           <div className="card p-8 flex flex-col items-center text-center animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            <div className="bg-emerald-50 text-emerald-600 p-4 rounded-2xl mb-6">
-              <Clock size={40} />
-            </div>
+            <div className="bg-emerald-50 text-emerald-600 p-4 rounded-2xl mb-6"><Clock size={40} /></div>
             <h3 className="text-xl font-bold mb-3 text-slate-800">ثبت سریع و آسان</h3>
-            <p className="text-slate-500 leading-relaxed">
-              درخواست تعمیر خود را به سادگی و در کمتر از یک دقیقه در سامانه ثبت کنید.
-            </p>
+            <p className="text-slate-500 leading-relaxed">درخواست تعمیر خود را به سادگی و در کمتر از یک دقیقه در سامانه ثبت کنید.</p>
           </div>
-          
-          {/* کارت ۲ */}
           <div className="card p-8 flex flex-col items-center text-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <div className="bg-brand-50 text-brand-600 p-4 rounded-2xl mb-6">
-              <ShieldCheck size={40} />
-            </div>
+            <div className="bg-brand-50 text-brand-600 p-4 rounded-2xl mb-6"><ShieldCheck size={40} /></div>
             <h3 className="text-xl font-bold mb-3 text-slate-800">شفافیت در هزینه</h3>
-            <p className="text-slate-500 leading-relaxed">
-              دریافت برآورد دقیق قیمت و مشاهده قطعات مصرفی پیش از شروع فرآیند تعمیر.
-            </p>
+            <p className="text-slate-500 leading-relaxed">دریافت برآورد دقیق قیمت و مشاهده قطعات مصرفی پیش از شروع فرآیند تعمیر.</p>
           </div>
-          
-          {/* کارت ۳ */}
           <div className="card p-8 flex flex-col items-center text-center animate-slide-up" style={{ animationDelay: '0.3s' }}>
-            <div className="bg-indigo-50 text-indigo-600 p-4 rounded-2xl mb-6">
-              <CheckCircle size={40} />
-            </div>
+            <div className="bg-indigo-50 text-indigo-600 p-4 rounded-2xl mb-6"><CheckCircle size={40} /></div>
             <h3 className="text-xl font-bold mb-3 text-slate-800">پیگیری لحظه‌ای</h3>
-            <p className="text-slate-500 leading-relaxed">
-              مشاهده وضعیت لحظه به لحظه دستگاه در تمامی مراحل از طریق پنل کاربری.
-            </p>
+            <p className="text-slate-500 leading-relaxed">مشاهده وضعیت لحظه به لحظه دستگاه در تمامی مراحل از طریق پنل کاربری.</p>
           </div>
-
         </div>
       </section>
     </div>
