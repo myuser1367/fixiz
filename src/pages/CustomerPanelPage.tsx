@@ -18,8 +18,8 @@ interface RepairRequest {
 }
 
 export default function CustomerPanelPage() {
-  const { profile, logout } = useAuth();
-  const navigate = useNavigate();
+const { profile, session, logout } = useAuth(); // اضافه کردن session
+    const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'list' | 'new'>('list');
   const [requests, setRequests] = useState<RepairRequest[]>([]);
@@ -96,9 +96,9 @@ export default function CustomerPanelPage() {
     setIsLoading(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    try {
+   try {
       const { error } = await supabase.from('repair_requests').insert({
-        customer_id: profile?.id,
+        customer_id: session?.user?.id, // این خط تغییر کرد
         tracking_code: trackingCode,
         device_name: formData.device_name,
         brand: formData.brand,

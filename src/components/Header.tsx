@@ -26,12 +26,12 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
     }
   };
 
-  const handleDashboardClick = () => {
+ const handleDashboardClick = () => {
     if (!session) {
       navigate('/login');
       return;
     }
-    navigate('/customer-panel'); // هدایت به پنل مشتری
+    navigate('/panel');
   };
 
   return (
