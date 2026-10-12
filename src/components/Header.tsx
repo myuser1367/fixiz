@@ -10,11 +10,8 @@ interface HeaderProps {
 
 export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  // متغیر unused profile از اینجا حذف شد تا خطای بیلد برطرف شود
-  const { session, logout, role } = useAuth();
+  const { session, logout } = useAuth();
   const navigate = useNavigate();
-
-  const isAdmin = role === 'admin';
 
   const navItems = [
     { id: 'home', label: 'خانه', icon: Home },
@@ -34,7 +31,7 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
       navigate('/login');
       return;
     }
-    navigate('/panel');
+    navigate('/customer-panel'); // هدایت به پنل مشتری
   };
 
   return (
@@ -53,8 +50,8 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
             <span className="text-2xl font-extrabold text-slate-800">فیکسیز</span>
           </button>
 
-          {/* منوی دسکتاپ */}
-          <nav className="hidden md:flex items-center gap-1">
+          {/* منوی دسکتاپ با فاصله مناسب بین گزینه‌ها */}
+          <nav className="hidden md:flex items-center gap-4">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentPage === item.id;
@@ -95,7 +92,7 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
                   className="flex items-center gap-2 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all duration-200 bg-brand-primary hover:bg-brand-600 shadow-md shadow-brand-primary/20"
                 >
                   <LayoutDashboard className="w-4 h-4" />
-                  <span>{isAdmin ? 'پنل مدیریت' : 'پنل کاربری'}</span>
+                  <span>ورود به پنل</span>
                 </button>
                 <button
                   onClick={logout}

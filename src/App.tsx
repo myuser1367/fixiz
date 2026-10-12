@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import { CustomerPanelPage } from './pages/CustomerPanelPage'; // اضافه کردن ایمپورت پنل مشتری
 
 const DashboardRouter = () => {
   const { role, isLoading } = useAuth();
@@ -13,7 +14,7 @@ const DashboardRouter = () => {
 
   switch (role) {
     case 'admin': return <AdminDashboardPage />;
-    case 'customer': return <div className="p-10 text-center font-bold font-sans text-xl mt-10 text-slate-700">محیط پنل کاربری مشتری</div>;
+    case 'customer': return <CustomerPanelPage />; // هدایت نقش مشتری به صفحه پنل مشتری
     case 'coordinator': return <div className="p-10 text-center font-bold font-sans text-xl mt-10 text-green-600">محیط پنل هماهنگ‌کننده</div>;
     case 'supervisor': return <div className="p-10 text-center font-bold font-sans text-xl mt-10 text-orange-600">محیط پنل سرپرست تعمیر</div>;
     case 'ceo': return <div className="p-10 text-center font-bold font-sans text-xl mt-10 text-purple-600">محیط پنل مدیرعامل</div>;
