@@ -1,3 +1,77 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    direction: rtl;
+  }
+}
+
+@layer components {
+  /* دکمه اصلی فیروزه‌ای با افکت سایه سه‌بعدی جذاب */
+  .btn-primary {
+    @apply bg-brand-primary hover:bg-brand-500 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-[0_4px_14px_0_rgba(13,148,136,0.39)] hover:shadow-[0_6px_20px_rgba(13,148,136,0.23)] hover:-translate-y-0.5;
+  }
+
+  /* دکمه سرمه‌ای برای بخش‌های مدیریتی */
+  .btn-dark {
+    @apply bg-brand-dark hover:bg-brand-navy text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5;
+  }
+
+  /* دکمه توخالی */
+  .btn-outline {
+    @apply border-2 border-brand-primary text-brand-primary hover:bg-brand-50 font-bold px-6 py-3 rounded-xl transition-all duration-300;
+  }
+
+  /* کارت‌های استاندارد سامانه */
+  .card {
+    @apply bg-white rounded-2xl shadow-card hover:shadow-lg transition-all duration-300 border border-slate-100;
+  }
+
+  /* فیلدهای ورودی فرم‌ها */
+  .input-field {
+    @apply w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all duration-200 bg-white text-slate-800;
+  }
+
+  /* افکت شیشه‌ای برای مدال‌ها و هدر */
+  .glass-effect {
+    @apply bg-white/80 backdrop-blur-lg border-b border-slate-200/50;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-l from-brand-400 to-brand-600;
+  }
+}
+
+/* انیمیشن‌های نرم و روان */
+@keyframes slideUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* اسکرول‌بار سفارشی و مدرن (همرنگ فیروزه‌ای در زمان هاور) */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #0d9488; }
