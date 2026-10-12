@@ -1,8 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import toast from 'react-hot-toast';
 
-const OTP_EXPIRY_MINUTES = 5;
 export type Role = 'customer' | 'coordinator' | 'supervisor' | 'ceo' | 'commercial' | 'finance' | 'admin' | null;
 
 export interface UserProfile {
@@ -38,9 +36,8 @@ function formatForSupabaseAuth(mobile: string): string {
   if (digits.startsWith('98') && digits.length === 12) return '+' + digits;
   if (digits.startsWith('098') && digits.length === 13) return '+' + digits.slice(1);
   if (digits.startsWith('+98') && digits.length === 13) return digits;
-  // فرض بر این است که اگر هیچکدام نبود و 10 رقم بود، بدون صفر وارد شده
   if (digits.length === 10) return '+98' + digits;
-  return '+' + digits; // Fallback
+  return '+' + digits;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -69,13 +66,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }).select().single();
         
         if (insertError) {
-           console.error("Error creating profile:", insertError);
-           return;
+          console.error("Error creating profile:", insertError);
+          return;
         }
         setProfile(newProfile as UserProfile);
       }
     } catch (err) {
-       console.error("Unexpected error in fetchProfile:", err);
+      console.error("Unexpected error in fetchProfile:", err);
     }
   };
 
@@ -114,8 +111,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(error.message || 'خطا در ارسال کد. لطفاً دوباره تلاش کنید.');
     }
     
-    // در این روش ما کدی برنمی‌گردانیم چون کد واقعی پیامک می‌شود. 
-    // برای محیط تست در Supabase معمولاً کد روی 123456 تنظیم می‌شود (در تنظیمات Supabase)
     return "SENT"; 
   }, []);
   
@@ -134,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     if (!data.session) {
-       throw new Error('نشست ایجاد نشد. لطفاً دوباره تلاش کنید.');
+      throw new Error('نشست ایجاد نشد. لطفاً دوباره تلاش کنید.');
     }
   }, []);
 
@@ -149,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!pData) {
       const { data: newP } = await supabase.from('profiles').insert({
         id: data.user.id,
-        phone: '09123456789', // شماره پیش‌فرض برای پرسنلی که شماره ندارند
+        phone: '09123456789',
         role: username.toLowerCase().trim() === 'admin' ? 'admin' : 'coordinator',
         is_first_login: false
       }).select().single();
@@ -161,25 +156,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const sendPersonnelOtp = async () => {
-    // ... این بخش برای پرسنل فعلاً تغییری نمی‌کند
     throw new Error('این بخش در حال توسعه است');
   };
 
-  const completePersonnelFirstLogin = async (code: string, newPassword: string) => {
-    // ... این بخش برای پرسنل فعلاً تغییری نمی‌کند
-     throw new Error('این بخش در حال توسعه است');
+  const completePersonnelFirstLogin = async (_code: string, _newPassword: string) => {
+    throw new Error('این بخش در حال توسعه است');
   };
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
-    setSession(null); setProfile(null);
+    setSession(null); 
+    setProfile(null);
   }, []);
 
   return (
     <AuthContext.Provider value={{ 
-      session, profile, isLoading, role: profile?.role || null, 
-      sendCustomerOtp, verifyCustomerOtp, 
-      personnelLogin, sendPersonnelOtp, completePersonnelFirstLogin, logout 
+      session, 
+      profile, 
+      isLoading, 
+      role: profile?.role || null, 
+      sendCustomerOtp, 
+      verifyCustomerOtp, 
+      personnelLogin, 
+      sendPersonnelOtp, 
+      completePersonnelFirstLogin, 
+      logout 
     }}>
       {children}
     </AuthContext.Provider>
