@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { useAuth } from '../context/AuthContext';
-import { Plus, FileText, Clock, CheckCircle2, AlertCircle, Trash2, Edit3, ShieldAlert, Wrench, Check, X } from 'lucide-react';
+import { Plus, FileText, CheckCircle2, AlertCircle, Trash2, Edit3, Wrench } from 'lucide-react';
 
 interface RepairRequest {
   id: string;
@@ -18,7 +17,6 @@ interface RepairRequest {
 
 export function CustomerPanelPage() {
   const { session } = useAuth();
-  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'requests' | 'new'>('requests');
   const [successMessage, setSuccessMessage] = useState('');
@@ -133,7 +131,7 @@ export function CustomerPanelPage() {
 
         {/* پیام موفقیت */}
         {successMessage && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-3 shadow-sm animate-bounce-short">
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-3 shadow-sm">
             <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
             <span className="font-medium text-sm sm:text-base">{successMessage}</span>
           </div>
