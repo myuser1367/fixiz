@@ -10,7 +10,6 @@ interface RepairRequest {
   tracking_code: string;
   device_info: string;
   brand: string;
-  serial_number: string;
   fault_description: string;
   needs_price_estimate: boolean;
   status: string;
@@ -30,11 +29,11 @@ export default function CustomerPanelPage() {
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [companyName, setCompanyName] = useState('');
 
-  // فرم ثبت درخواست (طبق نام‌گذاری دیتابیس شما)
+  // فرم ثبت درخواست
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
-    serial_number: '',
+    serial_number: '', // این فیلد فقط در ظاهر فرم می‌ماند اما به دیتابیس ارسال نمی‌شود تا ارور ندهد
     fault_description: '',
     needs_price_estimate: false,
   });
@@ -109,6 +108,11 @@ export default function CustomerPanelPage() {
     setIsLoading(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
 
+    // اگر کاربر شماره سریال وارد کرده بود، آن را به شرح مشکل اضافه می‌کنیم تا گم نشود
+    const finalDescription = formData.serial_number 
+      ? `[شماره سریال: ${formData.serial_number}]\n${formData.fault_description}` 
+      : formData.fault_description;
+
     try {
       const { error } = await supabase.from('repair_requests').insert([
         {
@@ -116,8 +120,7 @@ export default function CustomerPanelPage() {
           tracking_code: trackingCode,
           device_info: formData.device_info,
           brand: formData.brand,
-          serial_number: formData.serial_number,
-          fault_description: formData.fault_description,
+          fault_description: finalDescription,
           needs_price_estimate: formData.needs_price_estimate,
           status: 'pending_coordinator'
         }
