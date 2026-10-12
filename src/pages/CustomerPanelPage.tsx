@@ -8,17 +8,17 @@ import toast from 'react-hot-toast';
 interface RepairRequest {
   id: string;
   tracking_code: string;
-  device_name: string;
+  device_info: string;
   brand: string;
   serial_number: string;
-  problem_desc: string;
-  needs_estimate: boolean;
+  fault_description: string;
+  needs_price_estimate: boolean;
   status: string;
   created_at: string;
 }
 
 export default function CustomerPanelPage() {
-  const { profile, logout } = useAuth(); // session برداشته شد چون نیازی نیست
+  const { profile, logout } = useAuth();
   const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'list' | 'new'>('list');
@@ -30,13 +30,13 @@ export default function CustomerPanelPage() {
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [companyName, setCompanyName] = useState('');
 
-  // فرم ثبت درخواست
+  // فرم ثبت درخواست (طبق نام‌گذاری دیتابیس شما)
   const [formData, setFormData] = useState({
-    device_name: '',
+    device_info: '',
     brand: '',
     serial_number: '',
-    problem_desc: '',
-    needs_estimate: false,
+    fault_description: '',
+    needs_price_estimate: false,
   });
 
   useEffect(() => {
@@ -98,12 +98,11 @@ export default function CustomerPanelPage() {
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // اعتبارسنجی مهم قبل از ثبت
     if (!profile?.id) {
-      return toast.error('خطا: شناسه کاربری شما یافت نشد. لطفاً دوباره وارد شوید.');
+      return toast.error('خطا: شناسه کاربری یافت نشد. لطفاً دوباره وارد شوید.');
     }
     
-    if (!formData.device_name || !formData.problem_desc) {
+    if (!formData.device_info || !formData.fault_description) {
       return toast.error('نام دستگاه و شرح مشکل الزامی است');
     }
     
@@ -113,21 +112,21 @@ export default function CustomerPanelPage() {
     try {
       const { error } = await supabase.from('repair_requests').insert([
         {
-          customer_id: profile.id, // در اینجا از profile.id استفاده می‌کنیم که مطمئنیم وجود دارد
+          customer_id: profile.id,
           tracking_code: trackingCode,
-          device_name: formData.device_name,
+          device_info: formData.device_info,
           brand: formData.brand,
           serial_number: formData.serial_number,
-          problem_desc: formData.problem_desc,
-          needs_estimate: formData.needs_estimate,
-          status: 'registered'
+          fault_description: formData.fault_description,
+          needs_price_estimate: formData.needs_price_estimate,
+          status: 'pending_coordinator'
         }
-      ]); // دقت کنید که دیتای insert را داخل براکت [] قرار دادم که استاندارد سوپابیس است
+      ]);
 
       if (error) throw error;
       
       toast.success(`درخواست شما با کد پیگیری ${trackingCode} ثبت شد`);
-      setFormData({ device_name: '', brand: '', serial_number: '', problem_desc: '', needs_estimate: false });
+      setFormData({ device_info: '', brand: '', serial_number: '', fault_description: '', needs_price_estimate: false });
       setActiveTab('list');
       fetchRequests();
     } catch (error: any) {
@@ -153,7 +152,7 @@ export default function CustomerPanelPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'registered': return <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> ثبت اولیه</span>;
+      case 'pending_coordinator': return <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> ثبت اولیه</span>;
       case 'accepted': return <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> پذیرش شده</span>;
       case 'rejected': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> عدم پذیرش</span>;
       case 'repairing': return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Loader2 size={14} className="animate-spin"/> در حال تعمیر</span>;
@@ -217,7 +216,7 @@ export default function CustomerPanelPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">اسم قطعه یا دستگاه <span className="text-red-500">*</span></label>
-                  <input type="text" required value={formData.device_name} onChange={e => setFormData({...formData, device_name: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: درایو موتور زیمنس" />
+                  <input type="text" required value={formData.device_info} onChange={e => setFormData({...formData, device_info: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: درایو موتور زیمنس" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">برند سازنده</label>
@@ -229,15 +228,15 @@ export default function CustomerPanelPage() {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-2">شرح کامل مشکل <span className="text-red-500">*</span></label>
-                  <textarea required rows={4} value={formData.problem_desc} onChange={e => setFormData({...formData, problem_desc: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors resize-none" placeholder="لطفاً مشکل دستگاه را به صورت کامل و دقیق توضیح دهید..." />
+                  <textarea required rows={4} value={formData.fault_description} onChange={e => setFormData({...formData, fault_description: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors resize-none" placeholder="لطفاً مشکل دستگاه را به صورت کامل و دقیق توضیح دهید..." />
                 </div>
               </div>
 
               <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
-                <input type="checkbox" id="estimate" checked={formData.needs_estimate} onChange={e => setFormData({...formData, needs_estimate: e.target.checked})} className="mt-1 w-5 h-5 rounded text-brand-primary focus:ring-brand-primary" />
+                <input type="checkbox" id="estimate" checked={formData.needs_price_estimate} onChange={e => setFormData({...formData, needs_price_estimate: e.target.checked})} className="mt-1 w-5 h-5 rounded text-brand-primary focus:ring-brand-primary" />
                 <div>
                   <label htmlFor="estimate" className="font-bold text-amber-900 block cursor-pointer">نیاز به برآورد قیمت پیش از تعمیر دارم</label>
-                  <p className="text-sm text-amber-700 mt-1">با انتخاب این گزینه،  پیش از پذیرش نهایی، هزینه حدودی را برای شما ارسال می‌کند تا در صورت تایید، فرآیند تعمیر آغاز شود.</p>
+                  <p className="text-sm text-amber-700 mt-1">با انتخاب این گزینه، هماهنگ‌کننده پیش از پذیرش نهایی، هزینه حدودی را برای شما ارسال می‌کند تا در صورت تایید، فرآیند تعمیر آغاز شود.</p>
                 </div>
               </div>
 
@@ -262,7 +261,7 @@ export default function CustomerPanelPage() {
                 <div key={req.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-hover hover:border-brand-300">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <h4 className="text-lg font-bold text-slate-800">{req.device_name}</h4>
+                      <h4 className="text-lg font-bold text-slate-800">{req.device_info}</h4>
                       {getStatusBadge(req.status)}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-slate-500">
@@ -270,15 +269,15 @@ export default function CustomerPanelPage() {
                       <span>{req.brand || 'بدون برند'}</span>
                       <span dir="ltr">{new Date(req.created_at).toLocaleDateString('fa-IR')}</span>
                     </div>
-                    <p className="text-sm text-slate-600 line-clamp-2 mt-2">{req.problem_desc}</p>
-                    {req.needs_estimate && (
+                    <p className="text-sm text-slate-600 line-clamp-2 mt-2">{req.fault_description}</p>
+                    {req.needs_price_estimate && (
                       <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-md font-bold mt-1">
                         <AlertCircle size={14} /> درخواست برآورد قیمت
                       </span>
                     )}
                   </div>
                   
-                  {req.status === 'registered' && (
+                  {req.status === 'pending_coordinator' && (
                     <div className="flex items-center gap-2 md:flex-col shrink-0">
                       <button className="flex-1 md:w-full px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-bold flex justify-center items-center gap-2 transition-colors">
                         <Edit size={16} /> ویرایش
