@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { LogIn, CheckCircle, ShieldCheck, Clock, Settings, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { LogIn, CheckCircle, ShieldCheck, Clock, Settings, ArrowLeft, LayoutDashboard, LogOut } from 'lucide-react';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { session, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
@@ -23,26 +25,47 @@ export default function HomePage() {
             <a href="#" className="hover:text-brand-primary transition-colors">پیگیری سفارش</a>
           </div>
 
-          {/* دکمه ورود */}
-          <button 
-            onClick={() => navigate('/login')}
-            className="btn-outline flex items-center gap-2 animate-fade-in"
-          >
-            ورود / ثبت‌نام
-            <LogIn size={20} />
-          </button>
+          {/* دکمه‌های هدر بر اساس وضعیت لاگین */}
+          <div className="flex items-center gap-3 animate-fade-in">
+            {session ? (
+              <>
+                <button 
+                  onClick={() => navigate('/panel')}
+                  className="btn-primary flex items-center gap-2 text-sm py-2.5 px-5"
+                >
+                  <LayoutDashboard size={18} />
+                  پنل مدیریت
+                </button>
+                <button 
+                  onClick={() => logout()}
+                  className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 font-bold px-4 py-2.5 rounded-xl transition-all text-sm"
+                  title="خروج از حساب"
+                >
+                  <LogOut size={18} />
+                  خروج
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={() => navigate('/login')}
+                className="btn-outline flex items-center gap-2 text-sm py-2.5 px-5"
+              >
+                ورود / ثبت‌نام
+                <LogIn size={18} />
+              </button>
+            )}
+          </div>
+
         </div>
       </header>
 
       {/* بخش اصلی (Hero) - سرمه‌ای تیره */}
       <main className="relative bg-brand-dark overflow-hidden">
-        {/* پترن نقطه‌ای پس‌زمینه برای زیبایی */}
         <div 
           className="absolute inset-0 opacity-10" 
           style={{ backgroundImage: 'radial-gradient(#2dd4bf 2px, transparent 2px)', backgroundSize: '32px 32px' }}
         ></div>
         
-        {/* موج پایین صفحه (SVG Wave) */}
         <div className="absolute bottom-0 w-full overflow-hidden leading-[0]">
           <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto text-slate-50 relative top-[1px]">
             <path d="M0 120L1440 120V0C1440 0 1140 100 720 100C300 100 0 0 0 0V120Z" fill="currentColor" />
@@ -50,8 +73,6 @@ export default function HomePage() {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 py-32 sm:py-40 text-center z-10 animate-slide-up">
-          
-          {/* عنوان اصلی بدون متن اضافه */}
           <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-6 leading-tight">
             سامانه جامع <span className="text-brand-light text-gradient">مدیریت تعمیرات</span>
           </h1>
@@ -60,13 +81,12 @@ export default function HomePage() {
             از ثبت درخواست تا برآورد هزینه و تحویل کالا، همه چیز را کاملاً آنلاین، شفاف و سریع مدیریت و پیگیری کنید.
           </p>
           
-          {/* دکمه‌های فراخوان (CTA) */}
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button 
-              onClick={() => navigate('/login')} 
+              onClick={() => navigate(session ? '/panel' : '/login')} 
               className="btn-primary flex justify-center items-center gap-2 text-lg px-8 py-4"
             >
-              ورود به سامانه
+              {session ? 'ورود به پنل کاربری' : 'ورود به سامانه'}
               <ArrowLeft size={20} />
             </button>
           </div>
