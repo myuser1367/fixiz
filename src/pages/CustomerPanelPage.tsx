@@ -218,7 +218,7 @@ export default function CustomerPanelPage() {
                 <input type="checkbox" id="estimate" checked={formData.needs_estimate} onChange={e => setFormData({...formData, needs_estimate: e.target.checked})} className="mt-1 w-5 h-5 rounded text-brand-primary focus:ring-brand-primary" />
                 <div>
                   <label htmlFor="estimate" className="font-bold text-amber-900 block cursor-pointer">نیاز به برآورد قیمت پیش از تعمیر دارم</label>
-                  <p className="text-sm text-amber-700 mt-1">با انتخاب این گزینه، هماهنگ‌کننده پیش از پذیرش نهایی، هزینه حدودی را برای شما ارسال می‌کند تا در صورت تایید، فرآیند تعمیر آغاز شود.</p>
+                  <p className="text-sm text-amber-700 mt-1">با انتخاب این گزینه،  پیش از پذیرش نهایی، هزینه حدودی را برای شما ارسال می‌کند تا در صورت تایید، فرآیند تعمیر آغاز شود.</p>
                 </div>
               </div>
 
