@@ -23,7 +23,7 @@ export default function HomePage() {
             <a href="#" className="hover:text-brand-primary transition-colors">پیگیری سفارش</a>
           </div>
 
-          {/* دکمه ورود (استفاده از کلاس btn-outline که ساختیم) */}
+          {/* دکمه ورود */}
           <button 
             onClick={() => navigate('/login')}
             className="btn-outline flex items-center gap-2 animate-fade-in"
@@ -86,3 +86,34 @@ export default function HomePage() {
             </div>
             <h3 className="text-xl font-bold mb-3 text-slate-800">ثبت سریع و آسان</h3>
             <p className="text-slate-500 leading-relaxed">
+              درخواست تعمیر خود را به سادگی و در کمتر از یک دقیقه در سامانه ثبت کنید.
+            </p>
+          </div>
+          
+          {/* کارت ۲ */}
+          <div className="card p-8 flex flex-col items-center text-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <div className="bg-brand-50 text-brand-600 p-4 rounded-2xl mb-6">
+              <ShieldCheck size={40} />
+            </div>
+            <h3 className="text-xl font-bold mb-3 text-slate-800">شفافیت در هزینه</h3>
+            <p className="text-slate-500 leading-relaxed">
+              دریافت برآورد دقیق قیمت و مشاهده قطعات مصرفی پیش از شروع فرآیند تعمیر.
+            </p>
+          </div>
+          
+          {/* کارت ۳ */}
+          <div className="card p-8 flex flex-col items-center text-center animate-slide-up" style={{ animationDelay: '0.3s' }}>
+            <div className="bg-indigo-50 text-indigo-600 p-4 rounded-2xl mb-6">
+              <CheckCircle size={40} />
+            </div>
+            <h3 className="text-xl font-bold mb-3 text-slate-800">پیگیری لحظه‌ای</h3>
+            <p className="text-slate-500 leading-relaxed">
+              مشاهده وضعیت لحظه به لحظه دستگاه در تمامی مراحل از طریق پنل کاربری.
+            </p>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  );
+}
