@@ -18,8 +18,8 @@ interface RepairRequest {
 }
 
 export default function CustomerPanelPage() {
-const { profile, session, logout } = useAuth(); // اضافه کردن session
-    const navigate = useNavigate();
+  const { profile, logout } = useAuth(); // session برداشته شد چون نیازی نیست
+  const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'list' | 'new'>('list');
   const [requests, setRequests] = useState<RepairRequest[]>([]);
@@ -50,17 +50,21 @@ const { profile, session, logout } = useAuth(); // اضافه کردن session
   }, [profile]);
 
   const fetchRequests = async () => {
+    if (!profile?.id) return;
+    
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('repair_requests')
         .select('*')
-        .eq('customer_id', profile?.id)
+        .eq('customer_id', profile.id)
         .order('created_at', { ascending: false });
+        
       if (error) throw error;
       setRequests(data || []);
     } catch (error: any) {
       toast.error('خطا در دریافت لیست درخواست‌ها');
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -68,13 +72,16 @@ const { profile, session, logout } = useAuth(); // اضافه کردن session
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!profile?.id) return;
     if (!fullName) return toast.error('نام و نام خانوادگی الزامی است');
+    
     try {
       setIsLoading(true);
       const { error } = await supabase
         .from('profiles')
         .update({ full_name: fullName, company_name: companyName })
-        .eq('id', profile?.id);
+        .eq('id', profile.id);
+        
       if (error) throw error;
       toast.success('اطلاعات شما با موفقیت ثبت شد');
       setShowProfileModal(false);
@@ -82,6 +89,7 @@ const { profile, session, logout } = useAuth(); // اضافه کردن session
       window.location.reload();
     } catch (error) {
       toast.error('خطا در ثبت اطلاعات');
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -89,6 +97,12 @@ const { profile, session, logout } = useAuth(); // اضافه کردن session
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // اعتبارسنجی مهم قبل از ثبت
+    if (!profile?.id) {
+      return toast.error('خطا: شناسه کاربری شما یافت نشد. لطفاً دوباره وارد شوید.');
+    }
+    
     if (!formData.device_name || !formData.problem_desc) {
       return toast.error('نام دستگاه و شرح مشکل الزامی است');
     }
@@ -96,25 +110,29 @@ const { profile, session, logout } = useAuth(); // اضافه کردن session
     setIsLoading(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
 
-   try {
-      const { error } = await supabase.from('repair_requests').insert({
-        customer_id: session?.user?.id, // این خط تغییر کرد
-        tracking_code: trackingCode,
-        device_name: formData.device_name,
-        brand: formData.brand,
-        serial_number: formData.serial_number,
-        problem_desc: formData.problem_desc,
-        needs_estimate: formData.needs_estimate,
-        status: 'registered'
-      });
+    try {
+      const { error } = await supabase.from('repair_requests').insert([
+        {
+          customer_id: profile.id, // در اینجا از profile.id استفاده می‌کنیم که مطمئنیم وجود دارد
+          tracking_code: trackingCode,
+          device_name: formData.device_name,
+          brand: formData.brand,
+          serial_number: formData.serial_number,
+          problem_desc: formData.problem_desc,
+          needs_estimate: formData.needs_estimate,
+          status: 'registered'
+        }
+      ]); // دقت کنید که دیتای insert را داخل براکت [] قرار دادم که استاندارد سوپابیس است
 
       if (error) throw error;
+      
       toast.success(`درخواست شما با کد پیگیری ${trackingCode} ثبت شد`);
       setFormData({ device_name: '', brand: '', serial_number: '', problem_desc: '', needs_estimate: false });
       setActiveTab('list');
       fetchRequests();
-    } catch (error) {
-      toast.error('خطا در ثبت درخواست');
+    } catch (error: any) {
+      console.error("Supabase Insert Error:", error);
+      toast.error(error.message || 'خطا در ثبت درخواست');
     } finally {
       setIsLoading(false);
     }
@@ -129,6 +147,7 @@ const { profile, session, logout } = useAuth(); // اضافه کردن session
       fetchRequests();
     } catch (error) {
       toast.error('خطا در حذف درخواست');
+      console.error(error);
     }
   };
 
