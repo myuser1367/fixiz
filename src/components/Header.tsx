@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, Phone, Home, Package, FileText, MapPin, LogIn, LayoutDashboard, LogOut, Settings } from 'lucide-react';
+import { Menu, X, Phone, Home, MapPin, LogIn, LayoutDashboard, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
@@ -10,16 +10,15 @@ interface HeaderProps {
 
 export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { session, logout, role } = useAuth();
+  const { session, profile, logout, role } = useAuth();
   const navigate = useNavigate();
 
   const isAdmin = role === 'admin';
 
+  // فقط گزینه‌های خانه و پیگیری درخواست
   const navItems = [
     { id: 'home', label: 'خانه', icon: Home },
-    { id: 'catalog', label: 'فهرست قطعات/خدمات', icon: Package },
-    { id: 'rfq', label: 'استعلام قیمت', icon: FileText },
-    { id: 'tracking', label: 'پیگیری سفارش', icon: MapPin },
+    { id: 'tracking', label: 'پیگیری درخواست', icon: MapPin },
   ] as const;
 
   const handleNavigate = (id: string) => {
