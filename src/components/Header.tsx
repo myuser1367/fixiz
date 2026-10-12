@@ -10,12 +10,12 @@ interface HeaderProps {
 
 export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { session, profile, logout, role } = useAuth();
+  // متغیر unused profile از اینجا حذف شد تا خطای بیلد برطرف شود
+  const { session, logout, role } = useAuth();
   const navigate = useNavigate();
 
   const isAdmin = role === 'admin';
 
-  // فقط گزینه‌های خانه و پیگیری درخواست
   const navItems = [
     { id: 'home', label: 'خانه', icon: Home },
     { id: 'tracking', label: 'پیگیری درخواست', icon: MapPin },
