@@ -2,8 +2,6 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from '../lib/supabase';
 
 const OTP_EXPIRY_MINUTES = 5;
-
-// تعریف ۷ نقش دقیق پروژه
 export type Role = 'customer' | 'coordinator' | 'supervisor' | 'ceo' | 'commercial' | 'finance' | 'admin' | null;
 
 export interface UserProfile {
@@ -19,14 +17,19 @@ interface AuthContextType {
   profile: UserProfile | null;
   isLoading: boolean;
   role: Role;
-  sendOtp: (mobile: string) => Promise<string | undefined>;
-  verifyOtp: (mobile: string, code: string) => Promise<void>;
+  // توابع مشتری
+  sendCustomerOtp: (mobile: string) => Promise<string>;
+  verifyCustomerOtp: (mobile: string, code: string) => Promise<void>;
+  // توابع پرسنل
+  personnelLogin: (username: string, password: string) => Promise<UserProfile>;
+  sendPersonnelOtp: () => Promise<string>;
+  completePersonnelFirstLogin: (code: string, newPassword: string) => Promise<void>;
+  // خروج
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// تابع استانداردسازی شماره موبایل
 function formatForSupabaseAuth(mobile: string): string {
   const digits = mobile.replace(/\D/g, '');
   if (digits.startsWith('09') && digits.length === 11) return '98' + digits.slice(1);
@@ -40,21 +43,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // واکشی پروفایل کاربر از دیتابیس برای تعیین نقش
   const fetchProfile = async (userId: string, phone: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-    
     if (data) {
       setProfile(data as UserProfile);
     } else {
-      // اگر کاربر جدید (مشتری) است، پروفایلش را بساز
       const { data: newProfile } = await supabase.from('profiles').insert({
-        id: userId,
-        phone: phone,
-        role: 'customer',
-        is_first_login: false
+        id: userId, phone: phone, role: 'customer', is_first_login: false
       }).select().single();
-      
       setProfile(newProfile as UserProfile);
     }
   };
@@ -63,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
+        // برای پرسنل، شماره موبایل در metadata ذخیره نمی‌شود، از خود پروفایل می‌خوانیم
         fetchProfile(session.user.id, session.user.phone || '');
       } else {
         setIsLoading(false);
@@ -78,66 +75,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
-  // ارسال OTP برای مشتریان
-  const sendOtp = useCallback(async (mobile: string): Promise<string | undefined> => {
+  // ---------------- توابع مشتری ----------------
+  const sendCustomerOtp = useCallback(async (mobile: string) => {
     const formattedMobile = formatForSupabaseAuth(mobile);
-    const code = Math.floor(1000 + Math.random() * 9000).toString(); // برای تست سریع. در حالت پروداکشن به کاوه‌نگار متصل می‌شود
-    
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
 
     await supabase.from('otp_sessions').delete().eq('phone', formattedMobile);
     await supabase.from('otp_sessions').insert({ phone: formattedMobile, otp_code: code, expires_at: expiresAt.toISOString() });
-
-    console.log(`کد تست برای ${formattedMobile} : ${code}`); // موقتا برای تست در کنسول نمایش داده می‌شود
     return code;
   }, []);
   
-  // تایید OTP
-  const verifyOtp = useCallback(async (mobile: string, code: string): Promise<void> => {
+  const verifyCustomerOtp = useCallback(async (mobile: string, code: string) => {
     const formattedMobile = formatForSupabaseAuth(mobile);
+    const { data, error } = await supabase.from('otp_sessions').select('*').eq('phone', formattedMobile).order('created_at', { ascending: false });
 
-    const { data, error } = await supabase
-      .from('otp_sessions')
-      .select('*')
-      .eq('phone', formattedMobile)
-      .order('created_at', { ascending: false });
+    if (error || !data || data.length === 0) throw new Error('کد تایید نامعتبر است');
+    if (data[0].otp_code !== code) throw new Error('کد تایید اشتباه است');
+    if (new Date(data[0].expires_at) < new Date()) throw new Error('کد منقضی شده است');
 
-    if (error || !data || data.length === 0) throw new Error('کد تایید منقضی شده یا نامعتبر است');
+    await supabase.from('otp_sessions').delete().eq('id', data[0].id);
     
-    const latestOtp = data[0];
-    if (latestOtp.otp_code !== code) throw new Error('کد تایید وارد شده اشتباه است');
-    if (new Date(latestOtp.expires_at) < new Date()) throw new Error('کد تایید منقضی شده است');
-
-    await supabase.from('otp_sessions').delete().eq('id', latestOtp.id);
-    
-    // لاگین در سوپابیس 
     const { error: signInError } = await supabase.auth.signInWithPassword({
-        phone: formattedMobile,
-        password: `FxZ@${formattedMobile}` 
+        phone: formattedMobile, password: `FxZ@${formattedMobile}` 
     });
-
     if (signInError) {
-        // اگر کاربر وجود نداشت ثبت نامش می‌کنیم
-        await supabase.auth.signUp({
-            phone: formattedMobile,
-            password: `FxZ@${formattedMobile}`
-        });
+        await supabase.auth.signUp({ phone: formattedMobile, password: `FxZ@${formattedMobile}` });
     }
   }, []);
 
+  // ---------------- توابع پرسنل ----------------
+  const personnelLogin = async (username: string, password: string) => {
+    const email = `${username.toLowerCase()}@fixiz.ir`;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
+
+    const { data: pData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+    return pData as UserProfile;
+  };
+
+  const sendPersonnelOtp = async () => {
+    if (!profile?.phone) throw new Error('شماره موبایلی برای شما ثبت نشده است');
+    const formattedMobile = formatForSupabaseAuth(profile.phone);
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
+
+    await supabase.from('otp_sessions').delete().eq('phone', formattedMobile);
+    await supabase.from('otp_sessions').insert({ phone: formattedMobile, otp_code: code, expires_at: expiresAt.toISOString() });
+    return code;
+  };
+
+  const completePersonnelFirstLogin = async (code: string, newPassword: string) => {
+    if (!profile) throw new Error('پروفایل یافت نشد');
+    const formattedMobile = formatForSupabaseAuth(profile.phone);
+    
+    // ۱. بررسی کد پیامکی
+    const { data, error } = await supabase.from('otp_sessions').select('*').eq('phone', formattedMobile).order('created_at', { ascending: false });
+    if (error || !data || data.length === 0) throw new Error('کد تایید نامعتبر است');
+    if (data[0].otp_code !== code) throw new Error('کد تایید اشتباه است');
+    
+    // ۲. بروزرسانی رمز عبور در سیستم احراز هویت
+    const { error: authErr } = await supabase.auth.updateUser({ password: newPassword });
+    if (authErr) throw new Error('خطا در ذخیره رمز عبور جدید');
+
+    // ۳. تغییر وضعیت اولین ورود در دیتابیس
+    await supabase.from('profiles').update({ is_first_login: false }).eq('id', profile.id);
+    await supabase.from('otp_sessions').delete().eq('id', data[0].id);
+    
+    setProfile({ ...profile, is_first_login: false });
+  };
+
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
-    setSession(null);
-    setProfile(null);
+    setSession(null); setProfile(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ session, profile, isLoading, role: profile?.role || null, sendOtp, verifyOtp, logout }}>
+    <AuthContext.Provider value={{ 
+      session, profile, isLoading, role: profile?.role || null, 
+      sendCustomerOtp, verifyCustomerOtp, 
+      personnelLogin, sendPersonnelOtp, completePersonnelFirstLogin, logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );
