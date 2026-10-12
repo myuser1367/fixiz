@@ -4,8 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
-import { CustomerPanelPage } from './pages/CustomerPanelPage'; // اضافه کردن ایمپورت پنل مشتری
-
+import CustomerPanelPage from './pages/CustomerPanelPage';
 const DashboardRouter = () => {
   const { role, isLoading } = useAuth();
   
