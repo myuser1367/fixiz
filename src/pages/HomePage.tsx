@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Header } from '../components/Header';
@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { session, profile, isLoading: authLoading, sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFirstLogin } = useAuth();
+  const { session, profile, sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFirstLogin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'customer' | 'personnel'>('customer');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,18 +22,6 @@ export default function HomePage() {
   const [persStep, setPersStep] = useState<'login' | 'otp' | 'first_login'>('login');
   const [persOtp, setPersOtp] = useState('');
   const [persNewPassword, setPersNewPassword] = useState('');
-
-  const initialCheckRef = useRef(false);
-
-  useEffect(() => {
-    if (!initialCheckRef.current && !authLoading) {
-      initialCheckRef.current = true;
-      if (session && profile && !profile.is_first_login) {
-        if (activeTab === 'personnel' && persStep !== 'login') return;
-        navigate('/panel');
-      }
-    }
-  }, [session, profile, authLoading, activeTab, persStep, navigate]);
 
   const handleCustSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +55,6 @@ export default function HomePage() {
     if (!persUsername || !persPassword) return toast.error('نام کاربری و رمز عبور الزامی است');
     setIsLoading(true);
     try {
-      // این متد فقط بررسی می‌کند که رمز درست است و آیا اولین ورود است یا خیر
       const { isFirstLogin } = await personnelLogin(persUsername, persPassword);
       
       if (isFirstLogin) {
@@ -90,7 +77,6 @@ export default function HomePage() {
     
     setIsLoading(true);
     try {
-      // چون رمز قبلاً در handlePersLoginStart تایید شده، فقط تایید نهایی را صادر می‌کنیم
       toast.success('ورود شما تایید شد');
       window.location.href = '/panel';
     } catch (error: any) { 
@@ -140,6 +126,17 @@ export default function HomePage() {
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
               سامانه جامع <span className="text-brand-light text-gradient block mt-2">مدیریت تعمیرات</span>
             </h1>
+            {/* اگر کاربر لاگین کرده باشد، دکمه میانبر برای رفتن به پنل را نشان می‌دهیم */}
+            {session && profile && (
+              <div className="mt-6">
+                <button 
+                  onClick={() => window.location.href = '/panel'} 
+                  className="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg transition-all inline-flex items-center gap-2"
+                >
+                  ورود به پنل کاربری <ArrowLeft size={18} />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.1s' }}>
