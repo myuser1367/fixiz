@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, X, Phone, Home, MapPin, Settings } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   currentPage?: string;
@@ -10,7 +9,6 @@ interface HeaderProps {
 
 export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { session } = useAuth();
   const navigate = useNavigate();
 
   const navItems = [
