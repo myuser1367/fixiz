@@ -26,17 +26,21 @@ export default function HomePage() {
   const [persOtp, setPersOtp] = useState('');
   const [persNewPassword, setPersNewPassword] = useState('');
 
-  // جلوگیری از ریدایرکت زودهنگام: فقط در اولین بارگذاری سایت اگر از قبل لاگین بودیم به پنل برویم
   const initialCheckRef = useRef(false);
 
+  // هدایت خودکار به پنل در صورت لاگین بودن قبلی
   useEffect(() => {
     if (!initialCheckRef.current && !authLoading) {
       initialCheckRef.current = true;
+      // اگر کاربر از قبل لاگین است و در حال تلاش برای ورود پرسنلی جدید نیست
       if (session && profile && !profile.is_first_login) {
-        navigate('/panel');
+         if (activeTab === 'personnel' && persStep !== 'login') {
+            return; // اجازه بده فرم OTP پرسنل روی صفحه بماند
+         }
+         navigate('/panel');
       }
     }
-  }, [session, profile, authLoading, navigate]);
+  }, [session, profile, authLoading, activeTab, persStep, navigate]);
 
   // --------------- توابع مشتری ---------------
   const handleCustSendOtp = async (e: React.FormEvent) => {
@@ -61,11 +65,11 @@ export default function HomePage() {
     try {
       await verifyCustomerOtp(custPhone, custOtp);
       toast.success('ورود موفقیت‌آمیز');
-      navigate('/panel');
+      // هدایت فوری و مستقیم برای مشتری
+      window.location.href = '/panel';
     } catch (error: any) { 
       toast.error(error.message); 
-    } finally { 
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
 
@@ -77,13 +81,11 @@ export default function HomePage() {
     try {
       const email = `${persUsername.toLowerCase().trim()}@fixiz.ir`;
       
-      // بررسی صحت نام کاربری و رمز در سوپابیس
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: persPassword });
       if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
       
       let isFirstLogin = false;
 
-      // بررسی وضعیت اولین ورود پرسنل
       const { data: pData } = await supabase.from('personnel_users').select('is_first_login').eq('username', persUsername.toLowerCase().trim()).maybeSingle();
       if (pData) {
         isFirstLogin = pData.is_first_login;
@@ -94,7 +96,6 @@ export default function HomePage() {
         }
       }
       
-      // انتقال به مرحله دریافت کد تایید بدون خروج از صفحه
       setPersStep(isFirstLogin ? 'first_login' : 'otp');
       toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
     } catch (error: any) { 
@@ -112,12 +113,11 @@ export default function HomePage() {
     setIsLoading(true);
     try {
       toast.success('ورود شما تایید شد');
-      navigate('/panel');
+      window.location.href = '/panel';
     } catch (error: any) { 
       toast.error('خطا در ورود به پنل'); 
-    } finally { 
-      setIsLoading(false); 
-    }
+      setIsLoading(false);
+    } 
   };
 
   const handlePersFirstLoginComplete = async (e: React.FormEvent) => {
@@ -133,12 +133,11 @@ export default function HomePage() {
       await supabase.from('personnel_users').update({ is_first_login: false }).eq('username', persUsername.toLowerCase().trim());
       
       toast.success('رمز عبور تغییر یافت و وارد شدید');
-      navigate('/panel');
+      window.location.href = '/panel';
     } catch (error: any) { 
       toast.error(error.message || 'خطا در عملیات'); 
-    } finally { 
-      setIsLoading(false); 
-    }
+      setIsLoading(false);
+    } 
   };
 
   const handleCancelPersonnelOtp = async () => {
@@ -285,7 +284,7 @@ export default function HomePage() {
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
-                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'بررسی و دریافت پیامک'} {!isLoading && <ArrowLeft size={18} />}
                   </button>
                 </form>
