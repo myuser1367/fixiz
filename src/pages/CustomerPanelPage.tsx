@@ -279,11 +279,11 @@ export default function CustomerPanelPage() {
           </div>
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => navigate('/')} 
-              className="flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl transition-colors"
-            >
-              <Home size={16} /> بازگشت به سایت
-            </button>
+  onClick={() => { window.location.href = '/'; }} 
+  className="flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl transition-colors"
+>
+  <Home size={16} /> بازگشت به سایت
+</button>
             <button 
               onClick={() => logout()} 
               className="flex items-center gap-1.5 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 px-3 py-2 rounded-xl transition-colors"

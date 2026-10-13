@@ -104,9 +104,12 @@ export default function CoordinatorPanelPage() {
             <button onClick={exportToCSV} className="flex items-center gap-1.5 text-xs sm:text-sm bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
               <FileSpreadsheet size={16} /> خروجی اکسل
             </button>
-            <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
-              <Home size={16} /> صفحه اصلی
-            </button>
+            <button 
+  onClick={() => { window.location.href = '/'; }} 
+  className="flex items-center gap-1.5 text-sm sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-bold transition-colors"
+>
+  <Home size={16} /> صفحه اصلی
+</button>
             <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-1.5 text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2.5 rounded-xl font-bold transition-colors">
               <LogOut size={16} /> خروج
             </button>
