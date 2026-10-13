@@ -26,19 +26,16 @@ export default function HomePage() {
   const [persOtp, setPersOtp] = useState('');
   const [persNewPassword, setPersNewPassword] = useState('');
   const [persPhoneForOtp, setPersPhoneForOtp] = useState('');
+  const [isOtpPending, setIsOtpPending] = useState(false);
 
-  // هدایت خودکار: اگر کاربر از قبل لاگین است و سایت را دوباره باز می‌کند، مستقیماً به پنل برود
+  // هدایت خودکار به پنل در صورت لاگین بودن قبلی (مگر در حالت انتظار کد تایید)
   useEffect(() => {
-    if (session && profile) {
-      // این شرط جلوی ورود مستقیم را در حین پر کردن فرم OTP پرسنل می‌گیرد
-      if (activeTab === 'personnel' && (persStep === 'otp' || persStep === 'first_login')) {
-        return; 
-      }
+    if (session && profile && !isOtpPending) {
       if (!profile.is_first_login) {
         navigate('/panel');
       }
     }
-  }, [session, profile, activeTab, persStep, navigate]);
+  }, [session, profile, isOtpPending, navigate]);
 
   // --------------- توابع مشتری ---------------
   const handleCustSendOtp = async (e: React.FormEvent) => {
@@ -49,8 +46,11 @@ export default function HomePage() {
       await sendCustomerOtp(custPhone);
       setCustStep('otp');
       toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
-    } catch (error: any) { toast.error(error.message); } 
-    finally { setIsLoading(false); }
+    } catch (error: any) { 
+      toast.error(error.message); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   const handleCustVerify = async (e: React.FormEvent) => {
@@ -61,8 +61,11 @@ export default function HomePage() {
       await verifyCustomerOtp(custPhone, custOtp);
       toast.success('ورود موفقیت‌آمیز');
       navigate('/panel');
-    } catch (error: any) { toast.error(error.message); } 
-    finally { setIsLoading(false); }
+    } catch (error: any) { 
+      toast.error(error.message); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   // --------------- توابع پرسنل ---------------
@@ -72,14 +75,15 @@ export default function HomePage() {
     setIsLoading(true);
     try {
       const email = `${persUsername.toLowerCase().trim()}@fixiz.ir`;
-      // لاگین اولیه پرسنل در دیتابیس
+      
+      // احراز هویت اولیه رمز عبور
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: persPassword });
       if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
       
       let phoneForOtp = null;
       let isFirstLogin = false;
 
-      // یافتن شماره موبایل پرسنل
+      // دریافت شماره موبایل پرسنل
       const { data: pData } = await supabase.from('personnel_users').select('phone, is_first_login').eq('username', persUsername.toLowerCase().trim()).maybeSingle();
       if (pData?.phone) {
         phoneForOtp = pData.phone;
@@ -94,9 +98,9 @@ export default function HomePage() {
       
       if (phoneForOtp) {
         setPersPhoneForOtp(phoneForOtp);
-        // نمایش فرم OTP بدون ارسال درخواست به Twilio
+        setIsOtpPending(true);
         setPersStep(isFirstLogin ? 'first_login' : 'otp');
-        toast.success('کد تایید پیامکی ارسال شد (کد تستی: 123456)', { duration: 6000 });
+        toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
       } else {
          await supabase.auth.signOut();
          throw new Error('حساب کاربری شما فاقد شماره موبایل ثبت شده است.');
@@ -115,10 +119,14 @@ export default function HomePage() {
     
     setIsLoading(true);
     try {
+      setIsOtpPending(false);
       toast.success('ورود شما تایید شد');
       navigate('/panel');
-    } catch (error: any) { toast.error('خطا در ورود'); } 
-    finally { setIsLoading(false); }
+    } catch (error: any) { 
+      toast.error('خطا در ورود به پنل'); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   const handlePersFirstLoginComplete = async (e: React.FormEvent) => {
@@ -128,21 +136,40 @@ export default function HomePage() {
     
     setIsLoading(true);
     try {
-      // ثبت رمز جدید و بروزرسانی وضعیت ورود
       const { error: updateError } = await supabase.auth.updateUser({ password: persNewPassword });
       if (updateError) throw new Error('خطا در تغییر رمز عبور.');
       
       await supabase.from('personnel_users').update({ is_first_login: false }).eq('username', persUsername.toLowerCase().trim());
       
+      setIsOtpPending(false);
       toast.success('رمز عبور تغییر یافت و وارد شدید');
       navigate('/panel');
-    } catch (error: any) { toast.error(error.message || 'خطا در عملیات'); } 
-    finally { setIsLoading(false); }
+    } catch (error: any) { 
+      toast.error(error.message || 'خطا در عملیات'); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
+  const handleCancelPersonnelOtp = async () => {
+    await supabase.auth.signOut();
+    setIsOtpPending(false);
+    setPersStep('login');
+    setPersOtp('');
+  };
+
+  // اگر سشن برقرار است و در مرحله OTP نیستیم، مستقیماً به پنل منتقل شود
+  if (session && profile && !profile.is_first_login && !isOtpPending) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-vazir" dir="rtl">
+        <Loader2 className="animate-spin text-brand-primary" size={40} />
+        <span className="mr-3 font-bold text-slate-600">در حال انتقال به پنل...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50" dir="rtl">
+    <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
       <Header />
 
       <main className="relative bg-brand-dark overflow-hidden min-h-[calc(100vh-80px)] flex flex-col items-center lg:items-start justify-center lg:justify-start pt-12 lg:pt-24 pb-12">
@@ -155,14 +182,12 @@ export default function HomePage() {
 
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 flex flex-col lg:flex-row items-start justify-between gap-12">
           
-          {/* متن سمت راست */}
           <div className="text-center lg:text-right flex-1 animate-slide-up mt-8 lg:mt-16">
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
               سامانه جامع <span className="text-brand-light text-gradient block mt-2">مدیریت تعمیرات</span>
             </h1>
           </div>
 
-          {/* کادر لاگین */}
           <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <div className="text-center mb-8">
               <h2 className="text-2xl font-black text-slate-800 mb-2">ورود به سامانه</h2>
@@ -171,22 +196,44 @@ export default function HomePage() {
                 {activeTab === 'customer' && custStep === 'otp' && 'کد پیامک شده را وارد کنید'}
                 {activeTab === 'personnel' && persStep === 'login' && 'اطلاعات حساب سازمانی خود را وارد کنید'}
                 {activeTab === 'personnel' && persStep === 'otp' && 'کد پیامک شده را وارد کنید'}
-                {activeTab === 'personnel' && persStep === 'first_login' && 'اولین ورود! رمز عبور خود را تغییر دهید'}
+                {activeTab === 'personnel' && persStep === 'first_login' && 'اولین ورود! رمز عبور جدید را تعیین کنید'}
               </p>
             </div>
 
-            {/* دکمه‌های تب (همیشه در فرم‌ها دیده می‌شود) */}
             <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
-              <button type="button" onClick={() => { setActiveTab('customer'); setCustStep('phone'); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'customer' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>مشتریان</button>
-              <button type="button" onClick={() => setActiveTab('personnel')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'personnel' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>پرسنل سازمان</button>
+              <button 
+                type="button" 
+                onClick={() => { setActiveTab('customer'); setCustStep('phone'); }} 
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'customer' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                مشتریان
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setActiveTab('personnel')} 
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'personnel' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                پرسنل سازمان
+              </button>
             </div>
 
+            {/* بخش لاگین مشتریان */}
             {activeTab === 'customer' && (
               custStep === 'phone' ? (
                 <form onSubmit={handleCustSendOtp} className="space-y-6">
                   <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><Phone className="h-5 w-5 text-slate-400" /></div>
-                    <input type="tel" required value={custPhone} onChange={(e) => setCustPhone(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left font-mono font-bold text-lg transition-all" placeholder="09123456789" dir="ltr" />
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      <Phone className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input 
+                      type="tel" 
+                      required 
+                      value={custPhone} 
+                      onChange={(e) => setCustPhone(e.target.value)} 
+                      className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left font-mono font-bold text-lg transition-all" 
+                      placeholder="09123456789" 
+                      dir="ltr" 
+                    />
                   </div>
                   <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ارسال کد تایید'} {!isLoading && <ArrowLeft size={18} />}
@@ -195,27 +242,62 @@ export default function HomePage() {
               ) : (
                 <form onSubmit={handleCustVerify} className="space-y-6">
                   <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><Activity className="h-5 w-5 text-slate-400" /></div>
-                    <input type="text" required autoFocus maxLength={6} value={custOtp} onChange={(e) => setCustOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="123456" dir="ltr" />
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      <Activity className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input 
+                      type="text" 
+                      required 
+                      autoFocus 
+                      maxLength={6} 
+                      value={custOtp} 
+                      onChange={(e) => setCustOtp(e.target.value)} 
+                      className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" 
+                      placeholder="123456" 
+                      dir="ltr" 
+                    />
                   </div>
                   <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
                   </button>
-                  <button type="button" onClick={() => setCustStep('phone')} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">اصلاح شماره موبایل</button>
+                  <button type="button" onClick={() => setCustStep('phone')} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
+                    اصلاح شماره موبایل
+                  </button>
                 </form>
               )
             )}
 
+            {/* بخش لاگین پرسنل */}
             {activeTab === 'personnel' && (
               persStep === 'login' ? (
                 <form onSubmit={handlePersLoginStart} className="space-y-5">
                   <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><User className="h-5 w-5 text-slate-400" /></div>
-                    <input type="text" required value={persUsername} onChange={(e) => setPersUsername(e.target.value)} placeholder="نام کاربری" className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left transition-all" dir="ltr" />
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input 
+                      type="text" 
+                      required 
+                      value={persUsername} 
+                      onChange={(e) => setPersUsername(e.target.value)} 
+                      placeholder="نام کاربری" 
+                      className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left transition-all" 
+                      dir="ltr" 
+                    />
                   </div>
                   <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><Lock className="h-5 w-5 text-slate-400" /></div>
-                    <input type={showPassword ? "text" : "password"} required value={persPassword} onChange={(e) => setPersPassword(e.target.value)} placeholder="رمز عبور" className="w-full pr-12 pl-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left transition-all" dir="ltr" />
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      required 
+                      value={persPassword} 
+                      onChange={(e) => setPersPassword(e.target.value)} 
+                      placeholder="رمز عبور" 
+                      className="w-full pr-12 pl-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left transition-all" 
+                      dir="ltr" 
+                    />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 hover:text-slate-700">
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
@@ -226,28 +308,74 @@ export default function HomePage() {
                 </form>
               ) : persStep === 'otp' ? (
                 <form onSubmit={handlePersVerifyOtp} className="space-y-6">
+                  {persPhoneForOtp && (
+                    <p className="text-xs text-slate-500 text-center -mt-2">
+                      کد تایید به شماره <span className="font-mono font-bold text-slate-700" dir="ltr">{persPhoneForOtp}</span> ارسال شد
+                    </p>
+                  )}
                   <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><Activity className="h-5 w-5 text-slate-400" /></div>
-                    <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="123456" dir="ltr" />
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      <Activity className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input 
+                      type="text" 
+                      required 
+                      autoFocus 
+                      maxLength={6} 
+                      value={persOtp} 
+                      onChange={(e) => setPersOtp(e.target.value)} 
+                      className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" 
+                      placeholder="123456" 
+                      dir="ltr" 
+                    />
                   </div>
-                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
                   </button>
-                  <button type="button" onClick={() => {setPersStep('login'); supabase.auth.signOut();}} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">بازگشت و اصلاح اطلاعات</button>
+                  <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
+                    بازگشت و اصلاح اطلاعات
+                  </button>
                 </form>
               ) : (
                 <form onSubmit={handlePersFirstLoginComplete} className="space-y-6">
                   <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-2 flex">
                     <ShieldCheck className="h-6 w-6 text-amber-500 shrink-0" />
-                    <p className="mr-3 text-xs leading-relaxed text-amber-800 font-medium">اولین ورود سیستم! لطفاً کد پیامکی و رمز جدید را وارد کنید.</p>
+                    <p className="mr-3 text-xs leading-relaxed text-amber-800 font-medium">اولین ورود سیستم! لطفاً کد پیامکی و رمز عبور جدید را تعیین کنید.</p>
+                  </div>
+                  {persPhoneForOtp && (
+                    <p className="text-xs text-slate-500 text-center -mt-2">
+                      کد تایید به شماره <span className="font-mono font-bold text-slate-700" dir="ltr">{persPhoneForOtp}</span> ارسال شد
+                    </p>
+                  )}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      <Activity className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input 
+                      type="text" 
+                      required 
+                      autoFocus 
+                      maxLength={6} 
+                      value={persOtp} 
+                      onChange={(e) => setPersOtp(e.target.value)} 
+                      className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-mono font-bold" 
+                      placeholder="کد تایید پیامکی" 
+                      dir="ltr" 
+                    />
                   </div>
                   <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><Activity className="h-5 w-5 text-slate-400" /></div>
-                    <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-mono font-bold" placeholder="کد تایید پیامکی" dir="ltr" />
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none"><Lock className="h-5 w-5 text-slate-400" /></div>
-                    <input type={showPassword ? "text" : "password"} required value={persNewPassword} onChange={(e) => setPersNewPassword(e.target.value)} placeholder="رمز عبور جدید (حداقل ۶ حرف)" className="w-full pr-12 pl-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left" dir="ltr" />
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      required 
+                      value={persNewPassword} 
+                      onChange={(e) => setPersNewPassword(e.target.value)} 
+                      placeholder="رمز عبور جدید (حداقل ۶ حرف)" 
+                      className="w-full pr-12 pl-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left" 
+                      dir="ltr" 
+                    />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 hover:text-slate-700">
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
@@ -255,7 +383,9 @@ export default function HomePage() {
                   <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center">
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'تایید و تغییر رمز'}
                   </button>
-                  <button type="button" onClick={() => {setPersStep('login'); supabase.auth.signOut();}} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">بازگشت و اصلاح اطلاعات</button>
+                  <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
+                    بازگشت و اصلاح اطلاعات
+                  </button>
                 </form>
               )
             )}
