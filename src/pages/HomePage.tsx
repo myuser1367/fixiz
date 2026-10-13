@@ -28,7 +28,7 @@ export default function HomePage() {
 
   const initialCheckRef = useRef(false);
 
-  // هدایت خودکار اگر کاربر از قبل لاگین است
+  // هدایت خودکار اگر کاربر قبلا با موفقیت لاگین کرده و مراحل را کامل طی کرده است
   useEffect(() => {
     if (!initialCheckRef.current && !authLoading) {
       initialCheckRef.current = true;
@@ -80,29 +80,27 @@ export default function HomePage() {
       const cleanUsername = persUsername.toLowerCase().trim();
       const email = `${cleanUsername}@fixiz.ir`;
 
-      // بررسی وضعیت کاربر در جدول پرسنل
-      const { data: pData } = await supabase
-        .from('personnel_users')
-        .select('*')
-        .eq('username', cleanUsername)
-        .maybeSingle();
-
-      // حالت اول: اولین ورود کاربر پرسنلی با رمز عبور پیش‌فرض
-      if (pData && pData.is_first_login) {
-        if (persPassword !== 'Aa@123456') {
-          throw new Error('برای اولین ورود، باید از رمز عبور پیش‌فرض (Aa@123456) استفاده کنید');
-        }
-        setPersStep('first_login');
-        toast.success('رمز پیش‌فرض تایید شد. لطفاً کد تایید و رمز عبور جدید را وارد کنید (کد تستی: 123456)', { duration: 6000 });
-        return;
+      // از آنجایی که ادمین هنگام ساخت اکانت آن را رسماً ثبت کرده، مستقیماً ورود می‌زنیم
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: persPassword });
+      
+      if (signInError) {
+         throw new Error('نام کاربری یا رمز عبور اشتباه است');
       }
 
-      // حالت دوم: ورودهای بعدی با رمز اختصاصی
-      const { error } = await supabase.auth.signInWithPassword({ email, password: persPassword });
-      if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
-
-      setPersStep('otp');
-      toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
+      // بعد از ورود موفق، چک می‌کنیم که آیا اولین ورود است یا خیر
+      const { data: pData } = await supabase.from('personnel_users').select('is_first_login').eq('username', cleanUsername).maybeSingle();
+      
+      if (pData && pData.is_first_login) {
+        if (persPassword !== 'Aa@123456') {
+           await supabase.auth.signOut();
+           throw new Error('سیستم تشخیص داد شما کاربر جدید هستید. لطفاً از رمز عبور پیش‌فرض استفاده کنید.');
+        }
+        setPersStep('first_login');
+        toast.success('رمز پیش‌فرض تایید شد. لطفاً کد تایید و رمز عبور جدید را تعیین کنید (کد تستی: 123456)', { duration: 6000 });
+      } else {
+        setPersStep('otp');
+        toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
+      }
     } catch (error: any) { 
       toast.error(error.message); 
       await supabase.auth.signOut(); 
@@ -134,47 +132,18 @@ export default function HomePage() {
     setIsLoading(true);
     try {
       const cleanUsername = persUsername.toLowerCase().trim();
-      const email = `${cleanUsername}@fixiz.ir`;
 
-      // ایجاد کاربر در سوپابیس با رمز جدید
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password: persNewPassword,
-      });
-
-      if (signUpError) {
-        if (signUpError.message.toLowerCase().includes('already registered')) {
-          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password: 'Aa@123456' });
-          if (!signInErr) {
-            await supabase.auth.updateUser({ password: persNewPassword });
-          } else {
-            await supabase.auth.signInWithPassword({ email, password: persNewPassword });
-          }
-        } else {
-          throw new Error(signUpError.message);
-        }
-      } else {
-        await supabase.auth.signInWithPassword({ email, password: persNewPassword });
-      }
-
-      // به‌روزرسانی وضعیت در personnel_users
-      await supabase
-        .from('personnel_users')
-        .update({ is_first_login: false })
-        .eq('username', cleanUsername);
-
-      // ثبت اطلاعات در پروفایل
-      const { data: authUser } = await supabase.auth.getUser();
-      const { data: pUser } = await supabase.from('personnel_users').select('*').eq('username', cleanUsername).maybeSingle();
+      // از آنجا که در مرحله اول لاگین کرده‌ایم، مستقیماً رمز را آپدیت می‌کنیم
+      const { error: updateError } = await supabase.auth.updateUser({ password: persNewPassword });
       
-      if (authUser?.user && pUser) {
-        await supabase.from('profiles').upsert({
-          id: authUser.user.id,
-          phone: pUser.phone,
-          full_name: pUser.full_name,
-          role: pUser.role,
-          is_first_login: false
-        });
+      if (updateError) throw new Error('خطا در تغییر رمز عبور. ' + updateError.message);
+
+      // خاموش کردن وضعیت اولین ورود در جدول‌ها
+      await supabase.from('personnel_users').update({ is_first_login: false }).eq('username', cleanUsername);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+         await supabase.from('profiles').update({ is_first_login: false }).eq('id', user.id);
       }
 
       toast.success('رمز عبور با موفقیت تغییر کرد و وارد شدید');
@@ -326,7 +295,7 @@ export default function HomePage() {
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
-                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'بررسی و دریافت پیامک'} {!isLoading && <ArrowLeft size={18} />}
                   </button>
                 </form>

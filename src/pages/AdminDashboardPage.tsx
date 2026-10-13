@@ -31,13 +31,11 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // فرم ثبت/ویرایش پرسنل 
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [role, setRole] = useState('coordinator');
   const [phone, setPhone] = useState('');
 
-  // مدال تغییر رمز مدیر
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
 
@@ -58,11 +56,15 @@ export default function AdminDashboardPage() {
     
     setIsLoading(true);
     try {
+      const cleanUsername = username.toLowerCase().trim();
+      const email = `${cleanUsername}@fixiz.ir`;
+
       if (editingId) {
+        // ویرایش پرسنل
         const { error } = await supabase.from('personnel_users')
           .update({
             full_name: fullName,
-            username: username.toLowerCase().trim(),
+            username: cleanUsername,
             role,
             phone: phone.trim()
           })
@@ -72,15 +74,39 @@ export default function AdminDashboardPage() {
         toast.success('اطلاعات پرسنل با موفقیت ویرایش شد');
         setEditingId(null);
       } else {
+        // ساخت کاربر جدید در سیستم احراز هویت با رمز پیش‌فرض
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password: 'Aa@123456',
+        });
+
+        // اگر ارور داد که کاربر وجود دارد مشکلی نیست (ممکن است قبلا ثبت شده باشد)
+        if (authError && !authError.message.toLowerCase().includes('already registered')) {
+          throw new Error(`خطا در ایجاد حساب امنیتی: ${authError.message}`);
+        }
+
+        // ثبت اطلاعات در جدول پرسنل
         const { error } = await supabase.from('personnel_users').insert({
           full_name: fullName,
-          username: username.toLowerCase().trim(),
+          username: cleanUsername,
           role,
           phone: phone.trim(),
           is_first_login: true
         });
 
         if (error) throw new Error(error.message);
+        
+        // اگر اکانت امنیتی موفق ساخته شد، پروفایل را هم می‌سازیم تا خطایی پیش نیاید
+        if (authData?.user) {
+           await supabase.from('profiles').upsert({
+            id: authData.user.id,
+            phone: phone.trim(),
+            full_name: fullName,
+            role: role,
+            is_first_login: true
+          });
+        }
+
         toast.success('پرسنل جدید با موفقیت ثبت شد');
       }
 
