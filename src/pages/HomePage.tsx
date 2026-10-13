@@ -1,12 +1,10 @@
 import { useState } from 'react';
-//import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Header } from '../components/Header';
 import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function HomePage() {
-  //const navigate = useNavigate();
   const { session, profile, sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFirstLogin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'customer' | 'personnel'>('customer');
@@ -126,7 +124,6 @@ export default function HomePage() {
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
               سامانه جامع <span className="text-brand-light text-gradient block mt-2">مدیریت تعمیرات</span>
             </h1>
-            {/* اگر کاربر لاگین کرده باشد، دکمه میانبر برای رفتن به پنل را نشان می‌دهیم */}
             {session && profile && (
               <div className="mt-6">
                 <button 

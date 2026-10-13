@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, Phone, Home, MapPin, Settings } from 'lucide-react';
+import { Menu, X, Phone, Home, MapPin, Settings, UserCheck } from 'lucide-react';
 
 interface HeaderProps {
   currentPage?: string;
@@ -62,7 +62,7 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
             })}
           </nav>
 
-          {/* بخش تماس (دکمه های لاگین از اینجا حذف شدند) */}
+          {/* بخش تماس و دکمه ورود به پنل */}
           <div className="hidden md:flex items-center gap-4">
             <a
               href="tel:+982165024220"
@@ -72,6 +72,15 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
               <Phone className="w-4 h-4" />
               <span className="text-sm">021-65024220</span>
             </a>
+
+            {/* دکمه ورود به پنل */}
+            <button
+              onClick={() => { window.location.href = '/panel'; }}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-brand-primary hover:bg-brand-600 text-white rounded-xl text-sm font-bold shadow-sm transition-colors"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>ورود به پنل</span>
+            </button>
           </div>
 
           {/* دکمه منوی موبایل */}
