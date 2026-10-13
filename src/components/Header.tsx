@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, Phone, Home, MapPin, LogIn, LayoutDashboard, LogOut, Settings } from 'lucide-react';
+import { Menu, X, Phone, Home, MapPin, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
@@ -10,7 +10,7 @@ interface HeaderProps {
 
 export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
   const navigate = useNavigate();
 
   const navItems = [
@@ -24,14 +24,6 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
     } else {
       navigate('/');
     }
-  };
-
- const handleDashboardClick = () => {
-    if (!session) {
-      navigate('/login');
-      return;
-    }
-    navigate('/panel');
   };
 
   return (
@@ -50,7 +42,7 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
             <span className="text-2xl font-extrabold text-slate-800">فیکسیز</span>
           </button>
 
-          {/* منوی دسکتاپ با فاصله مناسب بین گزینه‌ها */}
+          {/* منوی دسکتاپ */}
           <nav className="hidden md:flex items-center gap-4">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -72,7 +64,7 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
             })}
           </nav>
 
-          {/* بخش تماس و دکمه‌های ورود/پنل */}
+          {/* بخش تماس (دکمه های لاگین از اینجا حذف شدند) */}
           <div className="hidden md:flex items-center gap-4">
             <a
               href="tel:+982165024220"
@@ -82,35 +74,6 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
               <Phone className="w-4 h-4" />
               <span className="text-sm">021-65024220</span>
             </a>
-
-            <div className="w-px h-6 bg-slate-200 mx-1" />
-
-            {session ? (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleDashboardClick}
-                  className="flex items-center gap-2 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all duration-200 bg-brand-primary hover:bg-brand-600 shadow-md shadow-brand-primary/20"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>ورود به پنل</span>
-                </button>
-                <button
-                  onClick={logout}
-                  className="flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 p-2.5 rounded-xl transition-colors"
-                  title="خروج از حساب"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="flex items-center gap-2 border-2 border-brand-primary text-brand-700 hover:bg-brand-primary hover:text-white text-sm font-bold px-5 py-2 rounded-xl transition-all duration-200"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>ورود / ثبت‌نام</span>
-              </button>
-            )}
           </div>
 
           {/* دکمه منوی موبایل */}
