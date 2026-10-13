@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Home, Plus, List, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Loader2, LogOut } from 'lucide-react';
+import { Home, Plus, List, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Loader2, LogOut, Search, Check, FileText, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface RepairRequest {
@@ -14,6 +14,8 @@ interface RepairRequest {
   needs_price_estimate: boolean;
   status: string;
   created_at: string;
+  estimated_price?: number;
+  final_price?: number;
 }
 
 export default function CustomerPanelPage() {
@@ -24,6 +26,9 @@ export default function CustomerPanelPage() {
   const [requests, setRequests] = useState<RepairRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // حالت پیگیری درخواست انتخابی
+  const [selectedTrackingReq, setSelectedTrackingReq] = useState<RepairRequest | null>(null);
+
   // مودال تکمیل اطلاعات پروفایل
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || '');
@@ -33,7 +38,7 @@ export default function CustomerPanelPage() {
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
-    serial_number: '', // این فیلد فقط در ظاهر فرم می‌ماند اما به دیتابیس ارسال نمی‌شود تا ارور ندهد
+    serial_number: '',
     fault_description: '',
     needs_price_estimate: false,
   });
@@ -108,7 +113,6 @@ export default function CustomerPanelPage() {
     setIsLoading(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    // اگر کاربر شماره سریال وارد کرده بود، آن را به شرح مشکل اضافه می‌کنیم تا گم نشود
     const finalDescription = formData.serial_number 
       ? `[شماره سریال: ${formData.serial_number}]\n${formData.fault_description}` 
       : formData.fault_description;
@@ -155,12 +159,66 @@ export default function CustomerPanelPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending_coordinator': return <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> ثبت اولیه</span>;
+      case 'pending_coordinator': return <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> ثبت اولیه</span>;
+      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Wrench size={14}/> در حال بررسی / پذیرش</span>;
       case 'accepted': return <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> پذیرش شده</span>;
       case 'rejected': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> عدم پذیرش</span>;
-      case 'repairing': return <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Loader2 size={14} className="animate-spin"/> در حال تعمیر</span>;
+      case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Loader2 size={14} className="animate-spin"/> در حال تعمیر</span>;
+      case 'estimated': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> برآورد هزینه</span>;
+      case 'invoiced': return <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> صدور فاکتور</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
     }
+  };
+
+  // تابع تعیین وضعیت مراحل برای نمایشگر زنجیره ای (مشابه عکس مرجع)
+  const renderWorkflowSteps = (currentStatus: string) => {
+    const steps = [
+      { id: 'registered', label: 'ثبت درخواست', desc: 'درخواست توسط مشتری ثبت شد' },
+      { id: 'acceptance', label: 'پذیرش یا عدم پذیرش', desc: 'بررسی اولیه توسط واحد هماهنگی و سرپرست' },
+      { id: 'repairing', label: 'در حال تعمیر', desc: 'تکنسین در حال عیب‌یابی و تعمیر دستگاه است' },
+      { id: 'estimation', label: 'برآورد هزینه', desc: 'محاسبه قطعات مصرفی و اعلام قیمت' },
+      { id: 'invoiced', label: 'صدور فاکتور', desc: 'آماده تحویل و تسویه حساب نهایی' },
+    ];
+
+    // تعیین ایندکس مرحله فعال بر اساس استاتوس دیتابیس
+    let activeIndex = 0;
+    if (['pending_supervisor', 'accepted'].includes(currentStatus)) activeIndex = 1;
+    else if (currentStatus === 'repairing') activeIndex = 2;
+    else if (['estimated', 'pending_commercial', 'pending_finance'].includes(currentStatus)) activeIndex = 3;
+    else if (currentStatus === 'invoiced') activeIndex = 4;
+    else if (currentStatus === 'rejected') activeIndex = 1;
+
+    return (
+      <div className="space-y-6 my-6" dir="rtl">
+        <h4 className="font-bold text-slate-800 text-base mb-4">مراحل زنجیره تعمیر و خدمات</h4>
+        <div className="space-y-4 relative before:absolute before:right-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+          {steps.map((step, idx) => {
+            const isCompleted = idx < activeIndex;
+            const isCurrent = idx === activeIndex;
+            const isRejected = currentStatus === 'rejected' && idx === 1;
+
+            return (
+              <div key={step.id} className="relative flex items-start gap-4 pr-10">
+                <div className={`absolute right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white ${
+                  isRejected ? 'bg-red-500 text-white' :
+                  isCompleted ? 'bg-emerald-500 text-white' : 
+                  isCurrent ? 'bg-brand-primary text-white animate-pulse' : 
+                  'bg-slate-200 text-slate-500'
+                }`}>
+                  {isRejected ? <XCircle size={14} /> : isCompleted ? <Check size={14} /> : idx + 1}
+                </div>
+                <div>
+                  <h5 className={`font-bold text-sm ${isCurrent || isCompleted ? 'text-slate-800' : 'text-slate-400'}`}>
+                    {isRejected && idx === 1 ? 'درخواست رد شد (عدم پذیرش)' : step.label}
+                  </h5>
+                  <p className="text-xs text-slate-500 mt-0.5">{step.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -280,16 +338,19 @@ export default function CustomerPanelPage() {
                     )}
                   </div>
                   
-                  {req.status === 'pending_coordinator' && (
-                    <div className="flex items-center gap-2 md:flex-col shrink-0">
-                      <button className="flex-1 md:w-full px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-bold flex justify-center items-center gap-2 transition-colors">
-                        <Edit size={16} /> ویرایش
-                      </button>
-                      <button onClick={() => handleDelete(req.id)} className="flex-1 md:w-full px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-bold flex justify-center items-center gap-2 transition-colors">
+                  <div className="flex items-center gap-2 md:flex-col shrink-0">
+                    <button 
+                      onClick={() => setSelectedTrackingReq(req)}
+                      className="flex-1 md:w-full px-4 py-2.5 bg-brand-50 text-brand-700 hover:bg-brand-100 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors"
+                    >
+                      <Search size={16} /> پیگیری مراحل
+                    </button>
+                    {req.status === 'pending_coordinator' && (
+                      <button onClick={() => handleDelete(req.id)} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors" title="حذف درخواست">
                         <Trash2 size={16} /> حذف
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ))
             )}
@@ -297,7 +358,56 @@ export default function CustomerPanelPage() {
         )}
       </main>
 
-      {/* مودال تکمیل پروفایل در اولین ورود */}
+      {/* مدال جزئیات و مراحل پیگیری */}
+      {selectedTrackingReq && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">{selectedTrackingReq.device_info}</h3>
+                <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-bold" dir="ltr">
+                  {selectedTrackingReq.tracking_code}
+                </span>
+              </div>
+              <button 
+                onClick={() => setSelectedTrackingReq(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-slate-50 p-4 rounded-2xl text-xs space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">برند دستگاه:</span>
+                  <span className="font-bold text-slate-700">{selectedTrackingReq.brand || 'تعیین نشده'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">تاریخ ثبت:</span>
+                  <span className="font-mono font-bold text-slate-700" dir="ltr">{new Date(selectedTrackingReq.created_at).toLocaleDateString('fa-IR')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">وضعیت کنونی:</span>
+                  <span>{getStatusBadge(selectedTrackingReq.status)}</span>
+                </div>
+              </div>
+
+              {/* رندر زنجیره مراحل */}
+              {renderWorkflowSteps(selectedTrackingReq.status)}
+            </div>
+
+            <button 
+              onClick={() => setSelectedTrackingReq(null)} 
+              className="w-full mt-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+            >
+              بستن پنجره پیگیری
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* مدال تکمیل پروفایل در اولین ورود */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-slide-up">

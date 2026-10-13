@@ -44,18 +44,23 @@ export default function CoordinatorPanelPage() {
     }
   };
 
-  const handleDateUpdate = async (id: string, field: 'received_at' | 'delivered_at', value: string) => {
-    const formattedDate = value ? new Date(value).toISOString() : null;
+  // تفکیک ذخیره‌سازی تاریخ و ساعت
+  const handleDateTimeUpdate = async (id: string, field: 'received_at' | 'delivered_at', dateVal: string, timeVal: string) => {
+    let combinedDateTime = null;
+    if (dateVal) {
+      const time = timeVal || '00:00';
+      combinedDateTime = new Date(`${dateVal}T${time}:00`).toISOString();
+    }
     
     const { error } = await supabase
       .from('repair_requests')
-      .update({ [field]: formattedDate })
+      .update({ [field]: combinedDateTime })
       .eq('id', id);
 
     if (error) {
-      toast.error('خطا در ثبت تاریخ');
+      toast.error('خطا در ثبت تاریخ و ساعت');
     } else {
-      toast.success('تاریخ با موفقیت ثبت شد');
+      toast.success('اطلاعات زمان با موفقیت ثبت شد');
       fetchRequests();
     }
   };
@@ -83,7 +88,6 @@ export default function CoordinatorPanelPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
-      {/* هدر پنل واحد هماهنگی */}
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -110,7 +114,6 @@ export default function CoordinatorPanelPage() {
         </div>
       </header>
 
-      {/* محتوای اصلی */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mb-6">
@@ -126,7 +129,7 @@ export default function CoordinatorPanelPage() {
                   <th className="pb-3 px-3">مشتری</th>
                   <th className="pb-3 px-3">دستگاه و برند</th>
                   <th className="pb-3 px-3">وضعیت فعلی</th>
-                  <th className="pb-3 px-3">تاریخ ورود / خروج قطعه</th>
+                  <th className="pb-3 px-3">تاریخ و ساعت ورود / خروج قطعه</th>
                   <th className="pb-3 px-3 text-center">عملیات هماهنگی</th>
                 </tr>
               </thead>
@@ -136,68 +139,91 @@ export default function CoordinatorPanelPage() {
                 ) : requests.length === 0 ? (
                   <tr><td colSpan={6} className="py-8 text-center text-slate-400">هیچ درخواستی ثبت نشده است.</td></tr>
                 ) : (
-                  requests.map(req => (
-                    <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
-                      <td className="py-4 px-3">
-                        <div className="font-bold text-slate-800">{req.profiles?.full_name || 'بدون نام'}</div>
-                        <div className="text-xs font-mono text-slate-500" dir="ltr">{req.profiles?.phone}</div>
-                      </td>
-                      <td className="py-4 px-3">
-                        <div className="font-bold text-slate-800">{req.device_info}</div>
-                        <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
-                      </td>
-                      <td className="py-4 px-3">
-                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                          req.status === 'pending_coordinator' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {req.status === 'pending_coordinator' ? 'در انتظار بررسی واحد هماهنگی' : req.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-3 space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                          <Calendar size={13} className="text-slate-400 shrink-0"/> 
-                          <span>ورود:</span> 
-                          <input 
-                            type="datetime-local" 
-                            value={req.received_at ? new Date(req.received_at).toISOString().slice(0, 16) : ''} 
-                            onChange={(e) => handleDateUpdate(req.id, 'received_at', e.target.value)} 
-                            className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                          />
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                          <Clock size={13} className="text-slate-400 shrink-0"/> 
-                          <span>خروج:</span> 
-                          <input 
-                            type="datetime-local" 
-                            value={req.delivered_at ? new Date(req.delivered_at).toISOString().slice(0, 16) : ''} 
-                            onChange={(e) => handleDateUpdate(req.id, 'delivered_at', e.target.value)} 
-                            className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                          />
-                        </div>
-                      </td>
-                      <td className="py-4 px-3 text-center">
-                        {req.status === 'pending_coordinator' && (
-                          <div className="flex items-center justify-center gap-2">
-                            <button 
-                              onClick={() => handleStatusChange(req.id, 'pending_supervisor')} 
-                              className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center gap-1 text-xs" 
-                              title="تایید و ارجاع به سرپرست تعمیر"
-                            >
-                              <Check size={16} /> تایید و ارجاع
-                            </button>
-                            <button 
-                              onClick={() => handleStatusChange(req.id, 'rejected')} 
-                              className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors font-bold flex items-center gap-1 text-xs" 
-                              title="عدم پذیرش"
-                            >
-                              <X size={16} /> رد
-                            </button>
+                  requests.map(req => {
+                    const receivedObj = req.received_at ? new Date(req.received_at) : null;
+                    const deliveredObj = req.delivered_at ? new Date(req.delivered_at) : null;
+                    
+                    const recDate = receivedObj ? receivedObj.toISOString().split('T')[0] : '';
+                    const recTime = receivedObj ? receivedObj.toTimeString().slice(0, 5) : '';
+                    
+                    const delDate = deliveredObj ? deliveredObj.toISOString().split('T')[0] : '';
+                    const delTime = deliveredObj ? deliveredObj.toTimeString().slice(0, 5) : '';
+
+                    return (
+                      <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
+                        <td className="py-4 px-3">
+                          <div className="font-bold text-slate-800">{req.profiles?.full_name || 'بدون نام'}</div>
+                          <div className="text-xs font-mono text-slate-500" dir="ltr">{req.profiles?.phone}</div>
+                        </td>
+                        <td className="py-4 px-3">
+                          <div className="font-bold text-slate-800">{req.device_info}</div>
+                          <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
+                        </td>
+                        <td className="py-4 px-3">
+                          <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                            req.status === 'pending_coordinator' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {req.status === 'pending_coordinator' ? 'در انتظار بررسی واحد هماهنگی' : req.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-3 space-y-2">
+                          {/* بخش ورود */}
+                          <div className="flex items-center gap-2 text-xs text-slate-600">
+                            <span className="flex items-center gap-1 font-bold w-12"><Calendar size={13} className="text-slate-400"/> ورود:</span>
+                            <input 
+                              type="date" 
+                              defaultValue={recDate}
+                              onBlur={(e) => handleDateTimeUpdate(req.id, 'received_at', e.target.value, recTime)}
+                              className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                            />
+                            <input 
+                              type="time" 
+                              defaultValue={recTime}
+                              onBlur={(e) => handleDateTimeUpdate(req.id, 'received_at', recDate, e.target.value)}
+                              className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                            />
                           </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                          {/* بخش خروج */}
+                          <div className="flex items-center gap-2 text-xs text-slate-600">
+                            <span className="flex items-center gap-1 font-bold w-12"><Clock size={13} className="text-slate-400"/> خروج:</span>
+                            <input 
+                              type="date" 
+                              defaultValue={delDate}
+                              onBlur={(e) => handleDateTimeUpdate(req.id, 'delivered_at', e.target.value, delTime)}
+                              className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                            />
+                            <input 
+                              type="time" 
+                              defaultValue={delTime}
+                              onBlur={(e) => handleDateTimeUpdate(req.id, 'delivered_at', delDate, e.target.value)}
+                              className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                            />
+                          </div>
+                        </td>
+                        <td className="py-4 px-3 text-center">
+                          {req.status === 'pending_coordinator' && (
+                            <div className="flex items-center justify-center gap-2">
+                              <button 
+                                onClick={() => handleStatusChange(req.id, 'pending_supervisor')} 
+                                className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center gap-1 text-xs" 
+                                title="تایید و ارجاع به سرپرست تعمیر"
+                              >
+                                <Check size={16} /> تایید و ارجاع
+                              </button>
+                              <button 
+                                onClick={() => handleStatusChange(req.id, 'rejected')} 
+                                className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors font-bold flex items-center gap-1 text-xs" 
+                                title="عدم پذیرش"
+                              >
+                                <X size={16} /> رد
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
