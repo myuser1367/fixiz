@@ -44,18 +44,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (userId: string, phone: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const email = user?.email || '';
+
+      // اگر کاربر پرسنل باشد، اطلاعات را از personnel_users بخوان
+      if (email.endsWith('@fixiz.ir')) {
+        const username = email.replace('@fixiz.ir', '').toLowerCase().trim();
+        const { data: pData } = await supabase
+          .from('personnel_users')
+          .select('*')
+          .eq('username', username)
+          .maybeSingle();
+
+        if (pData) {
+          setProfile(pData as UserProfile);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // در غیر این صورت، جستجو در پروفایل‌های عادی (مشتریان یا ادمین)
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-      if (error) return;
+      if (error) {
+        setIsLoading(false);
+        return;
+      }
       if (data) {
         setProfile(data as UserProfile);
       } else {
         const { data: newProfile } = await supabase.from('profiles').insert({
-          id: userId, phone: phone, role: 'customer', is_first_login: false
+          id: userId, 
+          phone: phone, 
+          role: 'customer', 
+          is_first_login: false
         }).select().single();
         setProfile(newProfile as UserProfile);
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -72,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
-        fetchProfile(session.user.id, session.user.phone || '').finally(() => setIsLoading(false));
+        fetchProfile(session.user.id, session.user.phone || '');
       } else {
         setProfile(null);
         setIsLoading(false);
@@ -100,10 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
 
-    // ابتدا بررسی نقش و مشخصات در personnel_users
     let { data: pData } = await supabase.from('personnel_users').select('*').eq('username', username.toLowerCase().trim()).maybeSingle();
-    
-    // اگر نبود از profiles (برای ادمین اصلی) چک می‌کند
     if (!pData) {
       const { data: profData } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
       pData = profData;

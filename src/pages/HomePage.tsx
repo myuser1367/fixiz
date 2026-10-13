@@ -28,16 +28,15 @@ export default function HomePage() {
 
   const initialCheckRef = useRef(false);
 
-  // هدایت خودکار به پنل در صورت لاگین بودن قبلی
+  // هدایت خودکار اگر کاربر از قبل لاگین است
   useEffect(() => {
     if (!initialCheckRef.current && !authLoading) {
       initialCheckRef.current = true;
-      // اگر کاربر از قبل لاگین است و در حال تلاش برای ورود پرسنلی جدید نیست
       if (session && profile && !profile.is_first_login) {
-         if (activeTab === 'personnel' && persStep !== 'login') {
-            return; // اجازه بده فرم OTP پرسنل روی صفحه بماند
-         }
-         navigate('/panel');
+        if (activeTab === 'personnel' && persStep !== 'login') {
+          return;
+        }
+        navigate('/panel');
       }
     }
   }, [session, profile, authLoading, activeTab, persStep, navigate]);
@@ -65,7 +64,6 @@ export default function HomePage() {
     try {
       await verifyCustomerOtp(custPhone, custOtp);
       toast.success('ورود موفقیت‌آمیز');
-      // هدایت فوری و مستقیم برای مشتری
       window.location.href = '/panel';
     } catch (error: any) { 
       toast.error(error.message); 
@@ -79,24 +77,31 @@ export default function HomePage() {
     if (!persUsername || !persPassword) return toast.error('نام کاربری و رمز عبور الزامی است');
     setIsLoading(true);
     try {
-      const email = `${persUsername.toLowerCase().trim()}@fixiz.ir`;
-      
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password: persPassword });
-      if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
-      
-      let isFirstLogin = false;
+      const cleanUsername = persUsername.toLowerCase().trim();
+      const email = `${cleanUsername}@fixiz.ir`;
 
-      const { data: pData } = await supabase.from('personnel_users').select('is_first_login').eq('username', persUsername.toLowerCase().trim()).maybeSingle();
-      if (pData) {
-        isFirstLogin = pData.is_first_login;
-      } else {
-        const { data: profData } = await supabase.from('profiles').select('is_first_login').eq('id', data.user.id).maybeSingle();
-        if (profData) {
-          isFirstLogin = profData.is_first_login;
+      // بررسی وضعیت کاربر در جدول پرسنل
+      const { data: pData } = await supabase
+        .from('personnel_users')
+        .select('*')
+        .eq('username', cleanUsername)
+        .maybeSingle();
+
+      // حالت اول: اولین ورود کاربر پرسنلی با رمز عبور پیش‌فرض
+      if (pData && pData.is_first_login) {
+        if (persPassword !== 'Aa@123456') {
+          throw new Error('برای اولین ورود، باید از رمز عبور پیش‌فرض (Aa@123456) استفاده کنید');
         }
+        setPersStep('first_login');
+        toast.success('رمز پیش‌فرض تایید شد. لطفاً کد تایید و رمز عبور جدید را وارد کنید (کد تستی: 123456)', { duration: 6000 });
+        return;
       }
-      
-      setPersStep(isFirstLogin ? 'first_login' : 'otp');
+
+      // حالت دوم: ورودهای بعدی با رمز اختصاصی
+      const { error } = await supabase.auth.signInWithPassword({ email, password: persPassword });
+      if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
+
+      setPersStep('otp');
       toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
     } catch (error: any) { 
       toast.error(error.message); 
@@ -124,18 +129,58 @@ export default function HomePage() {
     e.preventDefault();
     if (persOtp !== '123456') return toast.error('کد تایید اشتباه است (کد تستی 123456 می‌باشد)');
     if (persNewPassword.length < 6) return toast.error('رمز عبور جدید باید حداقل ۶ کاراکتر باشد');
+    if (persNewPassword === 'Aa@123456') return toast.error('رمز عبور جدید نباید مشابه رمز پیش‌فرض باشد');
     
     setIsLoading(true);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({ password: persNewPassword });
-      if (updateError) throw new Error('خطا در تغییر رمز عبور.');
+      const cleanUsername = persUsername.toLowerCase().trim();
+      const email = `${cleanUsername}@fixiz.ir`;
+
+      // ایجاد کاربر در سوپابیس با رمز جدید
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: persNewPassword,
+      });
+
+      if (signUpError) {
+        if (signUpError.message.toLowerCase().includes('already registered')) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password: 'Aa@123456' });
+          if (!signInErr) {
+            await supabase.auth.updateUser({ password: persNewPassword });
+          } else {
+            await supabase.auth.signInWithPassword({ email, password: persNewPassword });
+          }
+        } else {
+          throw new Error(signUpError.message);
+        }
+      } else {
+        await supabase.auth.signInWithPassword({ email, password: persNewPassword });
+      }
+
+      // به‌روزرسانی وضعیت در personnel_users
+      await supabase
+        .from('personnel_users')
+        .update({ is_first_login: false })
+        .eq('username', cleanUsername);
+
+      // ثبت اطلاعات در پروفایل
+      const { data: authUser } = await supabase.auth.getUser();
+      const { data: pUser } = await supabase.from('personnel_users').select('*').eq('username', cleanUsername).maybeSingle();
       
-      await supabase.from('personnel_users').update({ is_first_login: false }).eq('username', persUsername.toLowerCase().trim());
-      
-      toast.success('رمز عبور تغییر یافت و وارد شدید');
+      if (authUser?.user && pUser) {
+        await supabase.from('profiles').upsert({
+          id: authUser.user.id,
+          phone: pUser.phone,
+          full_name: pUser.full_name,
+          role: pUser.role,
+          is_first_login: false
+        });
+      }
+
+      toast.success('رمز عبور با موفقیت تغییر کرد و وارد شدید');
       window.location.href = '/panel';
     } catch (error: any) { 
-      toast.error(error.message || 'خطا در عملیات'); 
+      toast.error(error.message || 'خطا در ثبت اطلاعات'); 
       setIsLoading(false);
     } 
   };
@@ -161,14 +206,12 @@ export default function HomePage() {
 
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 flex flex-col lg:flex-row items-start justify-between gap-12">
           
-          {/* عنوان سایت در سمت راست */}
           <div className="text-center lg:text-right flex-1 animate-slide-up mt-8 lg:mt-16">
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
               سامانه جامع <span className="text-brand-light text-gradient block mt-2">مدیریت تعمیرات</span>
             </h1>
           </div>
 
-          {/* کادر احراز هویت */}
           <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <div className="text-center mb-8">
               <h2 className="text-2xl font-black text-slate-800 mb-2">ورود به سامانه</h2>
@@ -181,7 +224,6 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* تب‌های انتخاب نوع کاربر */}
             <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
               <button 
                 type="button" 
@@ -284,12 +326,11 @@ export default function HomePage() {
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
-                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
+                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'بررسی و دریافت پیامک'} {!isLoading && <ArrowLeft size={18} />}
                   </button>
                 </form>
               ) : persStep === 'otp' ? (
-                /* فرم کد تایید پرسنل (دقیقاً مشابه فرم مشتری) */
                 <form onSubmit={handlePersVerifyOtp} className="space-y-6">
                   <div className="relative">
                     <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
@@ -315,7 +356,6 @@ export default function HomePage() {
                   </button>
                 </form>
               ) : (
-                /* فرم ورود اول پرسنل جهت تعیین رمز عبور جدید */
                 <form onSubmit={handlePersFirstLoginComplete} className="space-y-6">
                   <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-2 flex">
                     <ShieldCheck className="h-6 w-6 text-amber-500 shrink-0" />
@@ -333,7 +373,7 @@ export default function HomePage() {
                       value={persOtp} 
                       onChange={(e) => setPersOtp(e.target.value)} 
                       className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-mono font-bold" 
-                      placeholder="کد تایید پیامکی" 
+                      placeholder="کد تایید پیامکی (123456)" 
                       dir="ltr" 
                     />
                   </div>
