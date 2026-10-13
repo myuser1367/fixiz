@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Header } from '../components/Header';
@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { session, profile, sendCustomerOtp, verifyCustomerOtp } = useAuth();
+  const { session, profile, isLoading: authLoading, sendCustomerOtp, verifyCustomerOtp } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'customer' | 'personnel'>('customer');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,17 +25,18 @@ export default function HomePage() {
   const [persStep, setPersStep] = useState<'login' | 'otp' | 'first_login'>('login');
   const [persOtp, setPersOtp] = useState('');
   const [persNewPassword, setPersNewPassword] = useState('');
-  const [persPhoneForOtp, setPersPhoneForOtp] = useState('');
-  const [isOtpPending, setIsOtpPending] = useState(false);
 
-  // هدایت خودکار به پنل در صورت لاگین بودن قبلی (مگر در حالت انتظار کد تایید)
+  // جلوگیری از ریدایرکت زودهنگام: فقط در اولین بارگذاری سایت اگر از قبل لاگین بودیم به پنل برویم
+  const initialCheckRef = useRef(false);
+
   useEffect(() => {
-    if (session && profile && !isOtpPending) {
-      if (!profile.is_first_login) {
+    if (!initialCheckRef.current && !authLoading) {
+      initialCheckRef.current = true;
+      if (session && profile && !profile.is_first_login) {
         navigate('/panel');
       }
     }
-  }, [session, profile, isOtpPending, navigate]);
+  }, [session, profile, authLoading, navigate]);
 
   // --------------- توابع مشتری ---------------
   const handleCustSendOtp = async (e: React.FormEvent) => {
@@ -76,35 +77,26 @@ export default function HomePage() {
     try {
       const email = `${persUsername.toLowerCase().trim()}@fixiz.ir`;
       
-      // احراز هویت اولیه رمز عبور
+      // بررسی صحت نام کاربری و رمز در سوپابیس
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: persPassword });
       if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
       
-      let phoneForOtp = null;
       let isFirstLogin = false;
 
-      // دریافت شماره موبایل پرسنل
-      const { data: pData } = await supabase.from('personnel_users').select('phone, is_first_login').eq('username', persUsername.toLowerCase().trim()).maybeSingle();
-      if (pData?.phone) {
-        phoneForOtp = pData.phone;
+      // بررسی وضعیت اولین ورود پرسنل
+      const { data: pData } = await supabase.from('personnel_users').select('is_first_login').eq('username', persUsername.toLowerCase().trim()).maybeSingle();
+      if (pData) {
         isFirstLogin = pData.is_first_login;
       } else {
-        const { data: profData } = await supabase.from('profiles').select('phone, is_first_login').eq('id', data.user.id).maybeSingle();
-        if (profData?.phone) {
-          phoneForOtp = profData.phone;
+        const { data: profData } = await supabase.from('profiles').select('is_first_login').eq('id', data.user.id).maybeSingle();
+        if (profData) {
           isFirstLogin = profData.is_first_login;
         }
       }
       
-      if (phoneForOtp) {
-        setPersPhoneForOtp(phoneForOtp);
-        setIsOtpPending(true);
-        setPersStep(isFirstLogin ? 'first_login' : 'otp');
-        toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
-      } else {
-         await supabase.auth.signOut();
-         throw new Error('حساب کاربری شما فاقد شماره موبایل ثبت شده است.');
-      }
+      // انتقال به مرحله دریافت کد تایید بدون خروج از صفحه
+      setPersStep(isFirstLogin ? 'first_login' : 'otp');
+      toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
     } catch (error: any) { 
       toast.error(error.message); 
       await supabase.auth.signOut(); 
@@ -119,7 +111,6 @@ export default function HomePage() {
     
     setIsLoading(true);
     try {
-      setIsOtpPending(false);
       toast.success('ورود شما تایید شد');
       navigate('/panel');
     } catch (error: any) { 
@@ -141,7 +132,6 @@ export default function HomePage() {
       
       await supabase.from('personnel_users').update({ is_first_login: false }).eq('username', persUsername.toLowerCase().trim());
       
-      setIsOtpPending(false);
       toast.success('رمز عبور تغییر یافت و وارد شدید');
       navigate('/panel');
     } catch (error: any) { 
@@ -153,20 +143,10 @@ export default function HomePage() {
 
   const handleCancelPersonnelOtp = async () => {
     await supabase.auth.signOut();
-    setIsOtpPending(false);
     setPersStep('login');
     setPersOtp('');
+    setPersNewPassword('');
   };
-
-  // اگر سشن برقرار است و در مرحله OTP نیستیم، مستقیماً به پنل منتقل شود
-  if (session && profile && !profile.is_first_login && !isOtpPending) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-vazir" dir="rtl">
-        <Loader2 className="animate-spin text-brand-primary" size={40} />
-        <span className="mr-3 font-bold text-slate-600">در حال انتقال به پنل...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
@@ -182,12 +162,14 @@ export default function HomePage() {
 
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 flex flex-col lg:flex-row items-start justify-between gap-12">
           
+          {/* عنوان سایت در سمت راست */}
           <div className="text-center lg:text-right flex-1 animate-slide-up mt-8 lg:mt-16">
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
               سامانه جامع <span className="text-brand-light text-gradient block mt-2">مدیریت تعمیرات</span>
             </h1>
           </div>
 
+          {/* کادر احراز هویت */}
           <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <div className="text-center mb-8">
               <h2 className="text-2xl font-black text-slate-800 mb-2">ورود به سامانه</h2>
@@ -200,6 +182,7 @@ export default function HomePage() {
               </p>
             </div>
 
+            {/* تب‌های انتخاب نوع کاربر */}
             <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
               <button 
                 type="button" 
@@ -217,7 +200,7 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* بخش لاگین مشتریان */}
+            {/* بخش مشتریان */}
             {activeTab === 'customer' && (
               custStep === 'phone' ? (
                 <form onSubmit={handleCustSendOtp} className="space-y-6">
@@ -267,7 +250,7 @@ export default function HomePage() {
               )
             )}
 
-            {/* بخش لاگین پرسنل */}
+            {/* بخش پرسنل */}
             {activeTab === 'personnel' && (
               persStep === 'login' ? (
                 <form onSubmit={handlePersLoginStart} className="space-y-5">
@@ -307,12 +290,8 @@ export default function HomePage() {
                   </button>
                 </form>
               ) : persStep === 'otp' ? (
+                /* فرم کد تایید پرسنل (دقیقاً مشابه فرم مشتری) */
                 <form onSubmit={handlePersVerifyOtp} className="space-y-6">
-                  {persPhoneForOtp && (
-                    <p className="text-xs text-slate-500 text-center -mt-2">
-                      کد تایید به شماره <span className="font-mono font-bold text-slate-700" dir="ltr">{persPhoneForOtp}</span> ارسال شد
-                    </p>
-                  )}
                   <div className="relative">
                     <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                       <Activity className="h-5 w-5 text-slate-400" />
@@ -333,20 +312,16 @@ export default function HomePage() {
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
                   </button>
                   <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
-                    بازگشت و اصلاح اطلاعات
+                    اصلاح نام کاربری و رمز عبور
                   </button>
                 </form>
               ) : (
+                /* فرم ورود اول پرسنل جهت تعیین رمز عبور جدید */
                 <form onSubmit={handlePersFirstLoginComplete} className="space-y-6">
                   <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-2 flex">
                     <ShieldCheck className="h-6 w-6 text-amber-500 shrink-0" />
                     <p className="mr-3 text-xs leading-relaxed text-amber-800 font-medium">اولین ورود سیستم! لطفاً کد پیامکی و رمز عبور جدید را تعیین کنید.</p>
                   </div>
-                  {persPhoneForOtp && (
-                    <p className="text-xs text-slate-500 text-center -mt-2">
-                      کد تایید به شماره <span className="font-mono font-bold text-slate-700" dir="ltr">{persPhoneForOtp}</span> ارسال شد
-                    </p>
-                  )}
                   <div className="relative">
                     <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                       <Activity className="h-5 w-5 text-slate-400" />
@@ -384,7 +359,7 @@ export default function HomePage() {
                     {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'تایید و تغییر رمز'}
                   </button>
                   <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
-                    بازگشت و اصلاح اطلاعات
+                    اصلاح نام کاربری و رمز عبور
                   </button>
                 </form>
               )
