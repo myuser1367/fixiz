@@ -20,7 +20,12 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
     if (onNavigate) {
       onNavigate(id);
     } else {
-      navigate('/');
+      if (id === 'tracking') {
+        // اگر کاربر روی پیگیری درخواست کلیک کرد، به پنل هدایت شود تا درخواست‌هایش را پیگیری کند
+        window.location.href = '/panel';
+      } else {
+        navigate('/');
+      }
     }
   };
 

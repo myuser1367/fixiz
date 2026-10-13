@@ -124,7 +124,7 @@ export default function HomePage() {
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
               سامانه جامع <span className="text-brand-light text-gradient block mt-2">مدیریت تعمیرات</span>
             </h1>
-            {session && profile && (
+            {/* {session && profile && (
               <div className="mt-6">
                 <button 
                   onClick={() => window.location.href = '/panel'} 
@@ -133,7 +133,7 @@ export default function HomePage() {
                   ورود به پنل کاربری <ArrowLeft size={18} />
                 </button>
               </div>
-            )}
+            )} */}
           </div>
 
           <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.1s' }}>
