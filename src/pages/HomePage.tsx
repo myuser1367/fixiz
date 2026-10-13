@@ -4,11 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { Header } from '../components/Header';
 import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { supabase } from '../lib/supabase';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { session, profile, isLoading: authLoading, sendCustomerOtp, verifyCustomerOtp } = useAuth();
+  const { session, profile, isLoading: authLoading, sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFirstLogin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'customer' | 'personnel'>('customer');
   const [isLoading, setIsLoading] = useState(false);
@@ -68,38 +67,18 @@ export default function HomePage() {
     if (!persUsername || !persPassword) return toast.error('نام کاربری و رمز عبور الزامی است');
     setIsLoading(true);
     try {
-      const cleanUsername = persUsername.toLowerCase().trim();
-      const email = `${cleanUsername}@fixiz.ir`;
-
-      // ابتدا از دیتابیس چک می‌کنیم که آیا کاربر وجود دارد و اولین ورودش است یا خیر
-      const { data: pData } = await supabase.from('personnel_users').select('*').eq('username', cleanUsername).maybeSingle();
-
-      if (!pData) {
-         throw new Error('نام کاربری یافت نشد.');
-      }
-
-      if (pData.is_first_login) {
-        if (persPassword !== 'Aa@123456') {
-          throw new Error('برای اولین ورود باید از رمز پیش‌فرض (Aa@123456) استفاده کنید');
-        }
+      // این متد فقط بررسی می‌کند که رمز درست است و آیا اولین ورود است یا خیر
+      const { isFirstLogin } = await personnelLogin(persUsername, persPassword);
+      
+      if (isFirstLogin) {
         setPersStep('first_login');
         toast.success('رمز پیش‌فرض تایید شد. کد تایید و رمز عبور جدید را وارد کنید (کد تستی: 123456)', { duration: 6000 });
-        setIsLoading(false);
-        return;
+      } else {
+        setPersStep('otp');
+        toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
       }
-
-      // اگر اولین ورود نبود، لاگین عادی انجام می‌شود
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: persPassword });
-      
-      if (signInError) {
-         throw new Error('نام کاربری یا رمز عبور اشتباه است');
-      }
-
-      setPersStep('otp');
-      toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
     } catch (error: any) { 
       toast.error(error.message); 
-      await supabase.auth.signOut(); 
     } finally { 
       setIsLoading(false); 
     }
@@ -111,6 +90,7 @@ export default function HomePage() {
     
     setIsLoading(true);
     try {
+      // چون رمز قبلاً در handlePersLoginStart تایید شده، فقط تایید نهایی را صادر می‌کنیم
       toast.success('ورود شما تایید شد');
       window.location.href = '/panel';
     } catch (error: any) { 
@@ -127,34 +107,8 @@ export default function HomePage() {
     
     setIsLoading(true);
     try {
-      const cleanUsername = persUsername.toLowerCase().trim();
-      const email = `${cleanUsername}@fixiz.ir`;
-
-      // ساخت حساب در سوپابیس برای اولین بار
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password: persNewPassword,
-      });
-
-      if (signUpError) throw new Error('خطا در ایجاد حساب کاربری: ' + signUpError.message);
-
-      // به‌روزرسانی وضعیت در جدول پرسنل
-      await supabase.from('personnel_users').update({ is_first_login: false }).eq('username', cleanUsername);
-      
-      const { data: pUser } = await supabase.from('personnel_users').select('*').eq('username', cleanUsername).maybeSingle();
-
-      // ساخت پروفایل
-      if (authData?.user && pUser) {
-         await supabase.from('profiles').upsert({
-            id: authData.user.id,
-            phone: pUser.phone,
-            full_name: pUser.full_name,
-            role: pUser.role,
-            is_first_login: false
-         });
-      }
-
-      toast.success('رمز عبور تغییر یافت و وارد شدید');
+      await completePersonnelFirstLogin(persUsername, persNewPassword);
+      toast.success('رمز عبور با موفقیت تغییر کرد و وارد شدید');
       window.location.href = '/panel';
     } catch (error: any) { 
       toast.error(error.message || 'خطا در ثبت اطلاعات'); 
@@ -162,8 +116,7 @@ export default function HomePage() {
     } 
   };
 
-  const handleCancelPersonnelOtp = async () => {
-    await supabase.auth.signOut();
+  const handleCancelPersonnelOtp = () => {
     setPersStep('login');
     setPersOtp('');
     setPersNewPassword('');
@@ -206,7 +159,6 @@ export default function HomePage() {
               <button type="button" onClick={() => setActiveTab('personnel')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'personnel' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>پرسنل سازمان</button>
             </div>
 
-            {/* بخش مشتریان */}
             {activeTab === 'customer' && (
               custStep === 'phone' ? (
                 <form onSubmit={handleCustSendOtp} className="space-y-6">
@@ -238,7 +190,6 @@ export default function HomePage() {
               )
             )}
 
-            {/* بخش پرسنل */}
             {activeTab === 'personnel' && (
               persStep === 'login' ? (
                 <form onSubmit={handlePersLoginStart} className="space-y-5">
