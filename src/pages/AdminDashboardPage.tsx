@@ -57,10 +57,8 @@ export default function AdminDashboardPage() {
     setIsLoading(true);
     try {
       const cleanUsername = username.toLowerCase().trim();
-      const email = `${cleanUsername}@fixiz.ir`;
 
       if (editingId) {
-        // ویرایش پرسنل
         const { error } = await supabase.from('personnel_users')
           .update({
             full_name: fullName,
@@ -74,18 +72,7 @@ export default function AdminDashboardPage() {
         toast.success('اطلاعات پرسنل با موفقیت ویرایش شد');
         setEditingId(null);
       } else {
-        // ساخت کاربر جدید در سیستم احراز هویت با رمز پیش‌فرض
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
-          password: 'Aa@123456',
-        });
-
-        // اگر ارور داد که کاربر وجود دارد مشکلی نیست (ممکن است قبلا ثبت شده باشد)
-        if (authError && !authError.message.toLowerCase().includes('already registered')) {
-          throw new Error(`خطا در ایجاد حساب امنیتی: ${authError.message}`);
-        }
-
-        // ثبت اطلاعات در جدول پرسنل
+        // ثبت در دیتابیس بدون ساخت اکانت برای جلوگیری از محدودیت ایمیل سوپابیس
         const { error } = await supabase.from('personnel_users').insert({
           full_name: fullName,
           username: cleanUsername,
@@ -95,18 +82,6 @@ export default function AdminDashboardPage() {
         });
 
         if (error) throw new Error(error.message);
-        
-        // اگر اکانت امنیتی موفق ساخته شد، پروفایل را هم می‌سازیم تا خطایی پیش نیاید
-        if (authData?.user) {
-           await supabase.from('profiles').upsert({
-            id: authData.user.id,
-            phone: phone.trim(),
-            full_name: fullName,
-            role: role,
-            is_first_login: true
-          });
-        }
-
         toast.success('پرسنل جدید با موفقیت ثبت شد');
       }
 
@@ -199,7 +174,6 @@ export default function AdminDashboardPage() {
       {/* محتوای اصلی */}
       <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* فرم ثبت/ویرایش پرسنل */}
         <div className="bg-white p-6 rounded-2xl shadow-card border border-slate-100 h-fit transition-all duration-300 relative">
            {editingId && <div className="absolute top-0 right-0 left-0 h-1 bg-amber-400 rounded-t-2xl"></div>}
           <div className="flex items-center gap-2 mb-6 text-slate-800 font-bold text-lg">
@@ -249,7 +223,6 @@ export default function AdminDashboardPage() {
           </form>
         </div>
 
-        {/* لیست پرسنل موجود */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-card border border-slate-100">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2 text-slate-800 font-bold text-lg">
