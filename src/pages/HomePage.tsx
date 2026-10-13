@@ -26,15 +26,10 @@ export default function HomePage() {
   const [persPassword, setPersPassword] = useState('');
   const [persStep, setPersStep] = useState<'login' | 'otp'>('login');
   const [persOtp, setPersOtp] = useState('');
-  const [persPhoneForOtp, setPersPhoneForOtp] = useState(''); // برای ذخیره شماره پرسنل پس از تایید رمز
+  const [persPhoneForOtp, setPersPhoneForOtp] = useState('');
 
   useEffect(() => {
-    // اگر کاربر لاگین بود و در مراحل ثبت‌نام نبود، به پنل برود
-    if (session && profile && !profile.is_first_login) {
-      // این چک را اینجا برداشتیم تا کاربر در صفحه اصلی بماند و فقط دکمه ورود ببیند، 
-      // اما اگر بخواهید به محض باز کردن سایت مستقیم برود پنل، این کد فعال می‌شود:
-      // navigate('/panel');
-    }
+    // اگر کاربر لاگین بود و در مراحل ثبت‌نام نبود، در صفحه اصلی بماند و فقط دکمه ورود مستقیم ببیند
   }, [session, profile, navigate]);
 
   const handleCustSendOtp = async (e: React.FormEvent) => {
@@ -79,7 +74,7 @@ export default function HomePage() {
       
       if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
       
-      // اگر رمز درست بود، موبایل پرسنل را می‌گیریم
+      // اگر رمز درست بود، موبایل پرسنل را از پروفایل می‌گیریم
       const { data: pData } = await supabase.from('profiles').select('phone').eq('id', data.user.id).single();
       
       if (pData?.phone) {
@@ -89,12 +84,9 @@ export default function HomePage() {
         setPersStep('otp');
         toast.success(`کد تایید به موبایل شما ارسال شد`, { duration: 6000 });
       } else {
-         // اگر شماره نداشت، لاگین مستقیم (برای مدیر کل یا اکانت‌های قدیمی)
-         const finalData = await personnelLogin(persUsername, persPassword);
-         if(finalData) {
-            toast.success('ورود موفقیت‌آمیز');
-            navigate('/panel');
-         }
+         // اگر شماره نداشت، لاگین لغو شود و خطا بدهد
+         await supabase.auth.signOut();
+         throw new Error('حساب کاربری شما فاقد شماره موبایل ثبت شده است. لطفاً با مدیر سیستم تماس بگیرید.');
       }
     } catch (error: any) { 
       toast.error(error.message); 
@@ -111,6 +103,8 @@ export default function HomePage() {
     setIsLoading(true);
     try {
       await verifyCustomerOtp(persPhoneForOtp, persOtp);
+      // اجرای لاگین نهایی برای گرفتن اطلاعات کامل پروفایل پرسنل
+      await personnelLogin(persUsername, persPassword);
       toast.success('ورود پرسنل تایید شد');
       navigate('/panel');
     } catch (error: any) { 
@@ -125,7 +119,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-slate-50" dir="rtl">
       <Header />
 
-      <main className="relative bg-brand-dark overflow-hidden min-h-[calc(100vh-80px)] flex flex-col items-center justify-center py-12">
+      <main className="relative bg-brand-dark overflow-hidden min-h-[calc(100vh-80px)] flex flex-col justify-start pt-16 lg:pt-24 pb-12">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#2dd4bf 2px, transparent 2px)', backgroundSize: '32px 32px' }}></div>
         
         <div className="absolute bottom-0 w-full overflow-hidden leading-[0]">
@@ -134,16 +128,15 @@ export default function HomePage() {
           </svg>
         </div>
 
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-12">
+        {/* تراز بندی flex-row برای قرارگیری متن و کادر لاگین در کنار هم، items-start برای قرارگیری در بالا */}
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 flex flex-col lg:flex-row items-start justify-between gap-12">
           
           {/* متن‌های سمت راست */}
-          <div className="text-center lg:text-right flex-1 animate-slide-up">
+          <div className="text-center lg:text-right flex-1 animate-slide-up mt-8 lg:mt-16">
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
               سامانه جامع <span className="text-brand-light text-gradient block mt-2">مدیریت تعمیرات</span>
             </h1>
-            <p className="text-lg md:text-xl text-slate-400 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-              از ثبت درخواست تا برآورد هزینه و تحویل کالا، همه چیز را کاملاً آنلاین، شفاف و سریع مدیریت و پیگیری کنید.
-            </p>
+            {/* متن توضیحات زیر عنوان حذف شد */}
           </div>
 
           {/* کادر لاگین سمت چپ */}

@@ -165,7 +165,8 @@ export default function AdminDashboardPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">نام کاربری (انگلیسی)</label>
-              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="مثال: ali_rezaei" className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" dir="ltr" disabled={!!editingId} />
+              {/* محدودیت ویرایش نام کاربری (disabled) برداشته شد */}
+              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="مثال: ali_rezaei" className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" dir="ltr" />
             </div>
 
             <div>
