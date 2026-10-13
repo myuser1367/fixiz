@@ -1,11 +1,22 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Header } from '../components/Header';
-import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, Check, FileText, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+interface RepairRequest {
+  id: string;
+  tracking_code: string;
+  device_info: string;
+  brand: string;
+  fault_description: string;
+  status: string;
+  created_at: string;
+}
+
 export default function HomePage() {
-const { sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFirstLogin } = useAuth();
+  const { sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFirstLogin } = useAuth();
   const [activeTab, setActiveTab] = useState<'customer' | 'personnel'>('customer');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +30,107 @@ const { sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFir
   const [persStep, setPersStep] = useState<'login' | 'otp' | 'first_login'>('login');
   const [persOtp, setPersOtp] = useState('');
   const [persNewPassword, setPersNewPassword] = useState('');
+
+  // استیت‌های مربوط به مدال پیگیری درخواست از طریق هدر
+  const [trackingModalOpen, setTrackingModalOpen] = useState(false);
+  const [searchCode, setSearchCode] = useState('');
+  const [trackedRequest, setTrackedRequest] = useState<RepairRequest | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleOpenTrackingModal = () => {
+    setTrackingModalOpen(true);
+    setTrackedRequest(null);
+    setSearchCode('');
+  };
+
+  const handleSearchTracking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchCode.trim()) return toast.error('لطفاً کد پیگیری را وارد کنید');
+
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from('repair_requests')
+        .select('*')
+        .ilike('tracking_code', searchCode.trim())
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) {
+        toast.error('درخواستی با این کد پیگیری یافت نشد');
+        setTrackedRequest(null);
+      } else {
+        setTrackedRequest(data);
+        toast.success('درخواست پیدا شد');
+      }
+    } catch (error: any) {
+      toast.error('خطا در جستجوی کد پیگیری');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending_coordinator': return <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Activity size={14}/> ثبت اولیه</span>;
+      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Wrench size={14}/> در حال بررسی / پذیرش</span>;
+      case 'accepted': return <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> پذیرش شده</span>;
+      case 'rejected': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> عدم پذیرش</span>;
+      case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Loader2 size={14} className="animate-spin"/> در حال تعمیر</span>;
+      case 'estimated': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> برآورد هزینه</span>;
+      case 'invoiced': return <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> صدور فاکتور</span>;
+      default: return <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
+    }
+  };
+
+  const renderWorkflowSteps = (currentStatus: string) => {
+    const steps = [
+      { id: 'registered', label: 'ثبت درخواست', desc: 'درخواست توسط مشتری ثبت شد' },
+      { id: 'acceptance', label: 'پذیرش یا عدم پذیرش', desc: 'بررسی اولیه توسط واحد هماهنگی و سرپرست' },
+      { id: 'repairing', label: 'در حال تعمیر', desc: 'تکنسین در حال عیب‌یابی و تعمیر دستگاه است' },
+      { id: 'estimation', label: 'برآورد هزینه', desc: 'محاسبه قطعات مصرفی و اعلام قیمت' },
+      { id: 'invoiced', label: 'صدور فاکتور', desc: 'آماده تحویل و تسویه حساب نهایی' },
+    ];
+
+    let activeIndex = 0;
+    if (['pending_supervisor', 'accepted'].includes(currentStatus)) activeIndex = 1;
+    else if (currentStatus === 'repairing') activeIndex = 2;
+    else if (['estimated', 'pending_commercial', 'pending_finance'].includes(currentStatus)) activeIndex = 3;
+    else if (currentStatus === 'invoiced') activeIndex = 4;
+    else if (currentStatus === 'rejected') activeIndex = 1;
+
+    return (
+      <div className="space-y-6 my-6 text-right" dir="rtl">
+        <h4 className="font-bold text-slate-800 text-base mb-4">مراحل زنجیره تعمیر و خدمات</h4>
+        <div className="space-y-4 relative before:absolute before:right-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+          {steps.map((step, idx) => {
+            const isCompleted = idx < activeIndex;
+            const isCurrent = idx === activeIndex;
+            const isRejected = currentStatus === 'rejected' && idx === 1;
+
+            return (
+              <div key={step.id} className="relative flex items-start gap-4 pr-10">
+                <div className={`absolute right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white ${
+                  isRejected ? 'bg-red-500 text-white' :
+                  isCompleted ? 'bg-emerald-500 text-white' : 
+                  isCurrent ? 'bg-brand-primary text-white animate-pulse' : 
+                  'bg-slate-200 text-slate-500'
+                }`}>
+                  {isRejected ? <XCircle size={14} /> : isCompleted ? <Check size={14} /> : idx + 1}
+                </div>
+                <div>
+                  <h5 className={`font-bold text-sm ${isCurrent || isCompleted ? 'text-slate-800' : 'text-slate-400'}`}>
+                    {isRejected && idx === 1 ? 'درخواست رد شد (عدم پذیرش)' : step.label}
+                  </h5>
+                  <p className="text-xs text-slate-500 mt-0.5">{step.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   const handleCustSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +165,6 @@ const { sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFir
     setIsLoading(true);
     try {
       const { isFirstLogin } = await personnelLogin(persUsername, persPassword);
-      
       if (isFirstLogin) {
         setPersStep('first_login');
         toast.success('رمز پیش‌فرض تایید شد. کد تایید و رمز عبور جدید را وارد کنید (کد تستی: 123456)', { duration: 6000 });
@@ -71,7 +182,6 @@ const { sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFir
   const handlePersVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (persOtp !== '123456') return toast.error('کد تایید اشتباه است (کد تستی 123456 می‌باشد)');
-    
     setIsLoading(true);
     try {
       toast.success('ورود شما تایید شد');
@@ -107,7 +217,8 @@ const { sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFir
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
-      <Header />
+      {/* هدر با قابلیت باز کردن مدال پیگیری */}
+      <Header onOpenTracking={handleOpenTrackingModal} />
 
       <main className="relative bg-brand-dark overflow-hidden min-h-[calc(100vh-80px)] flex flex-col items-center lg:items-start justify-center lg:justify-start pt-12 lg:pt-24 pb-12">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#2dd4bf 2px, transparent 2px)', backgroundSize: '32px 32px' }}></div>
@@ -118,21 +229,10 @@ const { sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFir
         </div>
 
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 flex flex-col lg:flex-row items-start justify-between gap-12">
-          
           <div className="text-center lg:text-right flex-1 animate-slide-up mt-8 lg:mt-16">
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
               سامانه جامع <span className="text-brand-light text-gradient block mt-2">مدیریت تعمیرات</span>
             </h1>
-            {/* {session && profile && (
-              <div className="mt-6">
-                <button 
-                  onClick={() => window.location.href = '/panel'} 
-                  className="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg transition-all inline-flex items-center gap-2"
-                >
-                  ورود به پنل کاربری <ArrowLeft size={18} />
-                </button>
-              </div>
-            )} */}
           </div>
 
           <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.1s' }}>
@@ -253,6 +353,79 @@ const { sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFir
           </div>
         </div>
       </main>
+
+      {/* مدال پیگیری درخواست از طریق هدر در صفحه اصلی */}
+      {trackingModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <h3 className="text-lg font-bold text-slate-800">پیگیری آنلاین درخواست تعمیر</h3>
+              <button 
+                onClick={() => setTrackingModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSearchTracking} className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">کد پیگیری دستگاه</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    required 
+                    value={searchCode} 
+                    onChange={e => setSearchCode(e.target.value)} 
+                    placeholder="مثال: FIX-633141" 
+                    className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary font-mono font-bold text-left uppercase" 
+                    dir="ltr"
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={isSearching}
+                    className="px-6 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors flex items-center gap-2"
+                  >
+                    {isSearching ? <Loader2 className="animate-spin" size={18} /> : 'استعلام'}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {trackedRequest && (
+              <div className="space-y-4 border-t border-slate-100 pt-4">
+                <div className="bg-slate-50 p-4 rounded-2xl text-xs space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">نام دستگاه:</span>
+                    <span className="font-bold text-slate-800">{trackedRequest.device_info}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">برند دستگاه:</span>
+                    <span className="font-bold text-slate-700">{trackedRequest.brand || 'تعیین نشده'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">تاریخ ثبت:</span>
+                    <span className="font-mono font-bold text-slate-700" dir="ltr">{new Date(trackedRequest.created_at).toLocaleDateString('fa-IR')}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">وضعیت کنونی:</span>
+                    <span>{getStatusBadge(trackedRequest.status)}</span>
+                  </div>
+                </div>
+
+                {renderWorkflowSteps(trackedRequest.status)}
+              </div>
+            )}
+
+            <button 
+              onClick={() => setTrackingModalOpen(false)} 
+              className="w-full mt-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+            >
+              بستن پنجره
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
