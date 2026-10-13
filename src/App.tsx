@@ -8,6 +8,7 @@ import CustomerPanelPage from './pages/CustomerPanelPage';
 import { supabase } from './lib/supabase';
 import { Home, LogOut, Key, Wrench, FileText, ShoppingCart, UserCheck, BarChart3, Settings } from 'lucide-react';
 import CoordinatorPanelPage from './pages/CoordinatorPanelPage';
+import SupervisorPanelPage from './pages/SupervisorPanelPage';
 
 const roleMeta: Record<string, { title: string; color: string; badge: string; icon: any; desc: string }> = {
   coordinator: { 
@@ -213,15 +214,15 @@ const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
 
 const DashboardRouter = () => {
   const { role, isLoading } = useAuth();
-  
+
   if (isLoading) return <div className="min-h-screen flex items-center justify-center font-vazir text-slate-600">در حال بارگذاری پنل...</div>;
   if (!role) return <Navigate to="/" replace />;
 
   switch (role) {
     case 'admin': return <AdminDashboardPage />;
     case 'customer': return <CustomerPanelPage />;
-case 'coordinator': return <CoordinatorPanelPage />;
-    case 'supervisor': return <PersonnelPanelLayout roleKey="supervisor" />;
+    case 'coordinator': return <CoordinatorPanelPage />;
+    case 'supervisor': return <SupervisorPanelPage />;
     case 'ceo': return <PersonnelPanelLayout roleKey="ceo" />;
     case 'commercial': return <PersonnelPanelLayout roleKey="commercial" />;
     case 'finance': return <PersonnelPanelLayout roleKey="finance" />;
