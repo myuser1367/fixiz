@@ -29,12 +29,21 @@ export default function CustomerPanelPage() {
   // حالت پیگیری درخواست انتخابی
   const [selectedTrackingReq, setSelectedTrackingReq] = useState<RepairRequest | null>(null);
 
+  // حالت ویرایش درخواست
+  const [editingReq, setEditingReq] = useState<RepairRequest | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    device_info: '',
+    brand: '',
+    fault_description: '',
+    needs_price_estimate: false,
+  });
+
   // مودال تکمیل اطلاعات پروفایل
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [companyName, setCompanyName] = useState('');
 
-  // فرم ثبت درخواست
+  // فرم ثبت درخواست جدید
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
@@ -144,6 +153,46 @@ export default function CustomerPanelPage() {
     }
   };
 
+  // باز کردن مودال ویرایش
+  const handleOpenEdit = (req: RepairRequest) => {
+    setEditingReq(req);
+    setEditFormData({
+      device_info: req.device_info,
+      brand: req.brand || '',
+      fault_description: req.fault_description,
+      needs_price_estimate: req.needs_price_estimate,
+    });
+  };
+
+  // ذخیره ویرایش درخواست
+  const handleUpdateEditRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReq) return;
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('repair_requests')
+        .update({
+          device_info: editFormData.device_info,
+          brand: editFormData.brand,
+          fault_description: editFormData.fault_description,
+          needs_price_estimate: editFormData.needs_price_estimate,
+        })
+        .eq('id', editingReq.id);
+
+      if (error) throw error;
+
+      toast.success('درخواست با موفقیت ویرایش شد');
+      setEditingReq(null);
+      fetchRequests();
+    } catch (error: any) {
+      toast.error(error.message || 'خطا در ویرایش درخواست');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('آیا از حذف این درخواست مطمئن هستید؟')) return;
     try {
@@ -170,7 +219,6 @@ export default function CustomerPanelPage() {
     }
   };
 
-  // تابع تعیین وضعیت مراحل برای نمایشگر زنجیره ای (مشابه عکس مرجع)
   const renderWorkflowSteps = (currentStatus: string) => {
     const steps = [
       { id: 'registered', label: 'ثبت درخواست', desc: 'درخواست توسط مشتری ثبت شد' },
@@ -180,7 +228,6 @@ export default function CustomerPanelPage() {
       { id: 'invoiced', label: 'صدور فاکتور', desc: 'آماده تحویل و تسویه حساب نهایی' },
     ];
 
-    // تعیین ایندکس مرحله فعال بر اساس استاتوس دیتابیس
     let activeIndex = 0;
     if (['pending_supervisor', 'accepted'].includes(currentStatus)) activeIndex = 1;
     else if (currentStatus === 'repairing') activeIndex = 2;
@@ -224,7 +271,6 @@ export default function CustomerPanelPage() {
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
       
-      {/* هدر پنل */}
       <header className="bg-brand-dark text-white shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -251,7 +297,6 @@ export default function CustomerPanelPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         
-        {/* اطلاعات کاربر */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-800">خوش آمدید، {profile?.full_name || 'کاربر گرامی'}</h2>
@@ -259,7 +304,6 @@ export default function CustomerPanelPage() {
           </div>
         </div>
 
-        {/* تب‌ها */}
         <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1.5 mb-6 w-full max-w-md">
           <button onClick={() => setActiveTab('list')} className={`flex-1 py-2.5 flex justify-center items-center gap-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'list' ? 'bg-brand-primary text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
             <List size={18} /> پیگیری درخواست‌ها
@@ -269,7 +313,6 @@ export default function CustomerPanelPage() {
           </button>
         </div>
 
-        {/* محتوای تب‌ها */}
         {activeTab === 'new' ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
             <h3 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">فرم ثبت درخواست تعمیر</h3>
@@ -345,10 +388,24 @@ export default function CustomerPanelPage() {
                     >
                       <Search size={16} /> پیگیری مراحل
                     </button>
+
+                    {/* دکمه ویرایش و حذف فقط تا قبل از پذیرش (یعنی وضعیت ثبت اولیه) فعال است */}
                     {req.status === 'pending_coordinator' && (
-                      <button onClick={() => handleDelete(req.id)} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors" title="حذف درخواست">
-                        <Trash2 size={16} /> حذف
-                      </button>
+                      <>
+                        <button 
+                          onClick={() => handleOpenEdit(req)}
+                          className="flex-1 md:w-full px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors"
+                        >
+                          <Edit size={16} /> ویرایش
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(req.id)} 
+                          className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors" 
+                          title="حذف درخواست"
+                        >
+                          <Trash2 size={16} /> حذف
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -357,6 +414,65 @@ export default function CustomerPanelPage() {
           </div>
         )}
       </main>
+
+      {/* مدال ویرایش درخواست (فقط تا قبل از پذیرش) */}
+      {editingReq && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up">
+            <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-3">ویرایش درخواست تعمیر</h3>
+            <form onSubmit={handleUpdateEditRequest} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">نام دستگاه</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={editFormData.device_info} 
+                  onChange={e => setEditFormData({...editFormData, device_info: e.target.value})} 
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">برند سازنده</label>
+                <input 
+                  type="text" 
+                  value={editFormData.brand} 
+                  onChange={e => setEditFormData({...editFormData, brand: e.target.value})} 
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">شرح مشکل</label>
+                <textarea 
+                  rows={3} 
+                  required 
+                  value={editFormData.fault_description} 
+                  onChange={e => setEditFormData({...editFormData, fault_description: e.target.value})} 
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary resize-none" 
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-2">
+                <input 
+                  type="checkbox" 
+                  id="edit_estimate" 
+                  checked={editFormData.needs_price_estimate} 
+                  onChange={e => setEditFormData({...editFormData, needs_price_estimate: e.target.checked})} 
+                  className="w-4 h-4 rounded text-brand-primary" 
+                />
+                <label htmlFor="edit_estimate" className="text-sm font-bold text-slate-700 cursor-pointer">نیاز به برآورد قیمت پیش از تعمیر دارم</label>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button type="submit" disabled={isLoading} className="flex-1 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors">
+                  {isLoading ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
+                </button>
+                <button type="button" onClick={() => setEditingReq(null)} className="px-5 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+                  انصراف
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* مدال جزئیات و مراحل پیگیری */}
       {selectedTrackingReq && (
@@ -393,7 +509,6 @@ export default function CustomerPanelPage() {
                 </div>
               </div>
 
-              {/* رندر زنجیره مراحل */}
               {renderWorkflowSteps(selectedTrackingReq.status)}
             </div>
 
@@ -407,7 +522,6 @@ export default function CustomerPanelPage() {
         </div>
       )}
 
-      {/* مدال تکمیل پروفایل در اولین ورود */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-slide-up">
