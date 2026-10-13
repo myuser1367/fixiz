@@ -1,0 +1,209 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+import { LogOut, Home, FileSpreadsheet, Check, X, Calendar, Clock, Wrench } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+
+export default function CoordinatorPanelPage() {
+  const { profile, logout } = useAuth();
+  const navigate = useNavigate();
+  const [requests, setRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('repair_requests')
+      .select(`*, profiles!customer_id(full_name, phone)`)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      toast.error('خطا در دریافت اطلاعات');
+    } else {
+      setRequests(data || []);
+    }
+    setIsLoading(false);
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    const { error } = await supabase
+      .from('repair_requests')
+      .update({ status: newStatus })
+      .eq('id', id);
+
+    if (error) {
+      toast.error('خطا در بروزرسانی وضعیت');
+    } else {
+      toast.success('وضعیت با موفقیت تغییر کرد');
+      fetchRequests();
+    }
+  };
+
+  const handleDateUpdate = async (id: string, field: 'received_at' | 'delivered_at', value: string) => {
+    const formattedDate = value ? new Date(value).toISOString() : null;
+    
+    const { error } = await supabase
+      .from('repair_requests')
+      .update({ [field]: formattedDate })
+      .eq('id', id);
+
+    if (error) {
+      toast.error('خطا در ثبت تاریخ');
+    } else {
+      toast.success('تاریخ با موفقیت ثبت شد');
+      fetchRequests();
+    }
+  };
+
+  const exportToCSV = () => {
+    const headers = ['کد پیگیری', 'نام مشتری', 'شماره تماس', 'دستگاه', 'وضعیت', 'تاریخ ثبت'];
+    const csvContent = [
+      headers.join(','),
+      ...requests.map(req => [
+        req.tracking_code,
+        req.profiles?.full_name || 'نامشخص',
+        req.profiles?.phone || 'نامشخص',
+        req.device_info,
+        req.status,
+        new Date(req.created_at).toLocaleDateString('fa-IR')
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'گزارش_درخواست_ها.csv';
+    link.click();
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
+      {/* هدر پنل واحد هماهنگی */}
+      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-100 p-2.5 rounded-xl text-emerald-700">
+              <Wrench size={26} />
+            </div>
+            <div>
+              <h1 className="text-xl font-extrabold text-slate-800">سامانه فیکسیز</h1>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md">واحد هماهنگی</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-xs text-slate-500 hidden md:inline">خوش آمدید، {profile?.full_name || 'همکار گرامی'}</span>
+            <button onClick={exportToCSV} className="flex items-center gap-1.5 text-xs sm:text-sm bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
+              <FileSpreadsheet size={16} /> خروجی اکسل
+            </button>
+            <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
+              <Home size={16} /> صفحه اصلی
+            </button>
+            <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-1.5 text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2.5 rounded-xl font-bold transition-colors">
+              <LogOut size={16} /> خروج
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* محتوای اصلی */}
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-slate-800">مدیریت و پیگیری درخواست‌ها</h2>
+            <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">{requests.length} درخواست</span>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-right border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-400 text-xs uppercase">
+                  <th className="pb-3 px-3">کد پیگیری</th>
+                  <th className="pb-3 px-3">مشتری</th>
+                  <th className="pb-3 px-3">دستگاه و برند</th>
+                  <th className="pb-3 px-3">وضعیت فعلی</th>
+                  <th className="pb-3 px-3">تاریخ ورود / خروج قطعه</th>
+                  <th className="pb-3 px-3 text-center">عملیات هماهنگی</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {isLoading ? (
+                  <tr><td colSpan={6} className="py-8 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>
+                ) : requests.length === 0 ? (
+                  <tr><td colSpan={6} className="py-8 text-center text-slate-400">هیچ درخواستی ثبت نشده است.</td></tr>
+                ) : (
+                  requests.map(req => (
+                    <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
+                      <td className="py-4 px-3">
+                        <div className="font-bold text-slate-800">{req.profiles?.full_name || 'بدون نام'}</div>
+                        <div className="text-xs font-mono text-slate-500" dir="ltr">{req.profiles?.phone}</div>
+                      </td>
+                      <td className="py-4 px-3">
+                        <div className="font-bold text-slate-800">{req.device_info}</div>
+                        <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
+                      </td>
+                      <td className="py-4 px-3">
+                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                          req.status === 'pending_coordinator' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {req.status === 'pending_coordinator' ? 'در انتظار بررسی واحد هماهنگی' : req.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-3 space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <Calendar size={13} className="text-slate-400 shrink-0"/> 
+                          <span>ورود:</span> 
+                          <input 
+                            type="datetime-local" 
+                            value={req.received_at ? new Date(req.received_at).toISOString().slice(0, 16) : ''} 
+                            onChange={(e) => handleDateUpdate(req.id, 'received_at', e.target.value)} 
+                            className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <Clock size={13} className="text-slate-400 shrink-0"/> 
+                          <span>خروج:</span> 
+                          <input 
+                            type="datetime-local" 
+                            value={req.delivered_at ? new Date(req.delivered_at).toISOString().slice(0, 16) : ''} 
+                            onChange={(e) => handleDateUpdate(req.id, 'delivered_at', e.target.value)} 
+                            className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                          />
+                        </div>
+                      </td>
+                      <td className="py-4 px-3 text-center">
+                        {req.status === 'pending_coordinator' && (
+                          <div className="flex items-center justify-center gap-2">
+                            <button 
+                              onClick={() => handleStatusChange(req.id, 'pending_supervisor')} 
+                              className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center gap-1 text-xs" 
+                              title="تایید و ارجاع به سرپرست تعمیر"
+                            >
+                              <Check size={16} /> تایید و ارجاع
+                            </button>
+                            <button 
+                              onClick={() => handleStatusChange(req.id, 'rejected')} 
+                              className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors font-bold flex items-center gap-1 text-xs" 
+                              title="عدم پذیرش"
+                            >
+                              <X size={16} /> رد
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
