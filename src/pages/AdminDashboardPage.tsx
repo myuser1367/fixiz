@@ -72,13 +72,14 @@ export default function AdminDashboardPage() {
         toast.success('اطلاعات پرسنل با موفقیت ویرایش شد');
         setEditingId(null);
       } else {
-        // ثبت در دیتابیس بدون ساخت اکانت برای جلوگیری از محدودیت ایمیل سوپابیس
+        // ثبت در جدول پرسنل با تنظیم رمز عبور اولیه
         const { error } = await supabase.from('personnel_users').insert({
           full_name: fullName,
           username: cleanUsername,
           role,
           phone: phone.trim(),
-          is_first_login: true
+          is_first_login: true,
+          password: 'Aa@123456'
         });
 
         if (error) throw new Error(error.message);
@@ -104,7 +105,7 @@ export default function AdminDashboardPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      toast.success('رمز عبور حساب شما با موفقیت تغییر کرد');
+      toast.success('رمز عبور ادمین با موفقیت تغییر کرد');
       setShowPasswordModal(false);
       setNewPassword('');
     } catch (error: any) {
@@ -145,8 +146,8 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans" dir="rtl">
-      {/* هدر پنل */}
-      <header className="bg-white shadow-sm border-b border-slate-200">
+      {/* هدر پنل ادمین */}
+      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-brand-primary/10 p-2.5 rounded-xl text-brand-primary">
@@ -158,24 +159,25 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowPasswordModal(true)} className="hidden sm:flex items-center gap-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl transition-colors">
+            <button onClick={() => setShowPasswordModal(true)} className="hidden sm:flex items-center gap-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl transition-colors font-bold">
               <Key size={18} /> تغییر رمز
             </button>
-            <button onClick={() => navigate('/')} className="hidden sm:flex items-center gap-1.5 text-sm bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-2.5 rounded-xl transition-colors">
+            <button onClick={() => navigate('/')} className="hidden sm:flex items-center gap-1.5 text-sm bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-2.5 rounded-xl transition-colors font-bold">
               <Home size={18} /> صفحه اصلی
             </button>
-            <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl font-medium transition-colors" title="خروج">
+            <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl font-bold transition-colors" title="خروج">
               <LogOut size={18} /> <span className="hidden sm:inline">خروج</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* محتوای اصلی */}
+      {/* محتوای اصلی پنل ادمین */}
       <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
+        {/* فرم ثبت یا ویرایش پرسنل */}
         <div className="bg-white p-6 rounded-2xl shadow-card border border-slate-100 h-fit transition-all duration-300 relative">
-           {editingId && <div className="absolute top-0 right-0 left-0 h-1 bg-amber-400 rounded-t-2xl"></div>}
+          {editingId && <div className="absolute top-0 right-0 left-0 h-1 bg-amber-400 rounded-t-2xl"></div>}
           <div className="flex items-center gap-2 mb-6 text-slate-800 font-bold text-lg">
             {editingId ? <Edit className="text-amber-500" size={22} /> : <UserPlus className="text-brand-primary" size={22} />}
             <span>{editingId ? 'ویرایش اطلاعات پرسنل' : 'تعریف پرسنل سازمانی جدید'}</span>
@@ -212,7 +214,7 @@ export default function AdminDashboardPage() {
             {!editingId && <p className="text-xs text-slate-400 mt-1">رمز عبور پیش‌فرض برای تمامی پرسنل جدید <strong className="font-mono">Aa@123456</strong> می‌باشد و در اولین ورود باید آن را تغییر دهند.</p>}
 
             <div className="flex gap-2 mt-4">
-               <button type="submit" disabled={isLoading} className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl font-bold text-white transition-colors ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-brand-primary hover:bg-brand-600'}`}>
+              <button type="submit" disabled={isLoading} className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl font-bold text-white transition-colors ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-brand-primary hover:bg-brand-600'}`}>
                 {editingId ? <Edit size={18} /> : <UserPlus size={18} />} 
                 {isLoading ? 'در حال ثبت...' : (editingId ? 'ذخیره تغییرات' : 'ایجاد حساب')}
               </button>
@@ -223,6 +225,7 @@ export default function AdminDashboardPage() {
           </form>
         </div>
 
+        {/* جدول فهرست پرسنل */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-card border border-slate-100">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2 text-slate-800 font-bold text-lg">
@@ -284,11 +287,11 @@ export default function AdminDashboardPage() {
 
       </main>
 
-      {/* مدال تغییر رمز عبور */}
+      {/* مدال تغییر رمز ادمین */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
-            <h3 className="text-xl font-bold text-slate-800 mb-4">تغییر رمز عبور</h3>
+            <h3 className="text-xl font-bold text-slate-800 mb-4">تغییر رمز عبور ادمین</h3>
             <form onSubmit={handleChangePassword}>
               <div className="mb-4">
                 <label className="block text-sm font-bold text-slate-700 mb-2">رمز عبور جدید</label>
