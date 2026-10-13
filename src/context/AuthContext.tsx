@@ -10,7 +10,7 @@ export interface UserProfile {
   company_name?: string;
   role: Role;
   is_first_login: boolean;
-  username?: string; // برای پرسنل
+  username?: string;
 }
 
 interface AuthContextType {
@@ -42,41 +42,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // لود کردن نشست‌های ذخیره‌شده پرسنل از مرورگر
-  useEffect(() => {
-    const savedPersonnel = localStorage.getItem('fixiz_personnel_session');
-    if (savedPersonnel) {
-      const parsedData = JSON.parse(savedPersonnel);
-      setSession({ user: { id: parsedData.id } });
-      setProfile(parsedData);
-      setIsLoading(false);
-      return;
-    }
-
-    // اگر پرسنل نبود، چک کردن سشن عادی (برای مشتری یا ادمین اصلی)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        fetchProfile(session.user.id, session.user.phone || '');
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (localStorage.getItem('fixiz_personnel_session')) return; // جلوگیری از تداخل
-      setSession(session);
-      if (session?.user) {
-        fetchProfile(session.user.id, session.user.phone || '');
-      } else {
-        setProfile(null);
-        setIsLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const fetchProfile = async (userId: string, phone: string) => {
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
@@ -90,7 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: newProfile } = await supabase.from('profiles').insert({
           id: userId, phone: phone, role: 'customer', is_first_login: false
         }).select().single();
-        setProfile(newProfile as UserProfile);
+        if (newProfile) {
+          setProfile(newProfile as UserProfile);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -98,6 +65,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const savedPersonnel = localStorage.getItem('fixiz_personnel_session');
+    if (savedPersonnel) {
+      const parsedData = JSON.parse(savedPersonnel);
+      setSession({ user: { id: parsedData.id } });
+      setProfile(parsedData);
+      setIsLoading(false);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchProfile(session.user.id, session.user.phone || '');
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (localStorage.getItem('fixiz_personnel_session')) return;
+      setSession(session);
+      if (session?.user) {
+        fetchProfile(session.user.id, session.user.phone || '');
+      } else {
+        setProfile(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const sendCustomerOtp = useCallback(async (mobile: string) => {
     const formattedMobile = formatForSupabaseAuth(mobile);
@@ -113,19 +113,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!data.session) throw new Error('نشست ایجاد نشد');
   }, []);
 
-  // لاگین سفارشی پرسنل با خواندن از جدول اختصاصی
   const personnelLogin = async (username: string, password: string) => {
     const cleanUsername = username.toLowerCase().trim();
     
-    // اگر کاربر admin اصلی است، از دیتابیس سوپابیس لاگین کند
+    // بررسی ادمین اصلی
     if (cleanUsername === 'admin') {
       const { data, error } = await supabase.auth.signInWithPassword({ email: 'admin@fixiz.ir', password });
       if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
       const { data: pData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+      if (pData) {
+        setProfile(pData as UserProfile);
+      }
       return { isFirstLogin: false };
     }
 
-    // برای سایر پرسنل
+    // سایر پرسنل سازمانی
     const { data: pUser, error } = await supabase
       .from('personnel_users')
       .select('*')
@@ -133,11 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     if (error || !pUser) throw new Error('نام کاربری یا رمز عبور اشتباه است');
-    
-    // در این سیستم ساده برای تست، فیلد رمز را با جدول مقایسه می‌کنیم
     if (pUser.password !== password) throw new Error('نام کاربری یا رمز عبور اشتباه است');
 
-    // اگر تایید شد اما اولین ورودش نبود، اطلاعات را ذخیره می‌کنیم
     if (!pUser.is_first_login) {
       const userData = { ...pUser, id: pUser.id };
       localStorage.setItem('fixiz_personnel_session', JSON.stringify(userData));
