@@ -16,13 +16,17 @@ export function Header({ currentPage = 'home', onNavigate }: HeaderProps) {
     { id: 'tracking', label: 'پیگیری درخواست', icon: MapPin },
   ] as const;
 
-  const handleNavigate = (id: string) => {
+ const handleNavigate = (id: string) => {
     if (onNavigate) {
       onNavigate(id);
     } else {
       if (id === 'tracking') {
-        // اگر کاربر روی پیگیری درخواست کلیک کرد، به پنل هدایت شود تا درخواست‌هایش را پیگیری کند
-        window.location.href = '/panel';
+        // اگر کاربر روی پیگیری درخواست کلیک کرد، به جای پنل، می‌بایست بخش پیگیری با کد رهگیری باز شود
+        const trackingCode = prompt('لطفاً کد پیگیری درخواست خود را وارد کنید (مثال: FIX-123456):');
+        if (trackingCode) {
+          // اینجا می‌توانید کد رهگیری را بررسی کرده یا به صفحه پیگیری منتقل کنید
+          alert('در حال جستجوی کد پیگیری: ' + trackingCode);
+        }
       } else {
         navigate('/');
       }
