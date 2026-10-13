@@ -17,14 +17,11 @@ interface AuthContextType {
   profile: UserProfile | null;
   isLoading: boolean;
   role: Role;
-  // توابع مشتری
   sendCustomerOtp: (mobile: string) => Promise<string>;
   verifyCustomerOtp: (mobile: string, code: string) => Promise<void>;
-  // توابع پرسنل
   personnelLogin: (username: string, password: string) => Promise<UserProfile>;
   sendPersonnelOtp: () => Promise<string>;
   completePersonnelFirstLogin: (code: string, newPassword: string) => Promise<void>;
-  // خروج
   logout: () => void;
 }
 
@@ -48,31 +45,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (userId: string, phone: string) => {
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-      
-      if (error) {
-        console.error("Error fetching profile:", error);
-        return;
-      }
-
+      if (error) return;
       if (data) {
         setProfile(data as UserProfile);
       } else {
-        // ساخت پروفایل جدید اگر وجود نداشت
-        const { data: newProfile, error: insertError } = await supabase.from('profiles').insert({
-          id: userId, 
-          phone: phone, 
-          role: 'customer', 
-          is_first_login: false
+        const { data: newProfile } = await supabase.from('profiles').insert({
+          id: userId, phone: phone, role: 'customer', is_first_login: false
         }).select().single();
-        
-        if (insertError) {
-          console.error("Error creating profile:", insertError);
-          return;
-        }
         setProfile(newProfile as UserProfile);
       }
     } catch (err) {
-      console.error("Unexpected error in fetchProfile:", err);
+      console.error(err);
     }
   };
 
@@ -98,70 +81,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // ---------------- توابع مشتری (با استفاده از OTP استاندارد Supabase) ----------------
   const sendCustomerOtp = useCallback(async (mobile: string) => {
     const formattedMobile = formatForSupabaseAuth(mobile);
-    
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: formattedMobile,
-    });
-
-    if (error) {
-      console.error("OTP Send Error:", error);
-      throw new Error(error.message || 'خطا در ارسال کد. لطفاً دوباره تلاش کنید.');
-    }
-    
+    const { error } = await supabase.auth.signInWithOtp({ phone: formattedMobile });
+    if (error) throw new Error(error.message || 'خطا در ارسال کد');
     return "SENT"; 
   }, []);
   
   const verifyCustomerOtp = useCallback(async (mobile: string, code: string) => {
     const formattedMobile = formatForSupabaseAuth(mobile);
-    
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: formattedMobile,
-      token: code,
-      type: 'sms',
-    });
-
-    if (error) {
-      console.error("OTP Verify Error:", error);
-      throw new Error(error.message || 'کد وارد شده نامعتبر است');
-    }
-    
-    if (!data.session) {
-      throw new Error('نشست ایجاد نشد. لطفاً دوباره تلاش کنید.');
-    }
+    const { data, error } = await supabase.auth.verifyOtp({ phone: formattedMobile, token: code, type: 'sms' });
+    if (error) throw new Error(error.message || 'کد وارد شده نامعتبر است');
+    if (!data.session) throw new Error('نشست ایجاد نشد');
   }, []);
 
-  // ---------------- توابع پرسنل ----------------
   const personnelLogin = async (username: string, password: string) => {
     const email = `${username.toLowerCase().trim()}@fixiz.ir`;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
 
-    let { data: pData } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+    // ابتدا بررسی نقش و مشخصات در personnel_users
+    let { data: pData } = await supabase.from('personnel_users').select('*').eq('username', username.toLowerCase().trim()).maybeSingle();
     
+    // اگر نبود از profiles (برای ادمین اصلی) چک می‌کند
     if (!pData) {
-      const { data: newP } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        phone: '09123456789',
-        role: username.toLowerCase().trim() === 'admin' ? 'admin' : 'coordinator',
-        is_first_login: false
-      }).select().single();
-      pData = newP;
+      const { data: profData } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+      pData = profData;
     }
 
     setProfile(pData as UserProfile);
     return pData as UserProfile;
   };
 
-  const sendPersonnelOtp = async () => {
-    throw new Error('این بخش در حال توسعه است');
-  };
-
-  const completePersonnelFirstLogin = async (_code: string, _newPassword: string) => {
-    throw new Error('این بخش در حال توسعه است');
-  };
+  const sendPersonnelOtp = async () => { throw new Error('توسعه نیافته'); };
+  const completePersonnelFirstLogin = async () => { throw new Error('توسعه نیافته'); };
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
@@ -170,18 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ 
-      session, 
-      profile, 
-      isLoading, 
-      role: profile?.role || null, 
-      sendCustomerOtp, 
-      verifyCustomerOtp, 
-      personnelLogin, 
-      sendPersonnelOtp, 
-      completePersonnelFirstLogin, 
-      logout 
-    }}>
+    <AuthContext.Provider value={{ session, profile, isLoading, role: profile?.role || null, sendCustomerOtp, verifyCustomerOtp, personnelLogin, sendPersonnelOtp, completePersonnelFirstLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );

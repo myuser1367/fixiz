@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Users, UserPlus, Shield, Phone, LogOut, Trash2, Edit } from 'lucide-react';
+import { Users, UserPlus, Shield, Phone, LogOut, Trash2, Edit, Home, Key } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface PersonnelUser {
@@ -37,6 +37,10 @@ export default function AdminDashboardPage() {
   const [role, setRole] = useState('coordinator');
   const [phone, setPhone] = useState('');
 
+  // مدال تغییر رمز مدیر
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+
   const fetchPersonnel = async () => {
     const { data, error } = await supabase.from('personnel_users').select('*').order('created_at', { ascending: false });
     if (!error && data) {
@@ -55,7 +59,6 @@ export default function AdminDashboardPage() {
     setIsLoading(true);
     try {
       if (editingId) {
-        // ویرایش پرسنل
         const { error } = await supabase.from('personnel_users')
           .update({
             full_name: fullName,
@@ -69,7 +72,6 @@ export default function AdminDashboardPage() {
         toast.success('اطلاعات پرسنل با موفقیت ویرایش شد');
         setEditingId(null);
       } else {
-        // ثبت پرسنل جدید
         const { error } = await supabase.from('personnel_users').insert({
           full_name: fullName,
           username: username.toLowerCase().trim(),
@@ -94,13 +96,29 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) return toast.error('رمز عبور باید حداقل ۶ حرف باشد');
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success('رمز عبور حساب شما با موفقیت تغییر کرد');
+      setShowPasswordModal(false);
+      setNewPassword('');
+    } catch (error: any) {
+      toast.error(error.message || 'خطا در تغییر رمز عبور');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEditClick = (user: PersonnelUser) => {
     setEditingId(user.id);
     setFullName(user.full_name);
     setUsername(user.username);
     setRole(user.role);
     setPhone(user.phone);
-    // اسکرول به فرم ویرایش در موبایل
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -138,9 +156,17 @@ export default function AdminDashboardPage() {
               <p className="text-sm text-slate-500">خوش آمدید، {profile?.full_name || 'مدیر'}</p>
             </div>
           </div>
-          <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl font-medium transition-colors">
-            <LogOut size={18} /> خروج از حساب
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowPasswordModal(true)} className="hidden sm:flex items-center gap-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl transition-colors">
+              <Key size={18} /> تغییر رمز
+            </button>
+            <button onClick={() => navigate('/')} className="hidden sm:flex items-center gap-1.5 text-sm bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-2.5 rounded-xl transition-colors">
+              <Home size={18} /> صفحه اصلی
+            </button>
+            <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl font-medium transition-colors" title="خروج">
+              <LogOut size={18} /> <span className="hidden sm:inline">خروج</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -149,9 +175,7 @@ export default function AdminDashboardPage() {
         
         {/* فرم ثبت/ویرایش پرسنل */}
         <div className="bg-white p-6 rounded-2xl shadow-card border border-slate-100 h-fit transition-all duration-300 relative">
-           {editingId && (
-            <div className="absolute top-0 right-0 left-0 h-1 bg-amber-400 rounded-t-2xl"></div>
-          )}
+           {editingId && <div className="absolute top-0 right-0 left-0 h-1 bg-amber-400 rounded-t-2xl"></div>}
           <div className="flex items-center gap-2 mb-6 text-slate-800 font-bold text-lg">
             {editingId ? <Edit className="text-amber-500" size={22} /> : <UserPlus className="text-brand-primary" size={22} />}
             <span>{editingId ? 'ویرایش اطلاعات پرسنل' : 'تعریف پرسنل سازمانی جدید'}</span>
@@ -165,7 +189,6 @@ export default function AdminDashboardPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">نام کاربری (انگلیسی)</label>
-              {/* محدودیت ویرایش نام کاربری (disabled) برداشته شد */}
               <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="مثال: ali_rezaei" className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" dir="ltr" />
             </div>
 
@@ -186,7 +209,7 @@ export default function AdminDashboardPage() {
               <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09123456789" className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" dir="ltr" />
             </div>
 
-            {!editingId && <p className="text-xs text-slate-400 mt-1">رمز عبور اولیه برای تمام پرسنل به صورت خودکار تنظیم می‌شود.</p>}
+            {!editingId && <p className="text-xs text-slate-400 mt-1">رمز عبور پیش‌فرض برای تمامی پرسنل جدید <strong className="font-mono">Aa@123456</strong> می‌باشد و در اولین ورود باید آن را تغییر دهند.</p>}
 
             <div className="flex gap-2 mt-4">
                <button type="submit" disabled={isLoading} className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl font-bold text-white transition-colors ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-brand-primary hover:bg-brand-600'}`}>
@@ -194,9 +217,7 @@ export default function AdminDashboardPage() {
                 {isLoading ? 'در حال ثبت...' : (editingId ? 'ذخیره تغییرات' : 'ایجاد حساب')}
               </button>
               {editingId && (
-                <button type="button" onClick={cancelEdit} className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">
-                  انصراف
-                </button>
+                <button type="button" onClick={cancelEdit} className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">انصراف</button>
               )}
             </div>
           </form>
@@ -263,6 +284,37 @@ export default function AdminDashboardPage() {
         </div>
 
       </main>
+
+      {/* مدال تغییر رمز عبور */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
+            <h3 className="text-xl font-bold text-slate-800 mb-4">تغییر رمز عبور</h3>
+            <form onSubmit={handleChangePassword}>
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-slate-700 mb-2">رمز عبور جدید</label>
+                <input 
+                  type="password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                  placeholder="حداقل ۶ کاراکتر" 
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary text-left" 
+                  dir="ltr" 
+                  required 
+                />
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={isLoading} className="flex-1 py-3 bg-brand-primary hover:bg-brand-600 text-white rounded-xl font-bold transition-colors">
+                  {isLoading ? 'در حال ثبت...' : 'تایید تغییرات'}
+                </button>
+                <button type="button" onClick={() => setShowPasswordModal(false)} className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">
+                  انصراف
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
