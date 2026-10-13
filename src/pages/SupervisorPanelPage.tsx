@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Check, X, Wrench, Plus, Trash2, Loader2, Save, Key, FileText } from 'lucide-react';
+import { LogOut, Home, Wrench, Plus, Trash2, Loader2, Save, Key, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
