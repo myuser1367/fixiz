@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+//import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Home, Plus, List, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Loader2, LogOut, Search, Check, FileText, Wrench } from 'lucide-react';
@@ -20,7 +20,7 @@ interface RepairRequest {
 
 export default function CustomerPanelPage() {
   const { profile, logout } = useAuth();
-  const navigate = useNavigate();
+  //const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'list' | 'new'>('list');
   const [requests, setRequests] = useState<RepairRequest[]>([]);
