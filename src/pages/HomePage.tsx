@@ -5,8 +5,7 @@ import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeO
 import toast from 'react-hot-toast';
 
 export default function HomePage() {
-  const { session, profile, sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFirstLogin } = useAuth();
-
+const { sendCustomerOtp, verifyCustomerOtp, personnelLogin, completePersonnelFirstLogin } = useAuth();
   const [activeTab, setActiveTab] = useState<'customer' | 'personnel'>('customer');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
