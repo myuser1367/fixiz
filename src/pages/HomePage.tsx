@@ -220,7 +220,7 @@ export default function HomePage() {
       {/* هدر با قابلیت باز کردن مدال پیگیری */}
       <Header onOpenTracking={handleOpenTrackingModal} />
 
-      <main className="relative bg-brand-dark overflow-hidden min-h-[calc(100vh-80px)] flex flex-col items-center lg:items-start justify-center lg:justify-start pt-12 lg:pt-24 pb-12">
+      <main className="relative bg-brand-dark overflow-hidden min-h-[calc(100vh-80px)] flex flex-col justify-center pt-12 lg:pt-20 pb-12">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#2dd4bf 2px, transparent 2px)', backgroundSize: '32px 32px' }}></div>
         <div className="absolute bottom-0 w-full overflow-hidden leading-[0]">
           <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto text-slate-50 relative top-[1px]">
@@ -228,14 +228,31 @@ export default function HomePage() {
           </svg>
         </div>
 
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 flex flex-col lg:flex-row items-start justify-between gap-12">
-          <div className="text-center lg:text-right flex-1 animate-slide-up mt-8 lg:mt-16">
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
-              سامانه جامع <span className="text-brand-light text-gradient block mt-2">مدیریت تعمیرات</span>
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8 xl:gap-16">
+          
+          {/* سمت راست: متن‌ها و تصویر کارگاه */}
+          <div className="text-center lg:text-right flex-1 animate-slide-up w-full max-w-2xl">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-6 leading-tight">
+              سامانه جامع مدیریت تعمیرات <br />
+              <span className="text-brand-light text-gradient block mt-2">شرکت فرافن</span>
             </h1>
+            <p className="text-slate-300 text-lg md:text-xl font-medium mb-10 opacity-90">
+              ارائه دهنده خدمات تخصصی، تعمیرات پیشرفته و تامین تجهیزات صنعتی با تکیه بر دانش فنی مهندسین مجرب.
+            </p>
+
+            {/* تصویر محیط کارگاه با افکت */}
+            <div className="relative w-full max-w-lg mx-auto lg:mx-0 rounded-[2.5rem] p-3 bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500">
+              <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/20 to-transparent opacity-50 z-10 mix-blend-overlay"></div>
+              <img 
+                src="/hero-image.jpg" 
+                alt="کارگاه تعمیرات فرافن" 
+                className="w-full h-auto rounded-[2rem] object-cover shadow-inner relative z-0" 
+              />
+            </div>
           </div>
 
-          <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          {/* سمت چپ: باکس ورود به سامانه */}
+          <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-8 border border-slate-100 animate-slide-up relative z-20" style={{ animationDelay: '0.1s' }}>
             <div className="text-center mb-8">
               <h2 className="text-2xl font-black text-slate-800 mb-2">ورود به سامانه</h2>
               <p className="text-sm text-slate-500 font-medium">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, Phone, Home, MapPin, Settings, UserCheck } from 'lucide-react';
+import { Menu, X, Phone, Home, MapPin, UserCheck } from 'lucide-react';
 
 interface HeaderProps {
   currentPage?: string;
@@ -24,7 +24,6 @@ export function Header({ currentPage = 'home', onNavigate, onOpenTracking }: Hea
       } else {
         const code = prompt('لطفاً کد پیگیری خود را وارد کنید (مثال: FIX-633141):');
         if (code) {
-          // انتقال مستقیم به صفحه پنل همراه با کد پیگیری یا جستجوی مستقیم
           window.location.href = `/panel?tracking=${code.trim()}`;
         }
       }
@@ -43,15 +42,16 @@ export function Header({ currentPage = 'home', onNavigate, onOpenTracking }: Hea
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between min-h-[5rem] py-2"> 
 
-          {/* لوگو سامانه */}
+          {/* لوگو سامانه و شرکت فرافن */}
           <button
             onClick={() => handleNavigate('home')}
-            className="flex items-center gap-3 text-brand-primary shrink-0 hover:opacity-80 transition-opacity focus:outline-none py-1"
+            className="flex items-center gap-3 shrink-0 hover:opacity-80 transition-opacity focus:outline-none py-1"
           >
-            <div className="bg-brand-primary/10 p-2.5 rounded-2xl text-brand-primary">
-              <Settings size={28} className="animate-spin-slow" />
+            {/* تصویر لوگو از پوشه public خوانده می‌شود */}
+            <img src="/farafan-logo.png" alt="لوگو فرافن" className="h-10 w-auto object-contain" />
+            <div className="flex flex-col items-start border-r-2 border-slate-200 pr-3">
+              <span className="text-xl font-black text-slate-800 tracking-tight">سامانه فیکسیز</span>
             </div>
-            <span className="text-2xl font-extrabold text-slate-800">فیکسیز</span>
           </button>
 
           {/* منوی دسکتاپ */}
