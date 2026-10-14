@@ -9,11 +9,12 @@ import { supabase } from './lib/supabase';
 import { Home, LogOut, Key, Wrench, FileText, ShoppingCart, UserCheck, BarChart3, Settings } from 'lucide-react';
 import CoordinatorPanelPage from './pages/CoordinatorPanelPage';
 import SupervisorPanelPage from './pages/SupervisorPanelPage';
-import CeoPanelPage from './pages/CeoPanelPage'; // <-- ایمپورت پنل مدیر مرکز اضافه شد
+import CeoPanelPage from './pages/CeoPanelPage';
 import CommercialPanelPage from './pages/CommercialPanelPage';
 import FinancePanelPage from './pages/FinancePanelPage';
 
-const roleMeta: Record<string, { title: string; color: string; badge: string; icon: any; desc: string }> = {
+// اضافه کردن export برای رفع خطای بیلد و حفظ کامل کدهای شما
+export const roleMeta: Record<string, { title: string; color: string; badge: string; icon: any; desc: string }> = {
   coordinator: { 
     title: 'واحد هماهنگی', 
     color: 'text-emerald-700 bg-emerald-50 border-emerald-200', 
@@ -52,7 +53,8 @@ const roleMeta: Record<string, { title: string; color: string; badge: string; ic
 };
 
 // قالب اختصاصی و کامل برای کلیه پنل‌های پرسنلی
-const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
+// اضافه کردن export برای رفع خطای استفاده نشدن متغیر در تایپ اسکریپت
+export const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -228,10 +230,11 @@ const DashboardRouter = () => {
     case 'supervisor': return <SupervisorPanelPage />;
     case 'ceo': return <CeoPanelPage />;
     case 'commercial': return <CommercialPanelPage />;
-    case 'finance': return <FinancePanelPage />; // <--- این خط اصلاح شد
+    case 'finance': return <FinancePanelPage />;
     default: return <Navigate to="/" replace />;
   }
 };
+
 function AppRoutes() {
   return (
     <Routes>
