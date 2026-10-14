@@ -258,8 +258,9 @@ export default function CustomerPanelPage() {
       { id: 'invoiced', label: 'صدور فاکتور', desc: 'آماده تحویل و تسویه حساب نهایی' },
     ];
 
-    let activeIndex = 0;
-    if (['pending_supervisor', 'accepted'].includes(currentStatus)) activeIndex = 1;
+  let activeIndex = 0;
+    // اضافه شدن وضعیت waiting_for_device به مرحله دوم (پذیرش یا بررسی)
+    if (['pending_supervisor', 'accepted', 'waiting_for_device'].includes(currentStatus)) activeIndex = 1;
     else if (currentStatus === 'repairing') activeIndex = 2;
     else if (['estimated', 'pending_commercial', 'pending_finance'].includes(currentStatus)) activeIndex = 3;
     else if (currentStatus === 'invoiced') activeIndex = 4;
@@ -378,7 +379,7 @@ export default function CustomerPanelPage() {
                 <input type="checkbox" id="estimate" checked={formData.needs_price_estimate} onChange={e => setFormData({...formData, needs_price_estimate: e.target.checked})} className="mt-1 w-5 h-5 rounded text-brand-primary focus:ring-brand-primary" />
                 <div>
                   <label htmlFor="estimate" className="font-bold text-amber-900 block cursor-pointer">نیاز به برآورد قیمت پیش از تعمیر دارم</label>
-                  <p className="text-sm text-amber-700 mt-1">با انتخاب این گزینه، هماهنگ‌کننده پیش از پذیرش نهایی، هزینه حدودی را برای شما ارسال می‌کند تا در صورت تایید، فرآیند تعمیر آغاز شود.</p>
+                  <p className="text-sm text-amber-700 mt-1">با انتخاب این گزینه، هزینه حدودی برای شما ارسال می‌شود تا در صورت تایید، فرآیند تعمیر آغاز شود.</p>
                 </div>
               </div>
 
