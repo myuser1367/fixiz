@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { LogOut, Home, FileSpreadsheet, DollarSign, Loader2, Key, BarChart3, Search, List, Activity, CheckCircle, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 
 export default function CeoPanelPage() {
   const { profile, logout } = useAuth();
@@ -93,12 +94,14 @@ export default function CeoPanelPage() {
     }
   };
 
- const exportToCSV = () => {
-    const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'مبلغ کل فاکتور (ریال)', 'تاریخ ثبت درخواست'];
-    const csvContent = [
-      'sep=,', // اضافه شدن این خط برای راهنمایی اکسل
-      headers.join(','),
-      ...requests.map((req, index) => [
+ 
+  const exportToExcel = () => {
+    const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'تاریخ دریافت', 'تاریخ تحویل'];
+    
+    const rows = requests.map((req, index) => {
+      const rDate = req.received_at ? new Date(req.received_at).toLocaleDateString('fa-IR') : '---';
+      const dDate = req.delivered_at ? new Date(req.delivered_at).toLocaleDateString('fa-IR') : '---';
+      return [
         index + 1,
         req.project_name || '---',
         req.device_info,
@@ -108,17 +111,27 @@ export default function CeoPanelPage() {
         req.serial_number || '---',
         req.profiles?.full_name || 'نامشخص',
         req.status,
-        req.final_price || 0,
-        new Date(req.created_at).toLocaleDateString('fa-IR')
-      ].join(','))
-    ].join('\n');
+        rDate,
+        dDate
+      ];
+    });
 
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'گزارش_جامع_مدیریت.csv';
-    link.click();
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    
+    // تنظیم راست‌چین بودن و عرض ستون‌ها
+    worksheet['!views'] = [{ RTL: true, rightToLeft: true }];
+    worksheet['!cols'] = [
+      { wch: 8 }, { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, 
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    workbook.Workbook = { Views: [{ RTL: true }] };
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'گزارش هماهنگی');
+    
+    XLSX.writeFile(workbook, 'گزارش_واحد_هماهنگی.xlsx');
   };
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) return toast.error('رمز عبور باید حداقل ۶ کاراکتر باشد');
@@ -205,7 +218,7 @@ export default function CeoPanelPage() {
               {activeTab === 'queue' ? 'درخواست‌های نیازمند برآورد قیمت مدیر مرکز' : 'لیست جامع تمامی درخواست‌های سیستم'}
             </h2>
             {activeTab === 'reports' && (
-              <button onClick={exportToCSV} className="flex items-center gap-1.5 text-sm bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-xl font-bold transition-colors">
+              <button onClick={exportToExcel} className="flex items-center gap-1.5 text-sm bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-xl font-bold transition-colors">
                 <FileSpreadsheet size={18} /> خروجی اکسل
               </button>
             )}

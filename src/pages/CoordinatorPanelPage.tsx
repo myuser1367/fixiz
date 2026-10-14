@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { LogOut, Home, FileSpreadsheet, Check, X, Calendar, Clock, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 
 export default function CoordinatorPanelPage() {
   const { profile, logout } = useAuth();
@@ -64,37 +65,42 @@ export default function CoordinatorPanelPage() {
     }
   };
 
-const exportToCSV = () => {
+const exportToExcel = () => {
     const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'تاریخ دریافت', 'تاریخ تحویل'];
-    const csvContent = [
-      'sep=,', // اضافه شدن این خط برای راهنمایی اکسل
-      headers.join(','),
-      ...requests.map((req, index) => {
-        const rDate = req.received_at ? new Date(req.received_at).toLocaleDateString('fa-IR') : '---';
-        const dDate = req.delivered_at ? new Date(req.delivered_at).toLocaleDateString('fa-IR') : '---';
-        return [
-          index + 1,
-          req.project_name || '---',
-          req.device_info,
-          req.part_number || '---',
-          req.brand || '---',
-          req.tracking_code,
-          req.serial_number || '---',
-          req.profiles?.full_name || 'نامشخص',
-          req.status,
-          rDate,
-          dDate
-        ].join(',');
-      })
-    ].join('\n');
+    
+    const rows = requests.map((req, index) => {
+      const rDate = req.received_at ? new Date(req.received_at).toLocaleDateString('fa-IR') : '---';
+      const dDate = req.delivered_at ? new Date(req.delivered_at).toLocaleDateString('fa-IR') : '---';
+      return [
+        index + 1,
+        req.project_name || '---',
+        req.device_info,
+        req.part_number || '---',
+        req.brand || '---',
+        req.tracking_code,
+        req.serial_number || '---',
+        req.profiles?.full_name || 'نامشخص',
+        req.status,
+        rDate,
+        dDate
+      ];
+    });
 
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'گزارش_واحد_هماهنگی.csv';
-    link.click();
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    
+    // تنظیم راست‌چین بودن و عرض ستون‌ها
+    worksheet['!views'] = [{ RTL: true, rightToLeft: true }];
+    worksheet['!cols'] = [
+      { wch: 8 }, { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, 
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    workbook.Workbook = { Views: [{ RTL: true }] };
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'گزارش هماهنگی');
+    
+    XLSX.writeFile(workbook, 'گزارش_واحد_هماهنگی.xlsx');
   };
-
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
@@ -110,7 +116,7 @@ const exportToCSV = () => {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="text-xs text-slate-500 hidden md:inline">خوش آمدید، {profile?.full_name || 'همکار گرامی'}</span>
-            <button onClick={exportToCSV} className="flex items-center gap-1.5 text-xs sm:text-sm bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
+            <button onClick={exportToExcel} className="flex items-center gap-1.5 text-xs sm:text-sm bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
               <FileSpreadsheet size={16} /> خروجی اکسل
             </button>
             <button 
