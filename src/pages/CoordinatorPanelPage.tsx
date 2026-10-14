@@ -64,9 +64,10 @@ export default function CoordinatorPanelPage() {
     }
   };
 
-  const exportToCSV = () => {
+const exportToCSV = () => {
     const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'تاریخ دریافت', 'تاریخ تحویل'];
     const csvContent = [
+      'sep=,', // اضافه شدن این خط برای راهنمایی اکسل
       headers.join(','),
       ...requests.map((req, index) => {
         const rDate = req.received_at ? new Date(req.received_at).toLocaleDateString('fa-IR') : '---';

@@ -93,9 +93,10 @@ export default function CeoPanelPage() {
     }
   };
 
-  const exportToCSV = () => {
+ const exportToCSV = () => {
     const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'مبلغ کل فاکتور (ریال)', 'تاریخ ثبت درخواست'];
     const csvContent = [
+      'sep=,', // اضافه شدن این خط برای راهنمایی اکسل
       headers.join(','),
       ...requests.map((req, index) => [
         index + 1,
@@ -118,7 +119,6 @@ export default function CeoPanelPage() {
     link.download = 'گزارش_جامع_مدیریت.csv';
     link.click();
   };
-
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) return toast.error('رمز عبور باید حداقل ۶ کاراکتر باشد');
