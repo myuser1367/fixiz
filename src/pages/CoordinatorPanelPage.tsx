@@ -31,7 +31,12 @@ export default function CoordinatorPanelPage() {
     setIsLoading(false);
   };
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
+  // شبیه‌ساز ارسال پیامک اطلاع‌رسانی برای ارسال دستگاه پس از پذیرش سرپرست
+  const sendDeviceSendSms = (phone: string, trackingCode: string) => {
+    console.log(`[SMS SIMULATION] To: ${phone} | Message: درخواست تعمیر شما با کد پیگیری ${trackingCode} پذیرش شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فرافن`);
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string, customerPhone?: string, trackingCode?: string) => {
     const { error } = await supabase
       .from('repair_requests')
       .update({ status: newStatus })
@@ -41,6 +46,10 @@ export default function CoordinatorPanelPage() {
       toast.error('خطا در بروزرسانی وضعیت');
     } else {
       toast.success('وضعیت با موفقیت تغییر کرد');
+      if (newStatus === 'waiting_for_device' && customerPhone) {
+        sendDeviceSendSms(customerPhone, trackingCode || '');
+        toast.success(`پیامک درخواست ارسال دستگاه به شماره ${customerPhone} ارسال شد.`);
+      }
       fetchRequests();
     }
   };
@@ -178,7 +187,8 @@ export default function CoordinatorPanelPage() {
                           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                             req.status === 'pending_coordinator' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
                           }`}>
-                            {req.status === 'pending_coordinator' ? 'در انتظار بررسی هماهنگی' : req.status}
+                            {req.status === 'pending_coordinator' ? 'در انتظار بررسی هماهنگی' : 
+                             req.status === 'waiting_for_device' ? 'در انتظار دریافت دستگاه' : req.status}
                           </span>
                         </td>
                         <td className="py-4 px-3 space-y-2">
@@ -214,21 +224,22 @@ export default function CoordinatorPanelPage() {
                           </div>
                         </td>
                         <td className="py-4 px-3 text-center">
+                          {/* 1. اگر در وضعیت ثبت اولیه هماهنگی باشد */}
                           {req.status === 'pending_coordinator' && (
                             <div className="flex flex-col items-center justify-center gap-2">
                               {req.needs_price_estimate ? (
                                 <button 
                                   onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
-                                  className="w-full p-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs" 
+                                  className="w-full p-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs" 
                                 >
-                                  ارجاع به مدیر (جهت برآورد اولیه)
+                                  ارجاع به مدیر مرکز (برآورد اولیه)
                                 </button>
                               ) : (
                                 <button 
-                                  onClick={() => handleStatusChange(req.id, 'pending_supervisor')} 
+                                  onClick={() => handleStatusChange(req.id, 'pending_supervisor', req.profiles?.phone, req.tracking_code)} 
                                   className="w-full p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs" 
                                 >
-                                  <Check size={16} /> ارجاع به سرپرست (جهت تعمیر)
+                                  <Check size={16} /> تایید و ارجاع به سرپرست
                                 </button>
                               )}
                               <button 
@@ -238,6 +249,17 @@ export default function CoordinatorPanelPage() {
                                 <X size={16} /> رد و عدم پذیرش
                               </button>
                             </div>
+                          )}
+
+                          {/* 2. اگر سرپرست پذیرش کرده باشد و در انتظار دریافت دستگاه باشد */}
+                          {req.status === 'waiting_for_device' && (
+                            <button 
+                              onClick={() => handleStatusChange(req.id, 'repairing')} 
+                              className="w-full p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs"
+                              title="پس از رسیدن دستگاه و ثبت تاریخ ورود"
+                            >
+                              <Check size={16} /> ثبت ورود و ارسال به تعمیرات
+                            </button>
                           )}
                         </td>
                       </tr>

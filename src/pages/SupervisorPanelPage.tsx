@@ -30,11 +30,11 @@ export default function SupervisorPanelPage() {
 
   const fetchRequests = async () => {
     setIsLoading(true);
-    // سرپرست تعمیر فقط باید درخواست‌هایی را ببیند که در انتظار او هستند یا در حال تعمیرند
+    // سرپرست تعمیر باید درخواست‌هایی که تایید شده یا در حال تعمیرند را ببیند
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
-      .in('status', ['pending_supervisor', 'accepted', 'repairing'])
+      .in('status', ['pending_supervisor', 'accepted', 'waiting_for_device', 'repairing'])
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -45,7 +45,12 @@ export default function SupervisorPanelPage() {
     setIsLoading(false);
   };
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
+  // شبیه‌ساز ارسال پیامک پذیرش دستگاه به مشتری
+  const sendAcceptedSms = (phone: string, trackingCode: string) => {
+    console.log(`[SMS SIMULATION] To: ${phone} | Message: درخواست تعمیر شما با کد پیگیری ${trackingCode} پذیرش شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فرافن`);
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string, customerPhone?: string, trackingCode?: string) => {
     const { error } = await supabase
       .from('repair_requests')
       .update({ status: newStatus })
@@ -55,6 +60,11 @@ export default function SupervisorPanelPage() {
       toast.error('خطا در تغییر وضعیت');
     } else {
       toast.success('وضعیت با موفقیت به‌روزرسانی شد');
+      // اگر سرپرست دکمه پذیرش را زد، وضعیت به waiting_for_device (در انتظار دریافت) می‌رود و پیامک می‌رود
+      if (newStatus === 'waiting_for_device' && customerPhone) {
+        sendAcceptedSms(customerPhone, trackingCode || '');
+        toast.success(`پیامک اطلاع‌رسانی ارسال دستگاه به شماره ${customerPhone} ارسال شد.`);
+      }
       fetchRequests();
     }
   };
@@ -108,7 +118,7 @@ export default function SupervisorPanelPage() {
         if (partsError) throw partsError;
       }
 
-      // 3. ارجاع قطعی به مدیر مرکز برای برآورد هزینه نهایی (صرف نظر از تیک مشتری)
+      // 3. ارجاع قطعی به مدیر مرکز برای برآورد هزینه نهایی
       const nextStatus = 'estimated'; 
       await supabase.from('repair_requests').update({ status: nextStatus }).eq('id', selectedRequest.id);
 
@@ -207,28 +217,31 @@ export default function SupervisorPanelPage() {
                       </td>
                       <td className="py-4 px-3 max-w-xs">
                         <p className="text-xs text-slate-600 line-clamp-2" title={req.fault_description}>{req.fault_description}</p>
-                        {req.needs_price_estimate && <span className="inline-block mt-1 text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">نیاز به برآورد هزینه پیش از تعمیر دارد</span>}
+                        {req.needs_price_estimate && (
+                          <span className="inline-block mt-1 text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">
+                            {req.status === 'repairing' || req.status === 'estimated' ? 'برآورد قیمت به تایید مشتری رسید' : 'نیاز به برآورد هزینه پیش از تعمیر دارد'}
+                          </span>
+                        )}
                       </td>
                       <td className="py-4 px-3">
                         <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                           req.status === 'pending_supervisor' ? 'bg-blue-100 text-blue-800' : 
-                          req.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' :
-                          'bg-indigo-100 text-indigo-800'
+                          req.status === 'waiting_for_device' ? 'bg-orange-100 text-orange-800' :
+                          req.status === 'repairing' ? 'bg-indigo-100 text-indigo-800' :
+                          'bg-emerald-100 text-emerald-800'
                         }`}>
                           {req.status === 'pending_supervisor' ? 'در انتظار بررسی اولیه' : 
-                           req.status === 'accepted' ? 'تایید شده (آماده تعمیر)' : 'در حال تعمیر'}
+                           req.status === 'waiting_for_device' ? 'در انتظار دریافت دستگاه' :
+                           req.status === 'repairing' ? 'در حال تعمیر' : 'تایید شده (آماده تعمیر)'}
                         </span>
                       </td>
                       <td className="py-4 px-3 text-center">
                         <div className="flex flex-wrap items-center justify-center gap-2">
                           {req.status === 'pending_supervisor' && (
                             <>
-                              <button onClick={() => handleStatusChange(req.id, 'accepted')} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors">پذیرش دستگاه</button>
+                              <button onClick={() => handleStatusChange(req.id, 'waiting_for_device', req.profiles?.phone, req.tracking_code)} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors">پذیرش و ارسال پیامک</button>
                               <button onClick={() => handleStatusChange(req.id, 'rejected')} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition-colors">عدم پذیرش</button>
                             </>
-                          )}
-                          {req.status === 'accepted' && (
-                            <button onClick={() => handleStatusChange(req.id, 'repairing')} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-colors w-full">شروع فرآیند تعمیر</button>
                           )}
                           {req.status === 'repairing' && (
                             <button onClick={() => openReportModal(req)} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-colors w-full flex justify-center items-center gap-1">

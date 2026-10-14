@@ -211,13 +211,12 @@ export default function CustomerPanelPage() {
     }
   };
 
-  // تابع تایید یا رد برآورد هزینه اولیه توسط مشتری
+  // تابع تایید یا رد برآورد هزینه اولیه توسط مشتری (با واحد ریال)
   const handleCustomerApproval = async (id: string, isApproved: boolean) => {
     if (!confirm(isApproved ? 'آیا قیمت حدودی را تایید می‌کنید؟ درخواست جهت هماهنگی و تعمیر ارجاع داده می‌شود.' : 'آیا از تعمیر این دستگاه انصراف می‌دهید؟')) return;
     
     setIsLoading(true);
     try {
-      // اگر تایید کرد برود به مرحله سرپرست تعمیر، اگر رد کرد لغو شود
       const newStatus = isApproved ? 'pending_supervisor' : 'canceled_by_customer';
       const { error } = await supabase
         .from('repair_requests')
@@ -379,7 +378,7 @@ export default function CustomerPanelPage() {
                 <input type="checkbox" id="estimate" checked={formData.needs_price_estimate} onChange={e => setFormData({...formData, needs_price_estimate: e.target.checked})} className="mt-1 w-5 h-5 rounded text-brand-primary focus:ring-brand-primary" />
                 <div>
                   <label htmlFor="estimate" className="font-bold text-amber-900 block cursor-pointer">نیاز به برآورد قیمت پیش از تعمیر دارم</label>
-                  <p className="text-sm text-amber-700 mt-1">با انتخاب این گزینه، هماهنگ‌کننده پیش از پذیرش نهایی، هزینه حدودی برای شما ارسال می‌شود تا در صورت تایید، فرآیند تعمیر آغاز شود.</p>
+                  <p className="text-sm text-amber-700 mt-1">با انتخاب این گزینه، هماهنگ‌کننده پیش از پذیرش نهایی، هزینه حدودی را برای شما ارسال می‌کند تا در صورت تایید، فرآیند تعمیر آغاز شود.</p>
                 </div>
               </div>
 
@@ -449,12 +448,12 @@ export default function CustomerPanelPage() {
                     </div>
                   </div>
 
-                  {/* کادر تایید برآورد قیمت اولیه توسط مشتری */}
+                  {/* کادر تایید برآورد قیمت اولیه توسط مشتری - برحسب ریال */}
                   {req.status === 'pending_customer_approval' && (
                     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
                       <div>
                         <h5 className="font-bold text-amber-900 text-sm mb-1">اعلام برآورد هزینه اولیه توسط مدیر مرکز:</h5>
-                        <p className="text-2xl font-black text-amber-600 font-mono" dir="ltr">{req.estimated_price?.toLocaleString()} تومان</p>
+                        <p className="text-2xl font-black text-amber-600 font-mono" dir="ltr">{req.estimated_price?.toLocaleString()} ریال</p>
                         <p className="text-xs text-amber-700 mt-1">جهت ادامه فرآیند و شروع تعمیرات، لطفاً هزینه اعلام شده را تایید فرمایید.</p>
                       </div>
                       <div className="flex gap-2 w-full md:w-auto">

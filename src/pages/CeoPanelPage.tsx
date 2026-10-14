@@ -43,11 +43,9 @@ export default function CeoPanelPage() {
 
   const handleOpenPricingModal = async (req: any) => {
     setSelectedRequest(req);
-    // اگر برآورد اولیه است، مقدار estimated_price پر می‌شود. اگر نهایی است، final_price.
     setPriceInput(req.status === 'pending_ceo_initial' ? (req.estimated_price?.toString() || '') : (req.final_price?.toString() || ''));
     setPricingModalOpen(true);
     
-    // دریافت قطعات فقط اگر دستگاه تعمیر شده و در مرحله نهایی باشد
     if (req.status === 'estimated') {
       setIsFetchingParts(true);
       const { data, error } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
@@ -65,7 +63,6 @@ export default function CeoPanelPage() {
     setIsSubmitting(true);
     try {
       if (selectedRequest.status === 'pending_ceo_initial') {
-        // ثبت قیمت اولیه و ارجاع به مشتری جهت تایید
         const { error } = await supabase
           .from('repair_requests')
           .update({
@@ -74,9 +71,8 @@ export default function CeoPanelPage() {
           })
           .eq('id', selectedRequest.id);
         if (error) throw error;
-        toast.success('برآورد اولیه ثبت شد و در انتظار تایید مشتری می‌باشد.');
+        toast.success('برآورد اولیه (ریال) ثبت شد و در انتظار تایید مشتری می‌باشد.');
       } else {
-        // ثبت قیمت نهایی و ارجاع به بازرگانی
         const { error } = await supabase
           .from('repair_requests')
           .update({
@@ -130,7 +126,6 @@ export default function CeoPanelPage() {
       case 'pending_customer_approval': return <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-bold">در انتظار تایید مشتری</span>;
       case 'canceled_by_customer': return <span className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs font-bold">لغو شده توسط مشتری</span>;
       case 'estimated': return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold animate-pulse">نیازمند برآورد نهایی</span>;
-      // سایر استتوس‌ها...
       case 'pending_coordinator': return <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-bold">ثبت اولیه</span>;
       case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">بررسی سرپرست</span>;
       case 'accepted': return <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-bold">پذیرش شده</span>;
@@ -246,10 +241,10 @@ export default function CeoPanelPage() {
         </div>
       </main>
 
-      {/* مودال بررسی گزارش تعمیر و ثبت قیمت */}
+      {/* مودال بررسی گزارش تعمیر و ثبت قیمت با نمایش تمام فیلدهای درخواست */}
       {pricingModalOpen && selectedRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
             <div className="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold text-slate-800">
@@ -262,13 +257,23 @@ export default function CeoPanelPage() {
             </div>
 
             <div className="space-y-6">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <span className="text-xs text-slate-400 block mb-1">دستگاه و اظهارات مشتری</span>
-                <p className="font-bold text-slate-800 text-sm mb-2">{selectedRequest.device_info} ({selectedRequest.brand || 'بدون برند'})</p>
-                <p className="text-xs text-slate-600 leading-relaxed bg-white p-2 rounded-lg border border-slate-100">{selectedRequest.fault_description}</p>
+              
+              {/* نمایش تمام فیلدهای کامل ثبت درخواست */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات کامل تجهیز ارسالی</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div><span className="text-slate-400">نام تجهیز (Unit Name):</span> <strong className="text-slate-800">{selectedRequest.device_info}</strong></div>
+                  <div><span className="text-slate-400">کارخانه سازنده (Brand):</span> <strong className="text-slate-800">{selectedRequest.brand || '---'}</strong></div>
+                  <div><span className="text-slate-400">پارت نامبر (Part Number):</span> <strong className="font-mono text-slate-800" dir="ltr">{selectedRequest.part_number || '---'}</strong></div>
+                  <div><span className="text-slate-400">نام پروژه / ارجاع کار:</span> <strong className="text-slate-800">{selectedRequest.project_name || '---'}</strong></div>
+                </div>
+                <div className="pt-2 border-t border-slate-200">
+                  <span className="text-slate-400 text-xs block mb-1">شرح کامل مشکل:</span>
+                  <p className="text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 leading-relaxed">{selectedRequest.fault_description}</p>
+                </div>
               </div>
 
-              {/* اگر وضعیت بررسی نهایی است، گزارش سرپرست و قطعات هم نمایش داده شود */}
+              {/* اگر وضعیت بررسی نهایی است، گزارش سرپرست و قطعات نمایش داده شود */}
               {selectedRequest.status !== 'pending_ceo_initial' && (
                 <>
                   <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
@@ -299,11 +304,11 @@ export default function CeoPanelPage() {
                 </>
               )}
 
-              {/* فرم قیمت‌گذاری */}
+              {/* فرم قیمت‌گذاری برحسب ریال */}
               {(selectedRequest.status === 'estimated' || selectedRequest.status === 'pending_ceo_initial') ? (
                 <form onSubmit={submitPricing} className="bg-purple-50 p-5 rounded-2xl border border-purple-100 mt-6">
                   <label className="block text-sm font-bold text-purple-900 mb-2">
-                    {selectedRequest.status === 'pending_ceo_initial' ? 'برآورد هزینه اولیه و خام (تومان)' : 'برآورد هزینه نهایی (تومان)'} <span className="text-red-500">*</span>
+                    {selectedRequest.status === 'pending_ceo_initial' ? 'برآورد هزینه اولیه (برحسب ریال)' : 'برآورد هزینه نهایی (برحسب ریال)'} <span className="text-red-500">*</span>
                   </label>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input 
@@ -311,7 +316,7 @@ export default function CeoPanelPage() {
                       required
                       value={priceInput} 
                       onChange={e => setPriceInput(e.target.value)} 
-                      placeholder="مثال: 1500000" 
+                      placeholder="مثال: 15000000" 
                       className="flex-1 px-4 py-3 rounded-xl border border-purple-200 outline-none focus:border-purple-500 font-mono font-bold text-lg" 
                       dir="ltr"
                     />
@@ -328,12 +333,12 @@ export default function CeoPanelPage() {
               ) : (
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-600">برآورد اولیه (برای مشتری):</span>
-                    <span className="font-mono font-bold text-brand-primary" dir="ltr">{selectedRequest.estimated_price ? `${selectedRequest.estimated_price.toLocaleString()} تومان` : '---'}</span>
+                    <span className="text-sm font-bold text-slate-600">برآورد اولیه:</span>
+                    <span className="font-mono font-bold text-brand-primary" dir="ltr">{selectedRequest.estimated_price ? `${selectedRequest.estimated_price.toLocaleString()} ریال` : '---'}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-600">مبلغ کل فاکتور ثبت شده:</span>
-                    <span className="font-mono font-bold text-lg text-brand-primary" dir="ltr">{selectedRequest.final_price ? `${selectedRequest.final_price.toLocaleString()} تومان` : '---'}</span>
+                    <span className="text-sm font-bold text-slate-600">مبلغ کل فاکتور:</span>
+                    <span className="font-mono font-bold text-lg text-brand-primary" dir="ltr">{selectedRequest.final_price ? `${selectedRequest.final_price.toLocaleString()} ریال` : '---'}</span>
                   </div>
                 </div>
               )}
@@ -342,19 +347,18 @@ export default function CeoPanelPage() {
         </div>
       )}
 
+      {/* مدال تغییر رمز عبور */}
       {showPasswordModal && (
-        // ... (مودال رمز عبور که تغییری نکرده)
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-           {/* محتوای تغییر رمز... */}
-           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
             <h3 className="text-xl font-bold text-slate-800 mb-2">تغییر رمز عبور</h3>
             <form onSubmit={handleChangePassword}>
               <div className="mb-5">
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-4 py-3 border border-slate-200" required />
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="رمز عبور جدید" className="w-full px-4 py-3 border border-slate-200 rounded-xl" required />
               </div>
               <div className="flex gap-2">
-                <button type="submit" className="flex-1 py-3 bg-brand-primary text-white">ثبت رمز جدید</button>
-                <button type="button" onClick={() => setShowPasswordModal(false)} className="px-4 py-3 bg-slate-100">انصراف</button>
+                <button type="submit" className="flex-1 py-3 bg-brand-primary text-white rounded-xl font-bold">ثبت رمز جدید</button>
+                <button type="button" onClick={() => setShowPasswordModal(false)} className="px-4 py-3 bg-slate-100 rounded-xl font-bold">انصراف</button>
               </div>
             </form>
           </div>
