@@ -9,6 +9,7 @@ import { supabase } from './lib/supabase';
 import { Home, LogOut, Key, Wrench, FileText, ShoppingCart, UserCheck, BarChart3, Settings } from 'lucide-react';
 import CoordinatorPanelPage from './pages/CoordinatorPanelPage';
 import SupervisorPanelPage from './pages/SupervisorPanelPage';
+import CeoPanelPage from './pages/CeoPanelPage'; // <-- ایمپورت پنل مدیر مرکز اضافه شد
 
 const roleMeta: Record<string, { title: string; color: string; badge: string; icon: any; desc: string }> = {
   coordinator: { 
@@ -223,7 +224,7 @@ const DashboardRouter = () => {
     case 'customer': return <CustomerPanelPage />;
     case 'coordinator': return <CoordinatorPanelPage />;
     case 'supervisor': return <SupervisorPanelPage />;
-    case 'ceo': return <PersonnelPanelLayout roleKey="ceo" />;
+    case 'ceo': return <CeoPanelPage />; // <-- اتصال به کامپوننت مدیر مرکز اضافه شد
     case 'commercial': return <PersonnelPanelLayout roleKey="commercial" />;
     case 'finance': return <PersonnelPanelLayout roleKey="finance" />;
     default: return <Navigate to="/" replace />;
