@@ -44,7 +44,6 @@ export default function CoordinatorPanelPage() {
     }
   };
 
-  // تفکیک ذخیره‌سازی تاریخ و ساعت
   const handleDateTimeUpdate = async (id: string, field: 'received_at' | 'delivered_at', dateVal: string, timeVal: string) => {
     let combinedDateTime = null;
     if (dateVal) {
@@ -66,23 +65,32 @@ export default function CoordinatorPanelPage() {
   };
 
   const exportToCSV = () => {
-    const headers = ['کد پیگیری', 'نام مشتری', 'شماره تماس', 'دستگاه', 'وضعیت', 'تاریخ ثبت'];
+    const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'تاریخ دریافت', 'تاریخ تحویل'];
     const csvContent = [
       headers.join(','),
-      ...requests.map(req => [
-        req.tracking_code,
-        req.profiles?.full_name || 'نامشخص',
-        req.profiles?.phone || 'نامشخص',
-        req.device_info,
-        req.status,
-        new Date(req.created_at).toLocaleDateString('fa-IR')
-      ].join(','))
+      ...requests.map((req, index) => {
+        const rDate = req.received_at ? new Date(req.received_at).toLocaleDateString('fa-IR') : '---';
+        const dDate = req.delivered_at ? new Date(req.delivered_at).toLocaleDateString('fa-IR') : '---';
+        return [
+          index + 1,
+          req.project_name || '---',
+          req.device_info,
+          req.part_number || '---',
+          req.brand || '---',
+          req.tracking_code,
+          req.serial_number || '---',
+          req.profiles?.full_name || 'نامشخص',
+          req.status,
+          rDate,
+          dDate
+        ].join(',');
+      })
     ].join('\n');
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'گزارش_درخواست_ها.csv';
+    link.download = 'گزارش_واحد_هماهنگی.csv';
     link.click();
   };
 
@@ -105,11 +113,11 @@ export default function CoordinatorPanelPage() {
               <FileSpreadsheet size={16} /> خروجی اکسل
             </button>
             <button 
-  onClick={() => { window.location.href = '/'; }} 
-  className="flex items-center gap-1.5 text-sm sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-bold transition-colors"
->
-  <Home size={16} /> صفحه اصلی
-</button>
+              onClick={() => { window.location.href = '/'; }} 
+              className="flex items-center gap-1.5 text-sm sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-bold transition-colors"
+            >
+              <Home size={16} /> صفحه اصلی
+            </button>
             <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-1.5 text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2.5 rounded-xl font-bold transition-colors">
               <LogOut size={16} /> خروج
             </button>
@@ -171,7 +179,6 @@ export default function CoordinatorPanelPage() {
                           </span>
                         </td>
                         <td className="py-4 px-3 space-y-2">
-                          {/* بخش ورود */}
                           <div className="flex items-center gap-2 text-xs text-slate-600">
                             <span className="flex items-center gap-1 font-bold w-12"><Calendar size={13} className="text-slate-400"/> ورود:</span>
                             <input 
@@ -187,7 +194,6 @@ export default function CoordinatorPanelPage() {
                               className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
                             />
                           </div>
-                          {/* بخش خروج */}
                           <div className="flex items-center gap-2 text-xs text-slate-600">
                             <span className="flex items-center gap-1 font-bold w-12"><Clock size={13} className="text-slate-400"/> خروج:</span>
                             <input 

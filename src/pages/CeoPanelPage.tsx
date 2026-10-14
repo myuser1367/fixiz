@@ -94,16 +94,20 @@ export default function CeoPanelPage() {
   };
 
   const exportToCSV = () => {
-    const headers = ['کد پیگیری', 'مشتری', 'موبایل', 'دستگاه', 'وضعیت', 'هزینه نهایی', 'تاریخ ثبت'];
+    const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'مبلغ کل فاکتور (ریال)', 'تاریخ ثبت درخواست'];
     const csvContent = [
       headers.join(','),
-      ...requests.map(req => [
-        req.tracking_code,
-        req.profiles?.full_name || 'نامشخص',
-        req.profiles?.phone || 'نامشخص',
+      ...requests.map((req, index) => [
+        index + 1,
+        req.project_name || '---',
         req.device_info,
+        req.part_number || '---',
+        req.brand || '---',
+        req.tracking_code,
+        req.serial_number || '---',
+        req.profiles?.full_name || 'نامشخص',
         req.status,
-        req.final_price || 'ثبت نشده',
+        req.final_price || 0,
         new Date(req.created_at).toLocaleDateString('fa-IR')
       ].join(','))
     ].join('\n');
@@ -111,7 +115,7 @@ export default function CeoPanelPage() {
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'گزارش_جامع_مرکز.csv';
+    link.download = 'گزارش_جامع_مدیریت.csv';
     link.click();
   };
 
@@ -310,7 +314,7 @@ export default function CeoPanelPage() {
                 )}
               </div>
 
-              {/* فرم قیمت‌گذاری (فقط برای وضعیت estimated نمایش داده می‌شود) */}
+              {/* فرم قیمت‌گذاری */}
               {selectedRequest.status === 'estimated' ? (
                 <form onSubmit={submitPricing} className="bg-purple-50 p-5 rounded-2xl border border-purple-100 mt-6">
                   <label className="block text-sm font-bold text-purple-900 mb-2">برآورد هزینه نهایی (تومان) <span className="text-red-500">*</span></label>
@@ -333,11 +337,10 @@ export default function CeoPanelPage() {
                       تایید و ارجاع به بازرگانی
                     </button>
                   </div>
-                  <p className="text-xs text-purple-600 mt-2">توجه: پس از تایید، درخواست جهت بررسی و تامین قطعات به کارتابل واحد بازرگانی منتقل خواهد شد.</p>
                 </form>
               ) : (
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
-                  <span className="text-sm font-bold text-slate-600">برآورد هزینه ثبت شده:</span>
+                  <span className="text-sm font-bold text-slate-600">مبلغ کل فاکتور ثبت شده:</span>
                   <span className="font-mono font-bold text-lg text-brand-primary" dir="ltr">
                     {selectedRequest.final_price ? `${selectedRequest.final_price.toLocaleString()} تومان` : 'ثبت نشده'}
                   </span>

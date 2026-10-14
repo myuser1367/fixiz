@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-//import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Home, Plus, List, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Loader2, LogOut, Search, Check, FileText, Wrench } from 'lucide-react';
@@ -16,38 +15,40 @@ interface RepairRequest {
   created_at: string;
   estimated_price?: number;
   final_price?: number;
+  part_number?: string;
+  project_name?: string;
 }
 
 export default function CustomerPanelPage() {
   const { profile, logout } = useAuth();
-  //const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'list' | 'new'>('list');
   const [requests, setRequests] = useState<RepairRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // حالت پیگیری درخواست انتخابی
   const [selectedTrackingReq, setSelectedTrackingReq] = useState<RepairRequest | null>(null);
 
-  // حالت ویرایش درخواست
   const [editingReq, setEditingReq] = useState<RepairRequest | null>(null);
   const [editFormData, setEditFormData] = useState({
     device_info: '',
     brand: '',
     fault_description: '',
     needs_price_estimate: false,
+    part_number: '',
+    project_name: '',
   });
 
-  // مودال تکمیل اطلاعات پروفایل
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [companyName, setCompanyName] = useState('');
 
-  // فرم ثبت درخواست جدید
+  // فرم ثبت درخواست جدید - آپدیت شده با فیلدهای جدید
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
     serial_number: '',
+    part_number: '',
+    project_name: '',
     fault_description: '',
     needs_price_estimate: false,
   });
@@ -135,14 +136,16 @@ export default function CustomerPanelPage() {
           brand: formData.brand,
           fault_description: finalDescription,
           needs_price_estimate: formData.needs_price_estimate,
-          status: 'pending_coordinator'
+          status: 'pending_coordinator',
+          part_number: formData.part_number,
+          project_name: formData.project_name
         }
       ]);
 
       if (error) throw error;
       
       toast.success(`درخواست شما با کد پیگیری ${trackingCode} ثبت شد`);
-      setFormData({ device_info: '', brand: '', serial_number: '', fault_description: '', needs_price_estimate: false });
+      setFormData({ device_info: '', brand: '', serial_number: '', part_number: '', project_name: '', fault_description: '', needs_price_estimate: false });
       setActiveTab('list');
       fetchRequests();
     } catch (error: any) {
@@ -153,7 +156,6 @@ export default function CustomerPanelPage() {
     }
   };
 
-  // باز کردن مودال ویرایش
   const handleOpenEdit = (req: RepairRequest) => {
     setEditingReq(req);
     setEditFormData({
@@ -161,10 +163,11 @@ export default function CustomerPanelPage() {
       brand: req.brand || '',
       fault_description: req.fault_description,
       needs_price_estimate: req.needs_price_estimate,
+      part_number: req.part_number || '',
+      project_name: req.project_name || '',
     });
   };
 
-  // ذخیره ویرایش درخواست
   const handleUpdateEditRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingReq) return;
@@ -178,6 +181,8 @@ export default function CustomerPanelPage() {
           brand: editFormData.brand,
           fault_description: editFormData.fault_description,
           needs_price_estimate: editFormData.needs_price_estimate,
+          part_number: editFormData.part_number,
+          project_name: editFormData.project_name
         })
         .eq('id', editingReq.id);
 
@@ -279,11 +284,11 @@ export default function CustomerPanelPage() {
           </div>
           <div className="flex items-center gap-3">
             <button 
-  onClick={() => { window.location.href = '/'; }} 
-  className="flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl transition-colors"
->
-  <Home size={16} /> بازگشت به سایت
-</button>
+              onClick={() => { window.location.href = '/'; }} 
+              className="flex items-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl transition-colors"
+            >
+              <Home size={16} /> بازگشت به سایت
+            </button>
             <button 
               onClick={() => logout()} 
               className="flex items-center gap-1.5 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 px-3 py-2 rounded-xl transition-colors"
@@ -319,16 +324,24 @@ export default function CustomerPanelPage() {
             <form onSubmit={handleSubmitRequest} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">اسم قطعه یا دستگاه <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">اسم قطعه یا دستگاه (Unit Name) <span className="text-red-500">*</span></label>
                   <input type="text" required value={formData.device_info} onChange={e => setFormData({...formData, device_info: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: درایو موتور زیمنس" />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">برند سازنده</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">برند سازنده (اختیاری)</label>
                   <input type="text" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: Siemens" />
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-2">شماره سریال دستگاه</label>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">پارت نامبر (Unit Part Number) (اختیاری)</label>
+                  <input type="text" value={formData.part_number} onChange={e => setFormData({...formData, part_number: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors text-left" dir="ltr" placeholder="P/N: 6SL3210..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">شماره سریال (S/N) (اختیاری)</label>
                   <input type="text" value={formData.serial_number} onChange={e => setFormData({...formData, serial_number: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors text-left" dir="ltr" placeholder="S/N: 123456789" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-2">نام پروژه / ارجاع کار (اختیاری)</label>
+                  <input type="text" value={formData.project_name} onChange={e => setFormData({...formData, project_name: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: پروژه خط تولید شماره ۲" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-2">شرح کامل مشکل <span className="text-red-500">*</span></label>
@@ -389,7 +402,6 @@ export default function CustomerPanelPage() {
                       <Search size={16} /> پیگیری مراحل
                     </button>
 
-                    {/* دکمه ویرایش و حذف فقط تا قبل از پذیرش (یعنی وضعیت ثبت اولیه) فعال است */}
                     {req.status === 'pending_coordinator' && (
                       <>
                         <button 
@@ -415,40 +427,60 @@ export default function CustomerPanelPage() {
         )}
       </main>
 
-      {/* مدال ویرایش درخواست (فقط تا قبل از پذیرش) */}
+      {/* مدال ویرایش درخواست */}
       {editingReq && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-3">ویرایش درخواست تعمیر</h3>
             <form onSubmit={handleUpdateEditRequest} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">نام دستگاه</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={editFormData.device_info} 
-                  onChange={e => setEditFormData({...editFormData, device_info: e.target.value})} 
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">برند سازنده</label>
-                <input 
-                  type="text" 
-                  value={editFormData.brand} 
-                  onChange={e => setEditFormData({...editFormData, brand: e.target.value})} 
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">شرح مشکل</label>
-                <textarea 
-                  rows={3} 
-                  required 
-                  value={editFormData.fault_description} 
-                  onChange={e => setEditFormData({...editFormData, fault_description: e.target.value})} 
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary resize-none" 
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">نام دستگاه</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={editFormData.device_info} 
+                    onChange={e => setEditFormData({...editFormData, device_info: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">برند سازنده</label>
+                  <input 
+                    type="text" 
+                    value={editFormData.brand} 
+                    onChange={e => setEditFormData({...editFormData, brand: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">پارت نامبر</label>
+                  <input 
+                    type="text" 
+                    value={editFormData.part_number} 
+                    onChange={e => setEditFormData({...editFormData, part_number: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" dir="ltr"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">نام پروژه/ارجاع کار</label>
+                  <input 
+                    type="text" 
+                    value={editFormData.project_name} 
+                    onChange={e => setEditFormData({...editFormData, project_name: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">شرح مشکل</label>
+                  <textarea 
+                    rows={3} 
+                    required 
+                    value={editFormData.fault_description} 
+                    onChange={e => setEditFormData({...editFormData, fault_description: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary resize-none" 
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-2 pt-2">
                 <input 
@@ -499,6 +531,12 @@ export default function CustomerPanelPage() {
                   <span className="text-slate-500">برند دستگاه:</span>
                   <span className="font-bold text-slate-700">{selectedTrackingReq.brand || 'تعیین نشده'}</span>
                 </div>
+                {selectedTrackingReq.part_number && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">پارت نامبر:</span>
+                    <span className="font-bold text-slate-700 font-mono" dir="ltr">{selectedTrackingReq.part_number}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-slate-500">تاریخ ثبت:</span>
                   <span className="font-mono font-bold text-slate-700" dir="ltr">{new Date(selectedTrackingReq.created_at).toLocaleDateString('fa-IR')}</span>

@@ -16,16 +16,17 @@ export default function CommercialPanelPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // استیت فرم ثبت درخواست جدید
+  // استیت فرم ثبت درخواست جدید - آپدیت شده با فیلدهای جدید
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
     serial_number: '',
+    part_number: '',
+    project_name: '',
     fault_description: '',
     needs_price_estimate: false,
   });
 
-  // استیت مودال تغییر رمز
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
@@ -39,7 +40,6 @@ export default function CommercialPanelPage() {
   const fetchData = async () => {
     setIsLoading(true);
     
-    // 1. دریافت کارتابل بازرگانی (درخواست‌های در انتظار تایید بازرگانی)
     const { data: queueData, error: queueError } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -49,7 +49,6 @@ export default function CommercialPanelPage() {
     if (queueError) toast.error('خطا در دریافت کارتابل');
     else setQueueRequests(queueData || []);
 
-    // 2. دریافت درخواست‌های شخصی که توسط خود شخص بازرگانی ثبت شده‌اند
     if (profile?.id) {
       const { data: myData, error: myError } = await supabase
         .from('repair_requests')
@@ -67,7 +66,6 @@ export default function CommercialPanelPage() {
   const handleApprovePrice = async (id: string) => {
     setIsLoading(true);
     try {
-      // تایید بازرگانی و ارسال مستقیم به واحد مالی
       const { error } = await supabase
         .from('repair_requests')
         .update({ status: 'pending_finance' })
@@ -103,14 +101,16 @@ export default function CommercialPanelPage() {
           brand: formData.brand,
           fault_description: finalDescription,
           needs_price_estimate: formData.needs_price_estimate,
-          status: 'pending_coordinator'
+          status: 'pending_coordinator',
+          part_number: formData.part_number,
+          project_name: formData.project_name
         }
       ]);
 
       if (error) throw error;
       
       toast.success(`درخواست شما با کد ${trackingCode} با موفقیت ثبت شد`);
-      setFormData({ device_info: '', brand: '', serial_number: '', fault_description: '', needs_price_estimate: false });
+      setFormData({ device_info: '', brand: '', serial_number: '', part_number: '', project_name: '', fault_description: '', needs_price_estimate: false });
       setActiveTab('my_requests');
       fetchData();
     } catch (error: any) {
@@ -156,7 +156,6 @@ export default function CommercialPanelPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
-      {/* هدر پنل بازرگانی */}
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -186,7 +185,6 @@ export default function CommercialPanelPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* تب‌های بازرگانی */}
         <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 mb-6 w-full max-w-2xl mx-auto md:mx-0 flex-col sm:flex-row gap-1">
           <button onClick={() => setActiveTab('queue')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'queue' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
             <ShoppingCart size={18} /> کارتابل تاییدیه 
@@ -200,7 +198,6 @@ export default function CommercialPanelPage() {
           </button>
         </div>
 
-        {/* محتوای تب: کارتابل بازرگانی */}
         {activeTab === 'queue' && (
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <h2 className="text-xl font-bold text-slate-800 mb-6">درخواست‌های در انتظار تایید قطعات و هزینه</h2>
@@ -248,23 +245,30 @@ export default function CommercialPanelPage() {
           </div>
         )}
 
-        {/* محتوای تب: ثبت درخواست جدید */}
         {activeTab === 'new_request' && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 max-w-4xl">
             <h3 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">فرم ثبت درخواست تعمیر سازمانی</h3>
             <form onSubmit={handleSubmitNewRequest} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">اسم قطعه یا دستگاه <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">اسم قطعه یا دستگاه (Unit Name) <span className="text-red-500">*</span></label>
                   <input type="text" required value={formData.device_info} onChange={e => setFormData({...formData, device_info: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: درایو موتور زیمنس" />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">برند سازنده</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">برند سازنده (اختیاری)</label>
                   <input type="text" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: Siemens" />
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-2">شماره سریال دستگاه</label>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">پارت نامبر (Unit Part Number) (اختیاری)</label>
+                  <input type="text" value={formData.part_number} onChange={e => setFormData({...formData, part_number: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors text-left" dir="ltr" placeholder="P/N: 6SL3210..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">شماره سریال (S/N) (اختیاری)</label>
                   <input type="text" value={formData.serial_number} onChange={e => setFormData({...formData, serial_number: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors text-left" dir="ltr" placeholder="S/N: 123456789" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-2">نام پروژه / ارجاع کار (اختیاری)</label>
+                  <input type="text" value={formData.project_name} onChange={e => setFormData({...formData, project_name: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: پروژه خط تولید شماره ۲" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-2">شرح کامل مشکل <span className="text-red-500">*</span></label>
@@ -281,13 +285,12 @@ export default function CommercialPanelPage() {
 
               <button type="submit" disabled={isSubmitting} className="w-full md:w-auto px-8 py-3.5 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors flex justify-center items-center gap-2">
                 {isSubmitting ? <Loader2 className="animate-spin" /> : <Plus size={20} />}
-                ثبت درخواست 
+                ثبت درخواست و ارسال به هماهنگی
               </button>
             </form>
           </div>
         )}
 
-        {/* محتوای تب: درخواست‌های من */}
         {activeTab === 'my_requests' && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-slate-800 mb-6">درخواست‌های ثبت‌شده توسط شما</h2>
@@ -319,7 +322,6 @@ export default function CommercialPanelPage() {
         )}
       </main>
 
-      {/* مدال تغییر رمز عبور پرسنل */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
