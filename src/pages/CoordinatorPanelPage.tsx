@@ -65,7 +65,7 @@ export default function CoordinatorPanelPage() {
     }
   };
 
-const exportToExcel = () => {
+  const exportToExcel = () => {
     const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'تاریخ دریافت', 'تاریخ تحویل'];
     
     const rows = requests.map((req, index) => {
@@ -87,8 +87,6 @@ const exportToExcel = () => {
     });
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    
-    // تنظیم راست‌چین بودن و عرض ستون‌ها
     worksheet['!views'] = [{ RTL: true, rightToLeft: true }];
     worksheet['!cols'] = [
       { wch: 8 }, { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, 
@@ -98,9 +96,9 @@ const exportToExcel = () => {
     const workbook = XLSX.utils.book_new();
     workbook.Workbook = { Views: [{ RTL: true }] };
     XLSX.utils.book_append_sheet(workbook, worksheet, 'گزارش هماهنگی');
-    
     XLSX.writeFile(workbook, 'گزارش_واحد_هماهنگی.xlsx');
   };
+
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
@@ -119,10 +117,7 @@ const exportToExcel = () => {
             <button onClick={exportToExcel} className="flex items-center gap-1.5 text-xs sm:text-sm bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
               <FileSpreadsheet size={16} /> خروجی اکسل
             </button>
-            <button 
-              onClick={() => { window.location.href = '/'; }} 
-              className="flex items-center gap-1.5 text-sm sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-bold transition-colors"
-            >
+            <button onClick={() => { window.location.href = '/'; }} className="flex items-center gap-1.5 text-sm sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
               <Home size={16} /> صفحه اصلی
             </button>
             <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-1.5 text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2.5 rounded-xl font-bold transition-colors">
@@ -177,12 +172,13 @@ const exportToExcel = () => {
                         <td className="py-4 px-3">
                           <div className="font-bold text-slate-800">{req.device_info}</div>
                           <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
+                          {req.needs_price_estimate && <span className="inline-block mt-1 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold">نیاز به برآورد قیمت دارد</span>}
                         </td>
                         <td className="py-4 px-3">
                           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                             req.status === 'pending_coordinator' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
                           }`}>
-                            {req.status === 'pending_coordinator' ? 'در انتظار بررسی واحد هماهنگی' : req.status}
+                            {req.status === 'pending_coordinator' ? 'در انتظار بررسی هماهنگی' : req.status}
                           </span>
                         </td>
                         <td className="py-4 px-3 space-y-2">
@@ -219,20 +215,27 @@ const exportToExcel = () => {
                         </td>
                         <td className="py-4 px-3 text-center">
                           {req.status === 'pending_coordinator' && (
-                            <div className="flex items-center justify-center gap-2">
-                              <button 
-                                onClick={() => handleStatusChange(req.id, 'pending_supervisor')} 
-                                className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center gap-1 text-xs" 
-                                title="تایید و ارجاع به سرپرست تعمیر"
-                              >
-                                <Check size={16} /> تایید و ارجاع
-                              </button>
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              {req.needs_price_estimate ? (
+                                <button 
+                                  onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
+                                  className="w-full p-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs" 
+                                >
+                                  ارجاع به مدیر (جهت برآورد اولیه)
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleStatusChange(req.id, 'pending_supervisor')} 
+                                  className="w-full p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs" 
+                                >
+                                  <Check size={16} /> ارجاع به سرپرست (جهت تعمیر)
+                                </button>
+                              )}
                               <button 
                                 onClick={() => handleStatusChange(req.id, 'rejected')} 
-                                className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors font-bold flex items-center gap-1 text-xs" 
-                                title="عدم پذیرش"
+                                className="w-full p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs" 
                               >
-                                <X size={16} /> رد
+                                <X size={16} /> رد و عدم پذیرش
                               </button>
                             </div>
                           )}
