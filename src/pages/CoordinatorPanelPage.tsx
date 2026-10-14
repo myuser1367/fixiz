@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, FileSpreadsheet, Check, X, Calendar, Clock, Wrench } from 'lucide-react';
+import { LogOut, Home, FileSpreadsheet, Check, Calendar, Clock, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -31,9 +31,9 @@ export default function CoordinatorPanelPage() {
     setIsLoading(false);
   };
 
-  // شبیه‌ساز ارسال پیامک اطلاع‌رسانی برای ارسال دستگاه پس از پذیرش سرپرست
+  // شبیه‌ساز ارسال پیامک اطلاع‌رسانی برای ارسال دستگاه پس از تایید برآورد قیمت
   const sendDeviceSendSms = (phone: string, trackingCode: string) => {
-    console.log(`[SMS SIMULATION] To: ${phone} | Message: درخواست تعمیر شما با کد پیگیری ${trackingCode} پذیرش شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فرافن`);
+    console.log(`[SMS SIMULATION] To: ${phone} | Message: برآورد قیمت درخواست تعمیر شما با کد ${trackingCode} تایید شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فرافن`);
   };
 
   const handleStatusChange = async (id: string, newStatus: string, customerPhone?: string, trackingCode?: string) => {
@@ -224,38 +224,21 @@ export default function CoordinatorPanelPage() {
                           </div>
                         </td>
                         <td className="py-4 px-3 text-center">
-                          {/* 1. اگر در وضعیت ثبت اولیه هماهنگی باشد */}
-                          {req.status === 'pending_coordinator' && (
-                            <div className="flex flex-col items-center justify-center gap-2">
-                              {req.needs_price_estimate ? (
-                                <button 
-                                  onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
-                                  className="w-full p-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs" 
-                                >
-                                  ارجاع به مدیر مرکز (برآورد اولیه)
-                                </button>
-                              ) : (
-                                <button 
-                                  onClick={() => handleStatusChange(req.id, 'pending_supervisor', req.profiles?.phone, req.tracking_code)} 
-                                  className="w-full p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs" 
-                                >
-                                  <Check size={16} /> تایید و ارجاع به سرپرست
-                                </button>
-                              )}
-                              <button 
-                                onClick={() => handleStatusChange(req.id, 'rejected')} 
-                                className="w-full p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs" 
-                              >
-                                <X size={16} /> رد و عدم پذیرش
-                              </button>
-                            </div>
+                          {/* 1. اگر درخواست تازه ثبت شده و نیاز به برآورد اولیه مدیر مرکز دارد */}
+                          {req.status === 'pending_coordinator' && req.needs_price_estimate && (
+                            <button 
+                              onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
+                              className="w-full p-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
+                            >
+                              ارجاع به مدیر مرکز (برآورد اولیه)
+                            </button>
                           )}
 
-                          {/* 2. اگر سرپرست پذیرش کرده باشد و در انتظار دریافت دستگاه باشد */}
+                          {/* 2. اگر مشتری قیمت را تایید کرده و سرپرست پذیرش زده است (در انتظار دریافت دستگاه) */}
                           {req.status === 'waiting_for_device' && (
                             <button 
-                              onClick={() => handleStatusChange(req.id, 'repairing')} 
-                              className="w-full p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs"
+                              onClick={() => handleStatusChange(req.id, 'repairing', req.profiles?.phone, req.tracking_code)} 
+                              className="w-full p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
                               title="پس از رسیدن دستگاه و ثبت تاریخ ورود"
                             >
                               <Check size={16} /> ثبت ورود و ارسال به تعمیرات
