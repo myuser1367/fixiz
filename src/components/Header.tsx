@@ -42,16 +42,12 @@ export function Header({ currentPage = 'home', onNavigate, onOpenTracking }: Hea
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between min-h-[5rem] py-2"> 
 
-          {/* لوگو سامانه و شرکت فرافن */}
+          {/* فقط لوگوی شرکت فرافن بدون نوشته */}
           <button
             onClick={() => handleNavigate('home')}
-            className="flex items-center gap-3 shrink-0 hover:opacity-80 transition-opacity focus:outline-none py-1"
+            className="flex items-center shrink-0 hover:opacity-80 transition-opacity focus:outline-none py-1"
           >
-            {/* تصویر لوگو از پوشه public خوانده می‌شود */}
             <img src="/farafan-logo.png" alt="لوگو فرافن" className="h-10 w-auto object-contain" />
-            <div className="flex flex-col items-start border-r-2 border-slate-200 pr-3">
-              <span className="text-xl font-black text-slate-800 tracking-tight">سامانه فیکسیز</span>
-            </div>
           </button>
 
           {/* منوی دسکتاپ */}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Header } from '../components/Header';
 import { supabase } from '../lib/supabase';
-import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, Check, FileText, Wrench } from 'lucide-react';
+import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, Check, FileText, Wrench, Search, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface RepairRequest {
@@ -217,10 +217,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
-      {/* هدر با قابلیت باز کردن مدال پیگیری */}
       <Header onOpenTracking={handleOpenTrackingModal} />
 
-      <main className="relative bg-brand-dark overflow-hidden min-h-[calc(100vh-80px)] flex flex-col justify-center pt-12 lg:pt-20 pb-12">
+      <main className="relative bg-brand-dark overflow-x-hidden min-h-[calc(100vh-80px)] flex flex-col pt-12 lg:pt-16 pb-20">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#2dd4bf 2px, transparent 2px)', backgroundSize: '32px 32px' }}></div>
         <div className="absolute bottom-0 w-full overflow-hidden leading-[0]">
           <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto text-slate-50 relative top-[1px]">
@@ -228,146 +227,181 @@ export default function HomePage() {
           </svg>
         </div>
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8 xl:gap-16">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 flex flex-col">
           
-          {/* سمت راست: متن‌ها و تصویر کارگاه */}
-          <div className="text-center lg:text-right flex-1 animate-slide-up w-full max-w-2xl">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-6 leading-tight">
-              سامانه جامع مدیریت تعمیرات <br />
-              <span className="text-brand-light text-gradient block mt-2">شرکت فرافن</span>
-            </h1>
-            <p className="text-slate-300 text-lg md:text-xl font-medium mb-10 opacity-90">
-              ارائه دهنده خدمات تخصصی، تعمیرات پیشرفته و تامین تجهیزات صنعتی با تکیه بر دانش فنی مهندسین مجرب.
-            </p>
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8 xl:gap-16 w-full">
+            
+            {/* سمت راست: متن‌ها و تصویر کارگاه */}
+            <div className="text-center lg:text-right flex-1 animate-slide-up w-full max-w-2xl">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-6 leading-tight">
+                <span className="text-brand-light text-xl md:text-2xl block mb-4 font-bold tracking-wide">سامانه فیکسیز</span>
+                سامانه جامع مدیریت تعمیرات
+              </h1>
+              <p className="text-slate-300 text-lg md:text-xl font-medium mb-10 opacity-90">
+                ارائه دهنده خدمات تخصصی، تعمیرات پیشرفته و تامین تجهیزات صنعتی با تکیه بر دانش فنی مهندسین مجرب.
+              </p>
 
-            {/* تصویر محیط کارگاه با افکت */}
-            <div className="relative w-full max-w-lg mx-auto lg:mx-0 rounded-[2.5rem] p-3 bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500">
-              <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/20 to-transparent opacity-50 z-10 mix-blend-overlay"></div>
-              <img 
-                src="/hero-image.jpg" 
-                alt="کارگاه تعمیرات فرافن" 
-                className="w-full h-auto rounded-[2rem] object-cover shadow-inner relative z-0" 
-              />
+              {/* تصویر محیط کارگاه با افکت */}
+              <div className="relative w-full max-w-lg mx-auto lg:mx-0 rounded-[2.5rem] p-3 bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500">
+                <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/20 to-transparent opacity-50 z-10 mix-blend-overlay"></div>
+                <img 
+                  src="/hero-image.jpg" 
+                  alt="کارگاه تعمیرات فرافن" 
+                  className="w-full h-auto rounded-[2rem] object-cover shadow-inner relative z-0" 
+                />
+              </div>
+            </div>
+
+            {/* سمت چپ: باکس ورود به سامانه */}
+            <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-8 border border-slate-100 animate-slide-up relative z-20" style={{ animationDelay: '0.1s' }}>
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-black text-slate-800 mb-2">ورود به سامانه</h2>
+                <p className="text-sm text-slate-500 font-medium">
+                  {activeTab === 'customer' && custStep === 'phone' && 'شماره موبایل خود را وارد کنید'}
+                  {activeTab === 'customer' && custStep === 'otp' && 'کد پیامک شده را وارد کنید'}
+                  {activeTab === 'personnel' && persStep === 'login' && 'اطلاعات حساب سازمانی خود را وارد کنید'}
+                  {activeTab === 'personnel' && persStep === 'otp' && 'کد پیامک شده را وارد کنید'}
+                  {activeTab === 'personnel' && persStep === 'first_login' && 'اولین ورود! رمز عبور جدید را تعیین کنید'}
+                </p>
+              </div>
+
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
+                <button type="button" onClick={() => { setActiveTab('customer'); setCustStep('phone'); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'customer' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>مشتریان</button>
+                <button type="button" onClick={() => setActiveTab('personnel')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'personnel' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>پرسنل سازمان</button>
+              </div>
+
+              {activeTab === 'customer' && (
+                custStep === 'phone' ? (
+                  <form onSubmit={handleCustSendOtp} className="space-y-6">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Phone className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input type="tel" required value={custPhone} onChange={(e) => setCustPhone(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left font-mono font-bold text-lg transition-all" placeholder="09123456789" dir="ltr" />
+                    </div>
+                    <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
+                      {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ارسال کد تایید'} {!isLoading && <ArrowLeft size={18} />}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleCustVerify} className="space-y-6">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Activity className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input type="text" required autoFocus maxLength={6} value={custOtp} onChange={(e) => setCustOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="123456" dir="ltr" />
+                    </div>
+                    <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
+                      {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
+                    </button>
+                    <button type="button" onClick={() => setCustStep('phone')} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
+                      اصلاح شماره موبایل
+                    </button>
+                  </form>
+                )
+              )}
+
+              {activeTab === 'personnel' && (
+                persStep === 'login' ? (
+                  <form onSubmit={handlePersLoginStart} className="space-y-5">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <User className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input type="text" required value={persUsername} onChange={(e) => setPersUsername(e.target.value)} placeholder="نام کاربری" className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left transition-all" dir="ltr" />
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input type={showPassword ? "text" : "password"} required value={persPassword} onChange={(e) => setPersPassword(e.target.value)} placeholder="رمز عبور" className="w-full pr-12 pl-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left transition-all" dir="ltr" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 hover:text-slate-700">
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    <button type="submit" disabled={isLoading} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
+                      {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'بررسی و دریافت پیامک'} {!isLoading && <ArrowLeft size={18} />}
+                    </button>
+                  </form>
+                ) : persStep === 'otp' ? (
+                  <form onSubmit={handlePersVerifyOtp} className="space-y-6">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Activity className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="123456" dir="ltr" />
+                    </div>
+                    <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
+                      {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
+                    </button>
+                    <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
+                      اصلاح نام کاربری و رمز عبور
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handlePersFirstLoginComplete} className="space-y-6">
+                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-2 flex">
+                      <ShieldCheck className="h-6 w-6 text-amber-500 shrink-0" />
+                      <p className="mr-3 text-xs leading-relaxed text-amber-800 font-medium">اولین ورود سیستم! لطفاً کد پیامکی و رمز عبور جدید را تعیین کنید.</p>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Activity className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-mono font-bold" placeholder="کد تایید پیامکی (123456)" dir="ltr" />
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input type={showPassword ? "text" : "password"} required value={persNewPassword} onChange={(e) => setPersNewPassword(e.target.value)} placeholder="رمز عبور جدید (حداقل ۶ حرف)" className="w-full pr-12 pl-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left" dir="ltr" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 hover:text-slate-700">
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center">
+                      {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'تایید و تغییر رمز'}
+                    </button>
+                    <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
+                      اصلاح نام کاربری و رمز عبور
+                    </button>
+                  </form>
+                )
+              )}
             </div>
           </div>
 
-          {/* سمت چپ: باکس ورود به سامانه */}
-          <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-8 border border-slate-100 animate-slide-up relative z-20" style={{ animationDelay: '0.1s' }}>
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-black text-slate-800 mb-2">ورود به سامانه</h2>
-              <p className="text-sm text-slate-500 font-medium">
-                {activeTab === 'customer' && custStep === 'phone' && 'شماره موبایل خود را وارد کنید'}
-                {activeTab === 'customer' && custStep === 'otp' && 'کد پیامک شده را وارد کنید'}
-                {activeTab === 'personnel' && persStep === 'login' && 'اطلاعات حساب سازمانی خود را وارد کنید'}
-                {activeTab === 'personnel' && persStep === 'otp' && 'کد پیامک شده را وارد کنید'}
-                {activeTab === 'personnel' && persStep === 'first_login' && 'اولین ورود! رمز عبور جدید را تعیین کنید'}
+          {/* ۳ کادر توضیحات پایین صفحه */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 lg:mt-24 w-full">
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[2rem] p-8 text-right hover:bg-white/10 transition-colors">
+              <div className="w-14 h-14 bg-brand-primary/20 rounded-2xl flex items-center justify-center mb-6">
+                <Zap className="w-7 h-7 text-brand-light" />
+              </div>
+              <h3 className="text-white font-bold text-xl mb-3">سرعت در خدمت‌رسانی</h3>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                تسریع در فرآیند پذیرش، عیب‌یابی و تعمیرات جهت کاهش زمان توقف تجهیزات حیاتی شما در خطوط تولید.
               </p>
             </div>
-
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
-              <button type="button" onClick={() => { setActiveTab('customer'); setCustStep('phone'); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'customer' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>مشتریان</button>
-              <button type="button" onClick={() => setActiveTab('personnel')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'personnel' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>پرسنل سازمان</button>
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[2rem] p-8 text-right hover:bg-white/10 transition-colors">
+              <div className="w-14 h-14 bg-brand-primary/20 rounded-2xl flex items-center justify-center mb-6">
+                <Search className="w-7 h-7 text-brand-light" />
+              </div>
+              <h3 className="text-white font-bold text-xl mb-3">پیگیری آنلاین و لحظه‌ای</h3>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                امکان استعلام آنلاین و مشاهده لحظه به لحظه وضعیت دستگاه در هر مرحله از تعمیرات تا صدور فاکتور نهایی.
+              </p>
             </div>
-
-            {activeTab === 'customer' && (
-              custStep === 'phone' ? (
-                <form onSubmit={handleCustSendOtp} className="space-y-6">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <Phone className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input type="tel" required value={custPhone} onChange={(e) => setCustPhone(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left font-mono font-bold text-lg transition-all" placeholder="09123456789" dir="ltr" />
-                  </div>
-                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
-                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ارسال کد تایید'} {!isLoading && <ArrowLeft size={18} />}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleCustVerify} className="space-y-6">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <Activity className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input type="text" required autoFocus maxLength={6} value={custOtp} onChange={(e) => setCustOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="123456" dir="ltr" />
-                  </div>
-                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
-                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
-                  </button>
-                  <button type="button" onClick={() => setCustStep('phone')} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
-                    اصلاح شماره موبایل
-                  </button>
-                </form>
-              )
-            )}
-
-            {activeTab === 'personnel' && (
-              persStep === 'login' ? (
-                <form onSubmit={handlePersLoginStart} className="space-y-5">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input type="text" required value={persUsername} onChange={(e) => setPersUsername(e.target.value)} placeholder="نام کاربری" className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left transition-all" dir="ltr" />
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input type={showPassword ? "text" : "password"} required value={persPassword} onChange={(e) => setPersPassword(e.target.value)} placeholder="رمز عبور" className="w-full pr-12 pl-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left transition-all" dir="ltr" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 hover:text-slate-700">
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
-                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'بررسی و دریافت پیامک'} {!isLoading && <ArrowLeft size={18} />}
-                  </button>
-                </form>
-              ) : persStep === 'otp' ? (
-                <form onSubmit={handlePersVerifyOtp} className="space-y-6">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <Activity className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="123456" dir="ltr" />
-                  </div>
-                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
-                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
-                  </button>
-                  <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
-                    اصلاح نام کاربری و رمز عبور
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handlePersFirstLoginComplete} className="space-y-6">
-                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-2 flex">
-                    <ShieldCheck className="h-6 w-6 text-amber-500 shrink-0" />
-                    <p className="mr-3 text-xs leading-relaxed text-amber-800 font-medium">اولین ورود سیستم! لطفاً کد پیامکی و رمز عبور جدید را تعیین کنید.</p>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <Activity className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-mono font-bold" placeholder="کد تایید پیامکی (123456)" dir="ltr" />
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input type={showPassword ? "text" : "password"} required value={persNewPassword} onChange={(e) => setPersNewPassword(e.target.value)} placeholder="رمز عبور جدید (حداقل ۶ حرف)" className="w-full pr-12 pl-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left" dir="ltr" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 hover:text-slate-700">
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                  <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center">
-                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'تایید و تغییر رمز'}
-                  </button>
-                  <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
-                    اصلاح نام کاربری و رمز عبور
-                  </button>
-                </form>
-              )
-            )}
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[2rem] p-8 text-right hover:bg-white/10 transition-colors">
+              <div className="w-14 h-14 bg-brand-primary/20 rounded-2xl flex items-center justify-center mb-6">
+                <Wrench className="w-7 h-7 text-brand-light" />
+              </div>
+              <h3 className="text-white font-bold text-xl mb-3">تعمیرات فوق تخصصی</h3>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                بهره‌گیری از به‌روزترین تجهیزات آزمایشگاهی، تکنسین‌های مجرب و استفاده از قطعات اورجینال با تضمین کیفیت.
+              </p>
+            </div>
           </div>
+
         </div>
       </main>
 
