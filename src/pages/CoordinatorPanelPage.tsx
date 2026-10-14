@@ -31,7 +31,6 @@ export default function CoordinatorPanelPage() {
     setIsLoading(false);
   };
 
-  // شبیه‌ساز ارسال پیامک اطلاع‌رسانی برای ارسال دستگاه پس از تایید برآورد قیمت
   const sendDeviceSendSms = (phone: string, trackingCode: string) => {
     console.log(`[SMS SIMULATION] To: ${phone} | Message: برآورد قیمت درخواست تعمیر شما با کد ${trackingCode} تایید شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فرافن`);
   };
@@ -171,6 +170,9 @@ export default function CoordinatorPanelPage() {
                     const delDate = deliveredObj ? deliveredObj.toISOString().split('T')[0] : '';
                     const delTime = deliveredObj ? deliveredObj.toTimeString().slice(0, 5) : '';
 
+                    // بررسی وضعیت تایید قیمت توسط مشتری
+                    const isPriceApproved = req.status !== 'pending_coordinator' && req.status !== 'pending_ceo_initial' && req.status !== 'pending_customer_approval' && req.status !== 'canceled_by_customer';
+
                     return (
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
@@ -181,12 +183,16 @@ export default function CoordinatorPanelPage() {
                         <td className="py-4 px-3">
                           <div className="font-bold text-slate-800">{req.device_info}</div>
                           <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
-                          {req.needs_price_estimate && <span className="inline-block mt-1 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold">نیاز به برآورد قیمت دارد</span>}
+                          {req.needs_price_estimate && (
+                            <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded font-bold ${
+                              isPriceApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {isPriceApproved ? 'برآورد قیمت به تایید مشتری رسید' : 'نیاز به برآورد قیمت دارد'}
+                            </span>
+                          )}
                         </td>
                         <td className="py-4 px-3">
-                          <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                            req.status === 'pending_coordinator' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-                          }`}>
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700">
                             {req.status === 'pending_coordinator' ? 'در انتظار بررسی هماهنگی' : 
                              req.status === 'waiting_for_device' ? 'در انتظار دریافت دستگاه' : req.status}
                           </span>
@@ -224,7 +230,6 @@ export default function CoordinatorPanelPage() {
                           </div>
                         </td>
                         <td className="py-4 px-3 text-center">
-                          {/* 1. اگر درخواست تازه ثبت شده و نیاز به برآورد اولیه مدیر مرکز دارد */}
                           {req.status === 'pending_coordinator' && req.needs_price_estimate && (
                             <button 
                               onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
@@ -234,12 +239,10 @@ export default function CoordinatorPanelPage() {
                             </button>
                           )}
 
-                          {/* 2. اگر مشتری قیمت را تایید کرده و سرپرست پذیرش زده است (در انتظار دریافت دستگاه) */}
                           {req.status === 'waiting_for_device' && (
                             <button 
                               onClick={() => handleStatusChange(req.id, 'repairing', req.profiles?.phone, req.tracking_code)} 
                               className="w-full p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
-                              title="پس از رسیدن دستگاه و ثبت تاریخ ورود"
                             >
                               <Check size={16} /> ثبت ورود و ارسال به تعمیرات
                             </button>
