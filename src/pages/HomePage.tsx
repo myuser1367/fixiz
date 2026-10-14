@@ -31,7 +31,6 @@ export default function HomePage() {
   const [persOtp, setPersOtp] = useState('');
   const [persNewPassword, setPersNewPassword] = useState('');
 
-  // استیت‌های مربوط به مدال پیگیری درخواست از طریق هدر
   const [trackingModalOpen, setTrackingModalOpen] = useState(false);
   const [searchCode, setSearchCode] = useState('');
   const [trackedRequest, setTrackedRequest] = useState<RepairRequest | null>(null);
@@ -219,27 +218,24 @@ export default function HomePage() {
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
       <Header onOpenTracking={handleOpenTrackingModal} />
 
-      <main className="relative bg-brand-dark overflow-x-hidden min-h-[calc(100vh-80px)] flex flex-col pt-12 lg:pt-16 pb-20">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#2dd4bf 2px, transparent 2px)', backgroundSize: '32px 32px' }}></div>
-        <div className="absolute bottom-0 w-full overflow-hidden leading-[0]">
-          <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto text-slate-50 relative top-[1px]">
-            <path d="M0 120L1440 120V0C1440 0 1140 100 720 100C300 100 0 0 0 0V120Z" fill="currentColor" />
-          </svg>
-        </div>
+      <main className="relative flex flex-col items-center">
+        {/* بخش اصلی و تیره رنگ بالای صفحه */}
+        <div className="relative bg-brand-dark w-full overflow-hidden flex flex-col pt-12 lg:pt-16 pb-32">
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#2dd4bf 2px, transparent 2px)', backgroundSize: '32px 32px' }}></div>
+          <div className="absolute bottom-0 w-full overflow-hidden leading-[0]">
+            <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto text-slate-50 relative top-[1px]">
+              <path d="M0 120L1440 120V0C1440 0 1140 100 720 100C300 100 0 0 0 0V120Z" fill="currentColor" />
+            </svg>
+          </div>
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 flex flex-col">
-          
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8 xl:gap-16 w-full">
+          <div className="relative z-10 w-full max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8 xl:gap-16">
             
             {/* سمت راست: متن‌ها و تصویر کارگاه */}
-            <div className="text-center lg:text-right flex-1 animate-slide-up w-full max-w-2xl">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-6 leading-tight">
+            <div className="text-center flex-1 animate-slide-up w-full max-w-2xl">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-10 leading-tight">
                 <span className="text-brand-light text-xl md:text-2xl block mb-4 font-bold tracking-wide">سامانه فیکسیز</span>
                 سامانه جامع مدیریت تعمیرات
               </h1>
-              <p className="text-slate-300 text-lg md:text-xl font-medium mb-10 opacity-90">
-                ارائه دهنده خدمات تخصصی، تعمیرات پیشرفته و تامین تجهیزات صنعتی با تکیه بر دانش فنی مهندسین مجرب.
-              </p>
 
               {/* تصویر محیط کارگاه با افکت */}
               <div className="relative w-full max-w-lg mx-auto lg:mx-0 rounded-[2.5rem] p-3 bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500">
@@ -370,38 +366,39 @@ export default function HomePage() {
               )}
             </div>
           </div>
+        </div>
 
-          {/* ۳ کادر توضیحات پایین صفحه */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 lg:mt-24 w-full">
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[2rem] p-8 text-right hover:bg-white/10 transition-colors">
-              <div className="w-14 h-14 bg-brand-primary/20 rounded-2xl flex items-center justify-center mb-6">
-                <Zap className="w-7 h-7 text-brand-light" />
+        {/* ۳ کادر توضیحات (بخش روشن پایین صفحه) */}
+        <div className="w-full max-w-7xl mx-auto px-4 -mt-16 mb-20 relative z-20">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 text-right hover:-translate-y-1 transition-transform duration-300">
+              <div className="w-14 h-14 bg-brand-50 rounded-2xl flex items-center justify-center mb-6">
+                <Zap className="w-7 h-7 text-brand-primary" />
               </div>
-              <h3 className="text-white font-bold text-xl mb-3">سرعت در خدمت‌رسانی</h3>
-              <p className="text-slate-300 text-sm leading-relaxed">
+              <h3 className="text-slate-800 font-black text-xl mb-3">سرعت در خدمت‌رسانی</h3>
+              <p className="text-slate-500 text-sm leading-relaxed font-medium">
                 تسریع در فرآیند پذیرش، عیب‌یابی و تعمیرات جهت کاهش زمان توقف تجهیزات حیاتی شما در خطوط تولید.
               </p>
             </div>
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[2rem] p-8 text-right hover:bg-white/10 transition-colors">
-              <div className="w-14 h-14 bg-brand-primary/20 rounded-2xl flex items-center justify-center mb-6">
-                <Search className="w-7 h-7 text-brand-light" />
+            <div className="bg-white rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 text-right hover:-translate-y-1 transition-transform duration-300">
+              <div className="w-14 h-14 bg-brand-50 rounded-2xl flex items-center justify-center mb-6">
+                <Search className="w-7 h-7 text-brand-primary" />
               </div>
-              <h3 className="text-white font-bold text-xl mb-3">پیگیری آنلاین و لحظه‌ای</h3>
-              <p className="text-slate-300 text-sm leading-relaxed">
+              <h3 className="text-slate-800 font-black text-xl mb-3">پیگیری آنلاین و لحظه‌ای</h3>
+              <p className="text-slate-500 text-sm leading-relaxed font-medium">
                 امکان استعلام آنلاین و مشاهده لحظه به لحظه وضعیت دستگاه در هر مرحله از تعمیرات تا صدور فاکتور نهایی.
               </p>
             </div>
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[2rem] p-8 text-right hover:bg-white/10 transition-colors">
-              <div className="w-14 h-14 bg-brand-primary/20 rounded-2xl flex items-center justify-center mb-6">
-                <Wrench className="w-7 h-7 text-brand-light" />
+            <div className="bg-white rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 text-right hover:-translate-y-1 transition-transform duration-300">
+              <div className="w-14 h-14 bg-brand-50 rounded-2xl flex items-center justify-center mb-6">
+                <Wrench className="w-7 h-7 text-brand-primary" />
               </div>
-              <h3 className="text-white font-bold text-xl mb-3">تعمیرات فوق تخصصی</h3>
-              <p className="text-slate-300 text-sm leading-relaxed">
+              <h3 className="text-slate-800 font-black text-xl mb-3">تعمیرات فوق تخصصی</h3>
+              <p className="text-slate-500 text-sm leading-relaxed font-medium">
                 بهره‌گیری از به‌روزترین تجهیزات آزمایشگاهی، تکنسین‌های مجرب و استفاده از قطعات اورجینال با تضمین کیفیت.
               </p>
             </div>
           </div>
-
         </div>
       </main>
 
