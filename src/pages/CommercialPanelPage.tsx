@@ -281,7 +281,7 @@ export default function CommercialPanelPage() {
 
               <button type="submit" disabled={isSubmitting} className="w-full md:w-auto px-8 py-3.5 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors flex justify-center items-center gap-2">
                 {isSubmitting ? <Loader2 className="animate-spin" /> : <Plus size={20} />}
-                ثبت درخواست و ارسال به هماهنگی
+                ثبت درخواست 
               </button>
             </form>
           </div>
