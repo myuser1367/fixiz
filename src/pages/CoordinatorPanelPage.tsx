@@ -230,13 +230,24 @@ export default function CoordinatorPanelPage() {
                           </div>
                         </td>
                         <td className="py-4 px-3 text-center">
-                          {req.status === 'pending_coordinator' && req.needs_price_estimate && (
-                            <button 
-                              onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
-                              className="w-full p-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
-                            >
-                              ارجاع به مدیر مرکز (برآورد اولیه)
-                            </button>
+                          {req.status === 'pending_coordinator' && (
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              {req.needs_price_estimate ? (
+                                <button 
+                                  onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
+                                  className="w-full p-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
+                                >
+                                  ارجاع به مدیر مرکز (برآورد اولیه)
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleStatusChange(req.id, 'pending_supervisor')} 
+                                  className="w-full p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
+                                >
+                                  <Check size={16} /> ارجاع به سرپرست (جهت تعمیر)
+                                </button>
+                              )}
+                            </div>
                           )}
 
                           {req.status === 'waiting_for_device' && (
