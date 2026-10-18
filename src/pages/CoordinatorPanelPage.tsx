@@ -225,7 +225,7 @@ export default function CoordinatorPanelPage() {
                     const delDate = deliveredObj ? deliveredObj.toISOString().split('T')[0] : '';
                     const delTime = deliveredObj ? deliveredObj.toTimeString().slice(0, 5) : '';
 
-                    const isPriceApproved = req.status !== 'pending_coordinator' && req.status !== 'pending_ceo_initial' && req.status !== 'pending_customer_approval' && req.status !== 'canceled_by_customer';
+                    //const isPriceApproved = req.status !== 'pending_coordinator' && req.status !== 'pending_ceo_initial' && req.status !== 'pending_customer_approval' && req.status !== 'canceled_by_customer';
 
                     return (
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
