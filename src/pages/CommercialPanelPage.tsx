@@ -32,8 +32,8 @@ export default function CommercialPanelPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // آیدی ثابتی که برای واحد بازرگانی در جدول profiles ایجاد شده است
-  const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-20352ef29f73';
+  // آیدی صحیح و منطبق با دیتابیس شما برای واحد بازرگانی
+  const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-203d5ea50acb';
 
   const [formData, setFormData] = useState({
     device_info: '',
@@ -79,7 +79,7 @@ export default function CommercialPanelPage() {
     if (queueError) toast.error('خطا در دریافت کارتابل');
     else setQueueRequests(queueData || []);
 
-    // ۲. دریافت درخواست‌های ثبت شده توسط واحد بازرگانی (فقط بر اساس آیدی ثابت سازمانی)
+    // ۲. دریافت درخواست‌های ثبت شده توسط واحد بازرگانی (بر اساس آیدی دقیق دیتابیس)
     const { data: myData, error: myError } = await supabase
       .from('repair_requests')
       .select('*')
@@ -114,7 +114,6 @@ export default function CommercialPanelPage() {
     }
   };
 
-  // تابع جدید برای تایید نهایی و خروج از بازرگانی پس از پرداخت مالی
   const handleFinalApproval = async (id: string) => {
     setIsLoading(true);
     try {
@@ -140,13 +139,11 @@ export default function CommercialPanelPage() {
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
     
-    // مشخص کردن واضح واحد بازرگانی در توضیحات
     const finalDescription = `ثبت شده توسط واحد بازرگانی\n` +
       (formData.serial_number ? `شماره سریال: ${formData.serial_number}\n` : '') + 
       formData.fault_description;
 
     try {
-      // ثبت درخواست مستقیماً با آیدی سازمانی بازرگانی (مشکل جستجوی تصادفی حل شد)
       const { error } = await supabase.from('repair_requests').insert([
         {
           customer_id: COMMERCIAL_CUSTOMER_ID,
