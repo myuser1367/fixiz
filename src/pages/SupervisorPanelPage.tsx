@@ -148,6 +148,26 @@ export default function SupervisorPanelPage() {
     }
   };
 
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending_coordinator': return <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بررسی هماهنگی</span>;
+      case 'pending_ceo_initial': return <span className="bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار برآورد اولیه</span>;
+      case 'pending_customer_approval': return <span className="bg-orange-100 text-orange-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار تایید مشتری</span>;
+      case 'canceled_by_customer': return <span className="bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-bold">لغو توسط مشتری</span>;
+      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بررسی سرپرست</span>;
+      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار دریافت دستگاه</span>;
+      case 'accepted': return <span className="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg text-xs font-bold">پذیرش شده</span>;
+      case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg text-xs font-bold">در حال تعمیر</span>;
+      case 'estimated': return <span className="bg-fuchsia-100 text-fuchsia-800 px-2.5 py-1 rounded-lg text-xs font-bold">نیازمند برآورد نهایی</span>;
+      case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بازرگانی</span>;
+      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار واحد مالی</span>;
+      case 'invoiced': return <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-lg text-xs font-bold">فاکتور صادر شده</span>;
+      case 'rejected': return <span className="bg-red-100 text-red-700 px-2.5 py-1 rounded-lg text-xs font-bold">عدم پذیرش</span>;
+      default: return <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold">وضعیت نامشخص</span>;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
@@ -222,18 +242,9 @@ export default function SupervisorPanelPage() {
                             </span>
                           )}
                         </td>
-                        <td className="py-4 px-3">
-                          <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                            req.status === 'pending_supervisor' ? 'bg-blue-100 text-blue-800' : 
-                            req.status === 'waiting_for_device' ? 'bg-orange-100 text-orange-800' :
-                            req.status === 'repairing' ? 'bg-indigo-100 text-indigo-800' :
-                            'bg-emerald-100 text-emerald-800'
-                          }`}>
-                            {req.status === 'pending_supervisor' ? 'در انتظار بررسی اولیه' : 
-                             req.status === 'waiting_for_device' ? 'در انتظار دریافت دستگاه' :
-                             req.status === 'repairing' ? 'در حال تعمیر' : 'تایید شده (آماده تعمیر)'}
-                          </span>
-                        </td>
+                       <td className="py-4 px-3">
+  {getStatusBadge(req.status)}
+</td>
                         <td className="py-4 px-3 text-center">
                           <div className="flex flex-wrap items-center justify-center gap-2">
                             {req.status === 'pending_supervisor' && (
