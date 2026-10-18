@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, FileSpreadsheet, Check, Calendar, Clock, Wrench } from 'lucide-react';
+import { LogOut, Home, FileSpreadsheet, Check, Calendar, Clock, Wrench, Activity, List } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -9,6 +9,9 @@ import * as XLSX from 'xlsx';
 export default function CoordinatorPanelPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
+  
+  // استیت‌های مربوط به مدیریت تب‌ها
+  const [activeTab, setActiveTab] = useState<'queue' | 'reports'>('queue');
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -18,6 +21,7 @@ export default function CoordinatorPanelPage() {
 
   const fetchRequests = async () => {
     setIsLoading(true);
+    // دریافت تمامی درخواست‌های سیستم بدون فیلتر جهت استفاده در تب گزارشات
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -104,9 +108,8 @@ export default function CoordinatorPanelPage() {
     const workbook = XLSX.utils.book_new();
     workbook.Workbook = { Views: [{ RTL: true }] };
     XLSX.utils.book_append_sheet(workbook, worksheet, 'گزارش هماهنگی');
-    XLSX.writeFile(workbook, 'گزارش_واحد_هماهنگی.xlsx');
+    XLSX.writeFile(workbook, 'گزارش_جامع_سیستم.xlsx');
   };
-
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -127,6 +130,9 @@ export default function CoordinatorPanelPage() {
     }
   };
 
+  // فیلتر کردن درخواست‌ها برای تب "کارتابل هماهنگی"
+  const queueRequests = requests.filter(r => r.status === 'pending_coordinator' || r.status === 'waiting_for_device');
+
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
@@ -142,9 +148,6 @@ export default function CoordinatorPanelPage() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="text-xs text-slate-500 hidden md:inline">خوش آمدید، {profile?.full_name || 'همکار گرامی'}</span>
-            <button onClick={exportToExcel} className="flex items-center gap-1.5 text-xs sm:text-sm bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
-              <FileSpreadsheet size={16} /> خروجی اکسل
-            </button>
             <button onClick={() => { window.location.href = '/'; }} className="flex items-center gap-1.5 text-sm sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
               <Home size={16} /> صفحه اصلی
             </button>
@@ -156,10 +159,28 @@ export default function CoordinatorPanelPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
+        
+        {/* تب‌های جابجایی بین کارتابل و گزارشات */}
+        <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 mb-6 w-full max-w-md mx-auto md:mx-0">
+          <button onClick={() => setActiveTab('queue')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'queue' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
+            <Activity size={18} /> کارتابل هماهنگی 
+            {queueRequests.length > 0 && <span className="bg-white text-emerald-600 px-2 py-0.5 rounded-full text-xs">{queueRequests.length}</span>}
+          </button>
+          <button onClick={() => setActiveTab('reports')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'reports' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
+            <List size={18} /> گزارشات کل سامانه
+          </button>
+        </div>
+
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-800">مدیریت و پیگیری درخواست‌ها</h2>
-            <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">{requests.length} درخواست</span>
+            <h2 className="text-xl font-bold text-slate-800">
+              {activeTab === 'queue' ? 'مدیریت و پیگیری درخواست‌ها' : 'لیست جامع تمامی درخواست‌های سیستم'}
+            </h2>
+            {activeTab === 'reports' && (
+              <button onClick={exportToExcel} className="flex items-center gap-1.5 text-sm bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-xl font-bold transition-colors">
+                <FileSpreadsheet size={18} /> خروجی اکسل
+              </button>
+            )}
           </div>
           
           <div className="overflow-x-auto">
@@ -171,16 +192,16 @@ export default function CoordinatorPanelPage() {
                   <th className="pb-3 px-3">دستگاه و برند</th>
                   <th className="pb-3 px-3">وضعیت فعلی</th>
                   <th className="pb-3 px-3">تاریخ و ساعت ورود / خروج قطعه</th>
-                  <th className="pb-3 px-3 text-center">عملیات هماهنگی</th>
+                  {activeTab === 'queue' && <th className="pb-3 px-3 text-center">عملیات هماهنگی</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {isLoading ? (
-                  <tr><td colSpan={6} className="py-8 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>
-                ) : requests.length === 0 ? (
-                  <tr><td colSpan={6} className="py-8 text-center text-slate-400">هیچ درخواستی ثبت نشده است.</td></tr>
+                  <tr><td colSpan={activeTab === 'queue' ? 6 : 5} className="py-8 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>
+                ) : (activeTab === 'queue' ? queueRequests : requests).length === 0 ? (
+                  <tr><td colSpan={activeTab === 'queue' ? 6 : 5} className="py-8 text-center text-slate-400">هیچ درخواستی یافت نشد.</td></tr>
                 ) : (
-                  requests.map(req => {
+                  (activeTab === 'queue' ? queueRequests : requests).map(req => {
                     const receivedObj = req.received_at ? new Date(req.received_at) : null;
                     const deliveredObj = req.delivered_at ? new Date(req.delivered_at) : null;
                     
@@ -190,7 +211,6 @@ export default function CoordinatorPanelPage() {
                     const delDate = deliveredObj ? deliveredObj.toISOString().split('T')[0] : '';
                     const delTime = deliveredObj ? deliveredObj.toTimeString().slice(0, 5) : '';
 
-                    // بررسی وضعیت تایید قیمت توسط مشتری
                     const isPriceApproved = req.status !== 'pending_coordinator' && req.status !== 'pending_ceo_initial' && req.status !== 'pending_customer_approval' && req.status !== 'canceled_by_customer';
 
                     return (
@@ -211,71 +231,83 @@ export default function CoordinatorPanelPage() {
                             </span>
                           )}
                         </td>
-                      <td className="py-4 px-3">
-  {getStatusBadge(req.status)}
-</td>
-                        <td className="py-4 px-3 space-y-2">
-                          <div className="flex items-center gap-2 text-xs text-slate-600">
-                            <span className="flex items-center gap-1 font-bold w-12"><Calendar size={13} className="text-slate-400"/> ورود:</span>
-                            <input 
-                              type="date" 
-                              defaultValue={recDate}
-                              onBlur={(e) => handleDateTimeUpdate(req.id, 'received_at', e.target.value, recTime)}
-                              className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                            />
-                            <input 
-                              type="time" 
-                              defaultValue={recTime}
-                              onBlur={(e) => handleDateTimeUpdate(req.id, 'received_at', recDate, e.target.value)}
-                              className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                            />
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-slate-600">
-                            <span className="flex items-center gap-1 font-bold w-12"><Clock size={13} className="text-slate-400"/> خروج:</span>
-                            <input 
-                              type="date" 
-                              defaultValue={delDate}
-                              onBlur={(e) => handleDateTimeUpdate(req.id, 'delivered_at', e.target.value, delTime)}
-                              className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                            />
-                            <input 
-                              type="time" 
-                              defaultValue={delTime}
-                              onBlur={(e) => handleDateTimeUpdate(req.id, 'delivered_at', delDate, e.target.value)}
-                              className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                            />
-                          </div>
+                        <td className="py-4 px-3">
+                          {getStatusBadge(req.status)}
                         </td>
-                        <td className="py-4 px-3 text-center">
-                          {req.status === 'pending_coordinator' && (
-                            <div className="flex flex-col items-center justify-center gap-2">
-                              {req.needs_price_estimate ? (
-                                <button 
-                                  onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
-                                  className="w-full p-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
-                                >
-                                  ارجاع به مدیر مرکز (برآورد اولیه)
-                                </button>
-                              ) : (
-                                <button 
-                                  onClick={() => handleStatusChange(req.id, 'pending_supervisor')} 
-                                  className="w-full p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
-                                >
-                                  <Check size={16} /> ارجاع به سرپرست (جهت تعمیر)
-                                </button>
-                              )}
+                        <td className="py-4 px-3">
+                          {/* اگر در تب هماهنگی باشیم فیلدهای قابل تغییر نشان داده می‌شود، در گزارشات فقط متن خواندنی */}
+                          {activeTab === 'queue' ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-xs text-slate-600">
+                                <span className="flex items-center gap-1 font-bold w-12"><Calendar size={13} className="text-slate-400"/> ورود:</span>
+                                <input 
+                                  type="date" 
+                                  defaultValue={recDate}
+                                  onBlur={(e) => handleDateTimeUpdate(req.id, 'received_at', e.target.value, recTime)}
+                                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                />
+                                <input 
+                                  type="time" 
+                                  defaultValue={recTime}
+                                  onBlur={(e) => handleDateTimeUpdate(req.id, 'received_at', recDate, e.target.value)}
+                                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                />
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-slate-600">
+                                <span className="flex items-center gap-1 font-bold w-12"><Clock size={13} className="text-slate-400"/> خروج:</span>
+                                <input 
+                                  type="date" 
+                                  defaultValue={delDate}
+                                  onBlur={(e) => handleDateTimeUpdate(req.id, 'delivered_at', e.target.value, delTime)}
+                                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                />
+                                <input 
+                                  type="time" 
+                                  defaultValue={delTime}
+                                  onBlur={(e) => handleDateTimeUpdate(req.id, 'delivered_at', delDate, e.target.value)}
+                                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-1 text-xs text-slate-600">
+                              <div><span className="font-bold text-slate-400">ورود: </span> {receivedObj ? new Date(receivedObj).toLocaleString('fa-IR') : 'ثبت نشده'}</div>
+                              <div><span className="font-bold text-slate-400">خروج: </span> {deliveredObj ? new Date(deliveredObj).toLocaleString('fa-IR') : 'ثبت نشده'}</div>
                             </div>
                           )}
-
-                          {req.status === 'waiting_for_device' && (
-                            <button 
-                              onClick={() => handleStatusChange(req.id, 'repairing', req.profiles?.phone, req.tracking_code)} 
-                              className="w-full p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
-                            >
-                              <Check size={16} /> ثبت ورود و ارسال به تعمیرات
-                            </button>
-                          )}
                         </td>
+                        {activeTab === 'queue' && (
+                          <td className="py-4 px-3 text-center">
+                            {req.status === 'pending_coordinator' && (
+                              <div className="flex flex-col items-center justify-center gap-2">
+                                {req.needs_price_estimate ? (
+                                  <button 
+                                    onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
+                                    className="w-full p-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
+                                  >
+                                    ارجاع به مدیر مرکز (برآورد اولیه)
+                                  </button>
+                                ) : (
+                                  <button 
+                                    onClick={() => handleStatusChange(req.id, 'pending_supervisor')} 
+                                    className="w-full p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
+                                  >
+                                    <Check size={16} /> ارجاع به سرپرست (جهت تعمیر)
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {req.status === 'waiting_for_device' && (
+                              <button 
+                                onClick={() => handleStatusChange(req.id, 'repairing', req.profiles?.phone, req.tracking_code)} 
+                                className="w-full p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
+                              >
+                                <Check size={16} /> ثبت ورود و ارسال به تعمیرات
+                              </button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })
