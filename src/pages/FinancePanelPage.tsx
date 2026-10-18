@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Key, CheckCircle, Loader2, CreditCard, History, Check, Printer, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-
+import { LogOut, Home, Key, CheckCircle, Loader2, CreditCard, History, Printer, DollarSign } from 'lucide-react';
 export default function FinancePanelPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();

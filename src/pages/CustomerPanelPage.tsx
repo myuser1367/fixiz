@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Home, Plus, List, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Loader2, LogOut, Search, Check, FileText, Wrench, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
-
+import { Home, Plus, List, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Loader2, LogOut, Search, Check, FileText, Wrench } from 'lucide-react';
 interface RepairRequest {
   id: string;
   tracking_code: string;
