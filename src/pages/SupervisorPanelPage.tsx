@@ -229,18 +229,24 @@ export default function SupervisorPanelPage() {
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
                         <td className="py-4 px-3">
-                          <div className="font-bold text-slate-800">{req.device_info}</div>
-                          <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
-                        </td>
-                        <td className="py-4 px-3 max-w-xs">
-                          <p className="text-xs text-slate-600 line-clamp-2" title={req.fault_description}>{req.fault_description}</p>
-                          {req.needs_price_estimate && (
-                            <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded font-bold ${
-                              isPriceApprovedByCustomer ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-700'
-                            }`}>
-                              {isPriceApprovedByCustomer ? 'برآورد قیمت به تایید مشتری رسید' : 'نیاز به برآورد هزینه پیش از تعمیر دارد'}
-                            </span>
-                          )}
+                          {(() => {
+                            const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
+                            return (
+                              <>
+                                <div className="font-bold text-slate-800">
+                                  {isCommercial ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام')}
+                                </div>
+                                <div className="text-xs font-mono text-slate-500" dir="ltr">
+                                  {isCommercial ? 'ثبت سازمانی' : (req.profiles?.phone || '---')}
+                                </div>
+                                {isCommercial && (
+                                  <span className="inline-block mt-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-md font-bold">
+                                    🛒 درخواست بازرگانی
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                         </td>
                        <td className="py-4 px-3">
   {getStatusBadge(req.status)}
