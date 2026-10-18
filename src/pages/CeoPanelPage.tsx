@@ -308,6 +308,18 @@ export default function CeoPanelPage() {
               {/* فرم قیمت‌گذاری برحسب ریال */}
               {(selectedRequest.status === 'estimated' || selectedRequest.status === 'pending_ceo_initial') ? (
                 <form onSubmit={submitPricing} className="bg-purple-50 p-5 rounded-2xl border border-purple-100 mt-6">
+                  
+                  {/* === اضافه شدن بخش نمایش برآورد اولیه پیش از دریافت قیمت نهایی === */}
+                  {selectedRequest.status === 'estimated' && selectedRequest.estimated_price && (
+                    <div className="mb-5 bg-white p-4 rounded-xl border border-purple-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
+                      <span className="text-sm font-bold text-slate-600">مبلغ برآورد اولیه (اعلام شده به مشتری):</span>
+                      <span className="font-mono font-bold text-purple-700 text-lg bg-purple-50 px-3 py-1 rounded-lg border border-purple-100" dir="ltr">
+                        {selectedRequest.estimated_price.toLocaleString()} ریال
+                      </span>
+                    </div>
+                  )}
+                  {/* ========================================================= */}
+
                   <label className="block text-sm font-bold text-purple-900 mb-2">
                     {selectedRequest.status === 'pending_ceo_initial' ? 'برآورد هزینه اولیه (برحسب ریال)' : 'برآورد هزینه نهایی (برحسب ریال)'} <span className="text-red-500">*</span>
                   </label>
@@ -324,7 +336,7 @@ export default function CeoPanelPage() {
                     <button 
                       type="submit" 
                       disabled={isSubmitting} 
-                      className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors flex justify-center items-center gap-2"
+                      className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors flex justify-center items-center gap-2 whitespace-nowrap"
                     >
                       {isSubmitting ? <Loader2 className="animate-spin" /> : <CheckCircle size={18} />} 
                       {selectedRequest.status === 'pending_ceo_initial' ? 'ثبت و ارسال به مشتری' : 'تایید و ارجاع به بازرگانی'}
@@ -332,7 +344,7 @@ export default function CeoPanelPage() {
                   </div>
                 </form>
               ) : (
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-2">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-2 mt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-bold text-slate-600">برآورد اولیه:</span>
                     <span className="font-mono font-bold text-brand-primary" dir="ltr">{selectedRequest.estimated_price ? `${selectedRequest.estimated_price.toLocaleString()} ریال` : '---'}</span>
