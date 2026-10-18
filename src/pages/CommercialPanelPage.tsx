@@ -16,7 +16,7 @@ export default function CommercialPanelPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // استیت فرم ثبت درخواست جدید - آپدیت شده با فیلدهای جدید
+  // استیت فرم ثبت درخواست جدید
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
@@ -93,6 +93,17 @@ export default function CommercialPanelPage() {
       : formData.fault_description;
 
     try {
+      // --- بخش جدید برای حل خطای Foreign Key ---
+      // ایجاد پروفایل سازمانی برای کاربر پرسنل تا دیتابیس خطای customer_id نگیرد
+      await supabase.from('profiles').upsert([
+        {
+          id: profile.id,
+          full_name: profile.full_name || 'درخواست سازمانی (واحد بازرگانی)',
+          phone: profile.username || '00000000000'
+        }
+      ], { onConflict: 'id' });
+      // ------------------------------------------
+
       const { error } = await supabase.from('repair_requests').insert([
         {
           customer_id: profile.id,
@@ -275,13 +286,6 @@ export default function CommercialPanelPage() {
                   <textarea required rows={4} value={formData.fault_description} onChange={e => setFormData({...formData, fault_description: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors resize-none" placeholder="لطفاً مشکل دستگاه را به صورت کامل و دقیق توضیح دهید..." />
                 </div>
               </div>
-
-              {/* <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
-                <input type="checkbox" id="estimate" checked={formData.needs_price_estimate} onChange={e => setFormData({...formData, needs_price_estimate: e.target.checked})} className="mt-1 w-5 h-5 rounded text-brand-primary focus:ring-brand-primary" />
-                <div>
-                  <label htmlFor="estimate" className="font-bold text-amber-900 block cursor-pointer">نیاز به برآورد قیمت پیش از تعمیر دارم</label>
-                </div>
-              </div> */}
 
               <button type="submit" disabled={isSubmitting} className="w-full md:w-auto px-8 py-3.5 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors flex justify-center items-center gap-2">
                 {isSubmitting ? <Loader2 className="animate-spin" /> : <Plus size={20} />}
