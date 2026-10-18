@@ -84,7 +84,7 @@ export default function CommercialPanelPage() {
     const { data: myData, error: myError } = await supabase
       .from('repair_requests')
       .select('*')
-      .or(`customer_id.eq.${COMMERCIAL_CUSTOMER_ID},project_name.ilike.%[بازرگانی]%,fault_description.ilike.%[ثبت شده توسط واحد بازرگانی]%`)
+      .or(`customer_id.eq.${COMMERCIAL_CUSTOMER_ID},project_name.ilike.%[بازرگانی]%,fault_description.ilike.%[شرح مشکل ]%`)
       .order('created_at', { ascending: false });
         
     if (myError) {
