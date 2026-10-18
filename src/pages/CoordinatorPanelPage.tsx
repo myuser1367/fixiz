@@ -226,7 +226,7 @@ export default function CoordinatorPanelPage() {
                     const delDate = deliveredObj ? deliveredObj.toISOString().split('T')[0] : '';
                     const delTime = deliveredObj ? deliveredObj.toTimeString().slice(0, 5) : '';
 
-                    const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]');
+                    //const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]');
 
                     return (
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
