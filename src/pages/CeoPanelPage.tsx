@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, FileSpreadsheet, DollarSign, Loader2, Key, BarChart3, Search, List, Activity, CheckCircle, Wrench } from 'lucide-react';
+import { LogOut, Home, FileSpreadsheet, DollarSign, Loader2, Key, BarChart3, Search, List, Activity, CheckCircle, Wrench, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -14,7 +14,7 @@ export default function CeoPanelPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // استیت‌های مودال قیمت‌گذاری
+  // استیت‌های مودال قیمت‌گذاری و نمایش جزئیات
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [partsList, setPartsList] = useState<any[]>([]);
@@ -49,7 +49,8 @@ export default function CeoPanelPage() {
     setPriceInput(req.status === 'pending_ceo_initial' ? (req.estimated_price?.toString() || '') : (req.final_price?.toString() || ''));
     setPricingModalOpen(true);
     
-    if (req.status === 'estimated') {
+    // دریافت قطعات برای وضعیت‌های بعد از تعمیر (گزارش نهایی یا مشاهده جزئیات پرونده)
+    if (['estimated', 'pending_commercial', 'pending_finance', 'invoiced', 'pending_commercial_checkout', 'ready_for_delivery', 'pending_ceo_final', 'completed'].includes(req.status)) {
       setIsFetchingParts(true);
       const { data, error } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
       if (!error) setPartsList(data || []);
@@ -96,7 +97,7 @@ export default function CeoPanelPage() {
     }
   };
 
-  // تابع جدید برای تایید نهایی و پایان کار
+  // تایید نهایی و پایان کار
   const handleFinalApproval = async (id: string) => {
     if (!confirm('آیا پرونده این درخواست بسته شده و عملیات را تایید نهایی می‌کنید؟')) return;
     try {
@@ -109,24 +110,61 @@ export default function CeoPanelPage() {
     }
   };
 
- const exportToExcel = () => {
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending_coordinator': return 'ثبت اولیه';
+      case 'pending_ceo_initial': return 'نیازمند برآورد اولیه';
+      case 'pending_customer_approval': return 'در انتظار تایید مشتری';
+      case 'canceled_by_customer': return 'لغو شده توسط مشتری';
+      case 'pending_supervisor': return 'بررسی سرپرست';
+      case 'waiting_for_device': return 'در انتظار دریافت دستگاه';
+      case 'accepted': return 'پذیرش شده';
+      case 'repairing': return 'در حال تعمیر';
+      case 'estimated': return 'نیازمند برآورد نهایی';
+      case 'pending_commercial': return 'در انتظار بازرگانی';
+      case 'pending_finance': return 'در انتظار مالی';
+      case 'invoiced': return 'فاکتور شده - انتظار پرداخت';
+      case 'pending_commercial_checkout': return 'تایید مالی - ارجاع به بازرگانی';
+      case 'ready_for_delivery': return 'در انتظار ثبت خروج (هماهنگی)';
+      case 'pending_ceo_final': return 'در انتظار تایید نهایی مدیریت';
+      case 'completed': return 'پایان کار / تحویل داده شده';
+      case 'rejected': return 'رد شده';
+      default: return 'نامشخص';
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const text = getStatusText(status);
+    switch (status) {
+      case 'pending_coordinator': return <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'pending_ceo_initial': return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold animate-pulse">{text}</span>;
+      case 'pending_customer_approval': return <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'canceled_by_customer': return <span className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'accepted': return <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'repairing': return <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'estimated': return <span className="bg-fuchsia-100 text-fuchsia-800 px-2 py-1 rounded text-xs font-bold animate-pulse">{text}</span>;
+      case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'invoiced': return <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'pending_commercial_checkout': return <span className="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'ready_for_delivery': return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'pending_ceo_final': return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold animate-pulse">{text}</span>;
+      case 'completed': return <span className="bg-emerald-200 text-emerald-900 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'rejected': return <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      default: return <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+    }
+  };
+
+  const exportToExcel = () => {
     const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'مبلغ کل فاکتور (ریال)', 'تاریخ ثبت درخواست'];
     const rows = requests.map((req, index) => {
       const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
       const customerName = isCommercial ? 'واحد بازرگانی' : (req.profiles?.full_name || 'نامشخص');
       
       return [
-        index + 1, 
-        req.project_name || '---', 
-        req.device_info, 
-        req.part_number || '---', 
-        req.brand || '---', 
-        req.tracking_code, 
-        req.serial_number || '---', 
-        customerName, 
-        getStatusText(req.status), // در اینجا متن فارسی جایگذاری می‌شود
-        req.final_price || 0, 
-        new Date(req.created_at).toLocaleDateString('fa-IR')
+        index + 1, req.project_name || '---', req.device_info, req.part_number || '---', req.brand || '---', req.tracking_code, req.serial_number || '---', customerName, getStatusText(req.status), req.final_price || 0, new Date(req.created_at).toLocaleDateString('fa-IR')
       ];
     });
     
@@ -151,54 +189,7 @@ export default function CeoPanelPage() {
       setNewPassword('');
     } catch (err: any) { toast.error('خطا در تغییر رمز'); }
   };
-const getStatusText = (status: string) => {
-    switch (status) {
-      case 'pending_coordinator': return 'ثبت اولیه';
-      case 'pending_ceo_initial': return 'نیازمند برآورد اولیه';
-      case 'pending_customer_approval': return 'در انتظار تایید مشتری';
-      case 'canceled_by_customer': return 'لغو شده توسط مشتری';
-      case 'pending_supervisor': return 'بررسی سرپرست';
-      case 'waiting_for_device': return 'در انتظار دریافت دستگاه';
-      case 'accepted': return 'پذیرش شده';
-      case 'repairing': return 'در حال تعمیر';
-      case 'estimated': return 'نیازمند برآورد نهایی';
-      case 'pending_commercial': return 'در انتظار بازرگانی';
-      case 'pending_finance': return 'در انتظار مالی';
-      case 'invoiced': return 'فاکتور شده - انتظار پرداخت';
-      case 'pending_commercial_checkout': return 'تایید مالی - ارجاع به بازرگانی';
-      case 'ready_for_delivery': return 'در انتظار ثبت خروج (هماهنگی)';
-      case 'pending_ceo_final': return 'در انتظار تایید نهایی مدیریت';
-      case 'completed': return 'پایان کار / تحویل داده شده';
-      case 'rejected': return 'رد شده';
-      default: return 'نامشخص';
-    }
-  };
 
- const getStatusBadge = (status: string) => {
-    const text = getStatusText(status);
-    switch (status) {
-      case 'pending_coordinator': return <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'pending_ceo_initial': return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold animate-pulse">{text}</span>;
-      case 'pending_customer_approval': return <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'canceled_by_customer': return <span className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'accepted': return <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'repairing': return <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'estimated': return <span className="bg-fuchsia-100 text-fuchsia-800 px-2 py-1 rounded text-xs font-bold animate-pulse">{text}</span>;
-      case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'invoiced': return <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'pending_commercial_checkout': return <span className="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'ready_for_delivery': return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'pending_ceo_final': return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'completed': return <span className="bg-emerald-200 text-emerald-900 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      case 'rejected': return <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-      default: return <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-bold">{text}</span>;
-    }
-  };
-
-  // اضافه شدن وضعیت pending_ceo_final به لیست کارتابل مدیر مرکز
   const queueRequests = requests.filter(r => 
     r.status === 'estimated' || 
     r.status === 'pending_ceo_initial' || 
@@ -308,9 +299,14 @@ const getStatusText = (status: string) => {
                             <DollarSign size={16} /> {req.status === 'pending_ceo_initial' ? 'برآورد اولیه' : 'بررسی و قیمت‌گذاری نهایی'}
                           </button>
                         ) : req.status === 'pending_ceo_final' ? (
-                           <button onClick={() => handleFinalApproval(req.id)} className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-md">
-                             <CheckCircle size={16} /> تایید نهایی و پایان کار
-                           </button>
+                           <div className="flex flex-col gap-2">
+                             <button onClick={() => handleOpenPricingModal(req)} className="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors inline-flex items-center justify-center gap-1.5">
+                               <Search size={16} /> مشاهده جزئیات
+                             </button>
+                             <button onClick={() => handleFinalApproval(req.id)} className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold transition-colors inline-flex items-center justify-center gap-1.5 shadow-md">
+                               <CheckCircle size={16} /> تایید نهایی و پایان کار
+                             </button>
+                           </div>
                         ) : (
                           <button onClick={() => handleOpenPricingModal(req)} className="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5">
                             <Search size={16} /> مشاهده جزئیات
@@ -326,7 +322,7 @@ const getStatusText = (status: string) => {
         </div>
       </main>
 
-      {/* مودال بررسی گزارش تعمیر و ثبت قیمت با نمایش تمام فیلدهای درخواست */}
+      {/* مودال بررسی گزارش تعمیر، نمایش زمان‌بندی و ثبت قیمت */}
       {pricingModalOpen && selectedRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
@@ -334,7 +330,8 @@ const getStatusText = (status: string) => {
               <div>
                 <h3 className="text-xl font-bold text-slate-800">
                   {selectedRequest.status === 'pending_ceo_initial' ? 'تعیین برآورد هزینه اولیه (پیش از شروع کار)' : 
-                   selectedRequest.status === 'estimated' ? 'تعیین برآورد هزینه نهایی' : 'جزئیات درخواست'}
+                   selectedRequest.status === 'estimated' ? 'تعیین برآورد هزینه نهایی' : 
+                   selectedRequest.status === 'pending_ceo_final' ? 'جزئیات و بررسی نهایی پرونده' : 'جزئیات درخواست'}
                 </h3>
                 <p className="text-sm text-slate-500 font-mono mt-1" dir="ltr">{selectedRequest.tracking_code}</p>
               </div>
@@ -343,14 +340,15 @@ const getStatusText = (status: string) => {
 
             <div className="space-y-6">
               
-              {/* نمایش تمام فیلدهای کامل ثبت درخواست */}
+              {/* نمایش مشخصات کامل تجهیز ارسالی */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
                 <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات کامل تجهیز ارسالی</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div><span className="text-slate-400">نام تجهیز (Unit Name):</span> <strong className="text-slate-800">{selectedRequest.device_info}</strong></div>
                   <div><span className="text-slate-400">کارخانه سازنده (Brand):</span> <strong className="text-slate-800">{selectedRequest.brand || '---'}</strong></div>
                   <div><span className="text-slate-400">پارت نامبر (Part Number):</span> <strong className="font-mono text-slate-800" dir="ltr">{selectedRequest.part_number || '---'}</strong></div>
-                  <div><span className="text-slate-400">نام پروژه / ارجاع کار:</span> <strong className="text-slate-800">{selectedRequest.project_name || '---'}</strong></div>
+                  <div><span className="text-slate-400">شماره سریال (S/N):</span> <strong className="font-mono text-slate-800" dir="ltr">{selectedRequest.serial_number || '---'}</strong></div>
+                  <div className="sm:col-span-2"><span className="text-slate-400">نام پروژه / ارجاع کار:</span> <strong className="text-slate-800">{selectedRequest.project_name || '---'}</strong></div>
                 </div>
                 <div className="pt-2 border-t border-slate-200">
                   <span className="text-slate-400 text-xs block mb-1">شرح کامل مشکل:</span>
@@ -358,8 +356,19 @@ const getStatusText = (status: string) => {
                 </div>
               </div>
 
-              {/* اگر وضعیت بررسی نهایی است، گزارش سرپرست و قطعات نمایش داده شود */}
-              {selectedRequest.status !== 'pending_ceo_initial' && (
+              {/* نمایش زمان‌بندی دقیق ثبت، ورود و خروج دستگاه */}
+              <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 space-y-3">
+                 <h4 className="font-bold text-indigo-900 text-xs uppercase tracking-wider flex items-center gap-1.5"><Clock size={14}/> زمان‌بندی فرآیند</h4>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                   <div><span className="text-indigo-400">تاریخ ثبت درخواست:</span> <strong className="text-indigo-900" dir="ltr">{new Date(selectedRequest.created_at).toLocaleString('fa-IR')}</strong></div>
+                   <div><span className="text-indigo-400">تایید نهایی مشتری:</span> <strong className="text-indigo-900">{selectedRequest.needs_price_estimate ? 'بله' : 'بدون نیاز به برآورد'}</strong></div>
+                   <div><span className="text-indigo-400">زمان ورود دستگاه:</span> <strong className="text-indigo-900" dir="ltr">{selectedRequest.received_at ? new Date(selectedRequest.received_at).toLocaleString('fa-IR') : 'ثبت نشده'}</strong></div>
+                   <div><span className="text-indigo-400">زمان خروج دستگاه:</span> <strong className="text-indigo-900" dir="ltr">{selectedRequest.delivered_at ? new Date(selectedRequest.delivered_at).toLocaleString('fa-IR') : 'ثبت نشده'}</strong></div>
+                 </div>
+              </div>
+
+              {/* اگر وضعیت بررسی نهایی یا مشاهده جزئیات است، گزارش سرپرست و قطعات نمایش داده شود */}
+              {selectedRequest.status !== 'pending_ceo_initial' && selectedRequest.status !== 'pending_coordinator' && (
                 <>
                   <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
                     <span className="text-xs text-blue-400 block mb-1">گزارش فنی سرپرست تعمیر</span>
@@ -393,7 +402,7 @@ const getStatusText = (status: string) => {
               {(selectedRequest.status === 'estimated' || selectedRequest.status === 'pending_ceo_initial') ? (
                 <form onSubmit={submitPricing} className="bg-purple-50 p-5 rounded-2xl border border-purple-100 mt-6">
                   
-                  {/* === نمایش برآورد اولیه پیش از دریافت قیمت نهایی === */}
+                  {/* نمایش برآورد اولیه پیش از دریافت قیمت نهایی */}
                   {selectedRequest.status === 'estimated' && selectedRequest.estimated_price && (
                     <div className="mb-5 bg-white p-4 rounded-xl border border-purple-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
                       <span className="text-sm font-bold text-slate-600">مبلغ برآورد اولیه (اعلام شده به مشتری):</span>
@@ -429,11 +438,11 @@ const getStatusText = (status: string) => {
               ) : (
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-2 mt-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-600">برآورد اولیه:</span>
+                    <span className="text-sm font-bold text-slate-600">مبلغ برآورد اولیه:</span>
                     <span className="font-mono font-bold text-brand-primary" dir="ltr">{selectedRequest.estimated_price ? `${selectedRequest.estimated_price.toLocaleString()} ریال` : '---'}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-600">مبلغ کل فاکتور:</span>
+                    <span className="text-sm font-bold text-slate-600">مبلغ فاکتور نهایی تایید شده:</span>
                     <span className="font-mono font-bold text-lg text-brand-primary" dir="ltr">{selectedRequest.final_price ? `${selectedRequest.final_price.toLocaleString()} ریال` : '---'}</span>
                   </div>
                 </div>
