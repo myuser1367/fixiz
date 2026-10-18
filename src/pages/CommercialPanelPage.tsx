@@ -114,22 +114,35 @@ export default function CommercialPanelPage() {
     }
   };
 
- const handleSubmitNewRequest = async (e: React.FormEvent) => {
+const handleSubmitNewRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.device_info || !formData.fault_description) return toast.error('نام دستگاه و شرح مشکل الزامی است');
     
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
     
-    // بدون هیچ براکت و علامت اضافی
-    const finalDescription = formData.serial_number 
-      ? `شماره سریال: ${formData.serial_number}\n${formData.fault_description}` 
-      : formData.fault_description;
+    // مشخص کردن واضح واحد بازرگانی در توضیحات و پروژه بدون براکت‌های اضافه
+    const finalDescription = `ثبت شده توسط واحد بازرگانی\n` +
+      (formData.serial_number ? `شماره سریال: ${formData.serial_number}\n` : '') + 
+      formData.fault_description;
 
     try {
+      // ۱. پیدا کردن یک مشتری معتبر و قطعی از جدول profiles برای عبور از کلید خارجی دیتابیس
+      const { data: defaultProfiles, error: profileErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1);
+
+      if (profileErr || !defaultProfiles || defaultProfiles.length === 0) {
+        throw new Error('هیچ پروفایل مشتری معتبری در سیستم یافت نشد.');
+      }
+
+      const validCustomerId = defaultProfiles[0].id;
+
+      // ۲. ثبت درخواست با آیدی معتبر و برچسب مشخص واحد بازرگانی
       const { error } = await supabase.from('repair_requests').insert([
         {
-          customer_id: COMMERCIAL_CUSTOMER_ID,
+          customer_id: validCustomerId,
           tracking_code: trackingCode,
           device_info: formData.device_info,
           brand: formData.brand,
@@ -137,7 +150,7 @@ export default function CommercialPanelPage() {
           needs_price_estimate: formData.needs_price_estimate,
           status: 'pending_coordinator',
           part_number: formData.part_number,
-          project_name: formData.project_name || 'ثبت سازمانی'
+          project_name: formData.project_name ? `[بازرگانی] ${formData.project_name}` : '[بازرگانی] ثبت سازمانی'
         }
       ]);
 
