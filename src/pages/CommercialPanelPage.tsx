@@ -37,9 +37,10 @@ export default function CommercialPanelPage() {
     }
   }, [profile]);
 
-  const fetchData = async () => {
+const fetchData = async () => {
     setIsLoading(true);
     
+    // ۱. دریافت کارتابل تاییدیه بازرگانی (بدون تغییر)
     const { data: queueData, error: queueError } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -49,15 +50,18 @@ export default function CommercialPanelPage() {
     if (queueError) toast.error('خطا در دریافت کارتابل');
     else setQueueRequests(queueData || []);
 
-    if (profile?.id) {
-      const { data: myData, error: myError } = await supabase
-        .from('repair_requests')
-        .select('*')
-        .eq('customer_id', profile.id)
-        .order('created_at', { ascending: false });
+    // ۲. دریافت درخواست‌های ثبت شده توسط بازرگانی (بر اساس برچسب سازمانی در شرح یا پروژه)
+    const { data: myData, error: myError } = await supabase
+      .from('repair_requests')
+      .select('*')
+      .or('project_name.ilike.%[بازرگانی]%,fault_description.ilike.%[ثبت شده توسط واحد بازرگانی]%')
+      .order('created_at', { ascending: false });
         
-      if (myError) toast.error('خطا در دریافت درخواست‌های شما');
-      else setMyRequests(myData || []);
+    if (myError) {
+      toast.error('خطا در دریافت درخواست‌های شما');
+      setMyRequests([]);
+    } else {
+      setMyRequests(myData || []);
     }
 
     setIsLoading(false);
