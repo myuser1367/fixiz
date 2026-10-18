@@ -113,15 +113,17 @@ export default function CommercialPanelPage() {
     }
   };
 
-  const handleSubmitNewRequest = async (e: React.FormEvent) => {
+ const handleSubmitNewRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.device_info || !formData.fault_description) return toast.error('نام دستگاه و شرح مشکل الزامی است');
     
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
-    const finalDescription = `[ثبت شده توسط واحد بازرگانی]\n` +
-      (formData.serial_number ? `شماره سریال: ${formData.serial_number}\n` : '') + 
-      formData.fault_description;
+    
+    // بدون هیچ براکت و علامت اضافی
+    const finalDescription = formData.serial_number 
+      ? `شماره سریال: ${formData.serial_number}\n${formData.fault_description}` 
+      : formData.fault_description;
 
     try {
       const { error } = await supabase.from('repair_requests').insert([
@@ -134,7 +136,7 @@ export default function CommercialPanelPage() {
           needs_price_estimate: formData.needs_price_estimate,
           status: 'pending_coordinator',
           part_number: formData.part_number,
-          project_name: formData.project_name ? `[بازرگانی] ${formData.project_name}` : '[ثبت سازمانی]'
+          project_name: formData.project_name || 'ثبت سازمانی'
         }
       ]);
 
