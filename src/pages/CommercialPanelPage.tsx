@@ -1,9 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Key, ShoppingCart, Plus, CheckCircle, Loader2, List, Clock, Wrench, XCircle, AlertCircle, FileText, Check } from 'lucide-react';
+import { LogOut, Home, Key, ShoppingCart, Plus, CheckCircle, Loader2, List, Clock, Wrench, XCircle, AlertCircle, FileText, Check, Search, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+
+interface RepairRequest {
+  id: string;
+  tracking_code: string;
+  device_info: string;
+  brand: string;
+  fault_description: string;
+  needs_price_estimate: boolean;
+  status: string;
+  created_at: string;
+  estimated_price?: number;
+  final_price?: number;
+  part_number?: string;
+  project_name?: string;
+}
 
 export default function CommercialPanelPage() {
   const { profile, logout } = useAuth();
@@ -12,9 +27,12 @@ export default function CommercialPanelPage() {
   const [activeTab, setActiveTab] = useState<'queue' | 'my_requests' | 'new_request'>('queue');
   
   const [queueRequests, setQueueRequests] = useState<any[]>([]);
-  const [myRequests, setMyRequests] = useState<any[]>([]);
+  const [myRequests, setMyRequests] = useState<RepairRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // آیدی ثابتی که برای واحد بازرگانی در جدول profiles ایجاد شده است
+  const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-20352ef29f73';
 
   // استیت فرم ثبت درخواست جدید
   const [formData, setFormData] = useState({
@@ -27,6 +45,18 @@ export default function CommercialPanelPage() {
     needs_price_estimate: false,
   });
 
+  // استیت‌های پیگیری و ویرایش مشابه پنل مشتری
+  const [selectedTrackingReq, setSelectedTrackingReq] = useState<RepairRequest | null>(null);
+  const [editingReq, setEditingReq] = useState<RepairRequest | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    device_info: '',
+    brand: '',
+    fault_description: '',
+    needs_price_estimate: false,
+    part_number: '',
+    project_name: '',
+  });
+
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
@@ -37,10 +67,10 @@ export default function CommercialPanelPage() {
     }
   }, [profile]);
 
-const fetchData = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     
-    // ۱. دریافت کارتابل تاییدیه بازرگانی (بدون تغییر)
+    // ۱. دریافت کارتابل تاییدیه بازرگانی
     const { data: queueData, error: queueError } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -50,11 +80,11 @@ const fetchData = async () => {
     if (queueError) toast.error('خطا در دریافت کارتابل');
     else setQueueRequests(queueData || []);
 
-    // ۲. دریافت درخواست‌های ثبت شده توسط بازرگانی (بر اساس برچسب سازمانی در شرح یا پروژه)
+    // ۲. دریافت درخواست‌های ثبت شده توسط واحد بازرگانی (بر اساس customer_id ثابت یا برچسب سازمانی)
     const { data: myData, error: myError } = await supabase
       .from('repair_requests')
       .select('*')
-      .or('project_name.ilike.%[بازرگانی]%,fault_description.ilike.%[ثبت شده توسط واحد بازرگانی]%')
+      .or(`customer_id.eq.${COMMERCIAL_CUSTOMER_ID},project_name.ilike.%[بازرگانی]%,fault_description.ilike.%[ثبت شده توسط واحد بازرگانی]%`)
       .order('created_at', { ascending: false });
         
     if (myError) {
@@ -85,34 +115,20 @@ const fetchData = async () => {
     }
   };
 
-const handleSubmitNewRequest = async (e: React.FormEvent) => {
+  const handleSubmitNewRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.device_info || !formData.fault_description) return toast.error('نام دستگاه و شرح مشکل الزامی است');
     
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
-    
-    // مشخص کردن اینکه این درخواست توسط واحد بازرگانی ثبت شده است
-    const finalDescription = `[ثبت شده توسط واحد بازرگانی]\n` +
-      (formData.serial_number ? `[شماره سریال: ${formData.serial_number}]\n` : '') + 
-      formData.fault_description;
+    const finalDescription = formData.serial_number 
+      ? `[شماره سریال: ${formData.serial_number}]\n${formData.fault_description}` 
+      : formData.fault_description;
 
     try {
-      // پیدا کردن اولین آیدی مشتری آزاد و عمومی در جدول profiles که قطعا خطا نمی‌دهد
-      const { data: defaultProfile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1)
-        .single();
-
-      if (profileErr || !defaultProfile) {
-        throw new Error('خطا در احراز پروفایل مرجع سیستم.');
-      }
-
-      // ثبت درخواست با استفاده از پروفایل مرجع سیستم
       const { error } = await supabase.from('repair_requests').insert([
         {
-          customer_id: defaultProfile.id,
+          customer_id: COMMERCIAL_CUSTOMER_ID,
           tracking_code: trackingCode,
           device_info: formData.device_info,
           brand: formData.brand,
@@ -126,7 +142,7 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
 
       if (error) throw error;
       
-      toast.success(`درخواست سازمانی شما با کد ${trackingCode} با موفقیت ثبت شد`);
+      toast.success(`درخواست سازمانی شما با کد پیگیری ${trackingCode} ثبت شد`);
       setFormData({ device_info: '', brand: '', serial_number: '', part_number: '', project_name: '', fault_description: '', needs_price_estimate: false });
       setActiveTab('my_requests');
       fetchData();
@@ -136,6 +152,61 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
       setIsSubmitting(false);
     }
   };
+
+  const handleOpenEdit = (req: RepairRequest) => {
+    setEditingReq(req);
+    setEditFormData({
+      device_info: req.device_info,
+      brand: req.brand || '',
+      fault_description: req.fault_description,
+      needs_price_estimate: req.needs_price_estimate,
+      part_number: req.part_number || '',
+      project_name: req.project_name || '',
+    });
+  };
+
+  const handleUpdateEditRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReq) return;
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('repair_requests')
+        .update({
+          device_info: editFormData.device_info,
+          brand: editFormData.brand,
+          fault_description: editFormData.fault_description,
+          needs_price_estimate: editFormData.needs_price_estimate,
+          part_number: editFormData.part_number,
+          project_name: editFormData.project_name
+        })
+        .eq('id', editingReq.id);
+
+      if (error) throw error;
+
+      toast.success('درخواست با موفقیت ویرایش شد');
+      setEditingReq(null);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'خطا در ویرایش درخواست');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('آیا از حذف این درخواست مطمئن هستید؟')) return;
+    try {
+      const { error } = await supabase.from('repair_requests').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('درخواست با موفقیت حذف شد');
+      fetchData();
+    } catch (error) {
+      toast.error('خطا در حذف درخواست');
+    }
+  };
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) return toast.error('رمز عبور باید حداقل ۶ کاراکتر باشد');
@@ -158,16 +229,69 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending_coordinator': return <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> ثبت اولیه</span>;
-      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Wrench size={14}/> بررسی فنی</span>;
+      case 'pending_ceo_initial': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> در حال برآورد (مدیر مرکز)</span>;
+      case 'pending_customer_approval': return <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse"><AlertCircle size={14}/> منتظر تایید شما (قیمت)</span>;
+      case 'canceled_by_customer': return <span className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> انصراف</span>;
+      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Wrench size={14}/> در حال بررسی / پذیرش</span>;
+      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> در انتظار دریافت دستگاه</span>;
       case 'accepted': return <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> پذیرش شده</span>;
-      case 'rejected': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> رد شده</span>;
+      case 'rejected': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> عدم پذیرش</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Loader2 size={14} className="animate-spin"/> در حال تعمیر</span>;
-      case 'estimated': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> برآورد قیمت</span>;
+      case 'estimated': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> برآورد هزینه نهایی</span>;
       case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><ShoppingCart size={14}/> در انتظار بازرگانی</span>;
-      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> در انتظار مالی</span>;
-      case 'invoiced': return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Check size={14}/> فاکتور شده</span>;
+      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> در انتظار واحد مالی</span>;
+      case 'invoiced': return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> آماده تحویل (فاکتور صادر شد)</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
     }
+  };
+
+  const renderWorkflowSteps = (currentStatus: string) => {
+    const steps = [
+      { id: 'registered', label: 'ثبت درخواست', desc: 'درخواست توسط واحد بازرگانی ثبت شد' },
+      { id: 'acceptance', label: 'پذیرش یا عدم پذیرش', desc: 'بررسی اولیه توسط واحد هماهنگی و سرپرست' },
+      { id: 'repairing', label: 'در حال تعمیر', desc: 'تکنسین در حال عیب‌یابی و تعمیر دستگاه است' },
+      { id: 'estimation', label: 'برآورد هزینه', desc: 'محاسبه قطعات مصرفی و اعلام قیمت' },
+      { id: 'invoiced', label: 'صدور فاکتور', desc: 'آماده تحویل و تسویه حساب نهایی' },
+    ];
+
+    let activeIndex = 0;
+    if (['pending_supervisor', 'accepted', 'waiting_for_device'].includes(currentStatus)) activeIndex = 1;
+    else if (currentStatus === 'repairing') activeIndex = 2;
+    else if (['estimated', 'pending_commercial', 'pending_finance'].includes(currentStatus)) activeIndex = 3;
+    else if (currentStatus === 'invoiced') activeIndex = 4;
+    else if (currentStatus === 'rejected') activeIndex = 1;
+
+    return (
+      <div className="space-y-6 my-6" dir="rtl">
+        <h4 className="font-bold text-slate-800 text-base mb-4">مراحل زنجیره تعمیر و خدمات</h4>
+        <div className="space-y-4 relative before:absolute before:right-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+          {steps.map((step, idx) => {
+            const isCompleted = idx < activeIndex;
+            const isCurrent = idx === activeIndex;
+            const isRejected = currentStatus === 'rejected' && idx === 1;
+
+            return (
+              <div key={step.id} className="relative flex items-start gap-4 pr-10">
+                <div className={`absolute right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white ${
+                  isRejected ? 'bg-red-500 text-white' :
+                  isCompleted ? 'bg-emerald-500 text-white' : 
+                  isCurrent ? 'bg-brand-primary text-white animate-pulse' : 
+                  'bg-slate-200 text-slate-500'
+                }`}>
+                  {isRejected ? <XCircle size={14} /> : isCompleted ? <Check size={14} /> : idx + 1}
+                </div>
+                <div>
+                  <h5 className={`font-bold text-sm ${isCurrent || isCompleted ? 'text-slate-800' : 'text-slate-400'}`}>
+                    {isRejected && idx === 1 ? 'درخواست رد شد (عدم پذیرش)' : step.label}
+                  </h5>
+                  <p className="text-xs text-slate-500 mt-0.5">{step.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -268,11 +392,11 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">اسم قطعه یا دستگاه (Unit Name) <span className="text-red-500">*</span></label>
-                  <input type="text" required value={formData.device_info} onChange={e => setFormData({...formData, device_info: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors"  />
+                  <input type="text" required value={formData.device_info} onChange={e => setFormData({...formData, device_info: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: درایو موتور زیمنس" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">برند سازنده (اختیاری)</label>
-                  <input type="text" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors"  />
+                  <input type="text" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: Siemens" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">پارت نامبر (Unit Part Number) (اختیاری)</label>
@@ -284,7 +408,7 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-2">نام پروژه / ارجاع کار (اختیاری)</label>
-                  <input type="text" value={formData.project_name} onChange={e => setFormData({...formData, project_name: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors"  />
+                  <input type="text" value={formData.project_name} onChange={e => setFormData({...formData, project_name: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="مثال: پروژه خط تولید شماره ۲" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-2">شرح کامل مشکل <span className="text-red-500">*</span></label>
@@ -312,16 +436,48 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
               </div>
             ) : (
               myRequests.map(req => (
-                <div key={req.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <h4 className="text-lg font-bold text-slate-800">{req.device_info}</h4>
-                      {getStatusBadge(req.status)}
+                <div key={req.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col gap-4 transition-hover hover:border-brand-300">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <h4 className="text-lg font-bold text-slate-800">{req.device_info}</h4>
+                        {getStatusBadge(req.status)}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-slate-500">
+                        <span className="font-mono bg-slate-100 px-2.5 py-1 rounded text-slate-700 font-bold" dir="ltr">{req.tracking_code}</span>
+                        <span>{req.brand || 'بدون برند'}</span>
+                        <span className="bg-slate-50 px-2.5 py-1 rounded border border-slate-100">{req.project_name || 'بدون پروژه'}</span>
+                        <span dir="ltr">{new Date(req.created_at).toLocaleDateString('fa-IR')}</span>
+                      </div>
+                      <p className="text-sm text-slate-600 line-clamp-2 mt-2">{req.fault_description}</p>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-slate-500">
-                      <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-bold" dir="ltr">{req.tracking_code}</span>
-                      <span>{req.brand || 'بدون برند'}</span>
-                      <span dir="ltr">{new Date(req.created_at).toLocaleDateString('fa-IR')}</span>
+                    
+                    {/* دکمه‌های پیگیری، ویرایش و حذف مشابه پنل مشتری */}
+                    <div className="flex items-center gap-2 md:flex-col shrink-0">
+                      <button 
+                        onClick={() => setSelectedTrackingReq(req)}
+                        className="flex-1 md:w-full px-4 py-2.5 bg-brand-50 text-brand-700 hover:bg-brand-100 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors"
+                      >
+                        <Search size={16} /> پیگیری مراحل
+                      </button>
+
+                      {req.status === 'pending_coordinator' && (
+                        <>
+                          <button 
+                            onClick={() => handleOpenEdit(req)}
+                            className="flex-1 md:w-full px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors"
+                          >
+                            <Edit size={16} /> ویرایش
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(req.id)} 
+                            className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors" 
+                            title="حذف درخواست"
+                          >
+                            <Trash2 size={16} /> حذف
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -330,6 +486,129 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
           </div>
         )}
       </main>
+
+      {/* مودال ویرایش درخواست */}
+      {editingReq && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
+            <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-3">ویرایش درخواست تعمیر</h3>
+            <form onSubmit={handleUpdateEditRequest} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">اسم قطعه یا دستگاه</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={editFormData.device_info} 
+                    onChange={e => setEditFormData({...editFormData, device_info: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">برند سازنده</label>
+                  <input 
+                    type="text" 
+                    value={editFormData.brand} 
+                    onChange={e => setEditFormData({...editFormData, brand: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">پارت نامبر</label>
+                  <input 
+                    type="text" 
+                    value={editFormData.part_number} 
+                    onChange={e => setEditFormData({...editFormData, part_number: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary font-mono" dir="ltr"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">نام پروژه / ارجاع کار</label>
+                  <input 
+                    type="text" 
+                    value={editFormData.project_name} 
+                    onChange={e => setEditFormData({...editFormData, project_name: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" 
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">شرح کامل مشکل</label>
+                  <textarea 
+                    rows={3} 
+                    required 
+                    value={editFormData.fault_description} 
+                    onChange={e => setEditFormData({...editFormData, fault_description: e.target.value})} 
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary resize-none" 
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button type="submit" disabled={isLoading} className="flex-1 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors">
+                  {isLoading ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
+                </button>
+                <button type="button" onClick={() => setEditingReq(null)} className="px-5 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+                  انصراف
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* مدال پیگیری مراحل (مشابه پنل مشتری) */}
+      {selectedTrackingReq && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">{selectedTrackingReq.device_info}</h3>
+                <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-bold" dir="ltr">
+                  {selectedTrackingReq.tracking_code}
+                </span>
+              </div>
+              <button 
+                onClick={() => setSelectedTrackingReq(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-slate-50 p-4 rounded-2xl text-xs space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">برند دستگاه:</span>
+                  <span className="font-bold text-slate-700">{selectedTrackingReq.brand || 'تعیین نشده'}</span>
+                </div>
+                {selectedTrackingReq.part_number && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">پارت نامبر:</span>
+                    <span className="font-bold text-slate-700 font-mono" dir="ltr">{selectedTrackingReq.part_number}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-500">تاریخ ثبت:</span>
+                  <span className="font-mono font-bold text-slate-700" dir="ltr">{new Date(selectedTrackingReq.created_at).toLocaleDateString('fa-IR')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">وضعیت کنونی:</span>
+                  <span>{getStatusBadge(selectedTrackingReq.status)}</span>
+                </div>
+              </div>
+
+              {renderWorkflowSteps(selectedTrackingReq.status)}
+            </div>
+
+            <button 
+              onClick={() => setSelectedTrackingReq(null)} 
+              className="w-full mt-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+            >
+              بستن پنجره پیگیری
+            </button>
+          </div>
+        </div>
+      )}
 
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
