@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Key, CheckCircle, Loader2, CreditCard, History, Check } from 'lucide-react';
+import { LogOut, Home, Key, CheckCircle, Loader2, CreditCard, History, Check, Printer, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -18,10 +18,8 @@ export default function FinancePanelPage() {
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-
   const COMMERCIAL_CUSTOMER_ID = '5a78bd79-b143-4b40-b603-2b55fdbc32eb';
 
-  
   useEffect(() => {
     fetchData();
   }, []);
@@ -81,6 +79,79 @@ export default function FinancePanelPage() {
       toast.error('خطا در صدور فاکتور: ' + err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // ------------------------------------------------------------------
+  // توابع جدید: تایید پرداخت و چاپ فاکتور
+  // ------------------------------------------------------------------
+  const handleConfirmPayment = async (req: any) => {
+    if (!confirm(`آیا پرداخت فاکتور (کد پیگیری: ${req.tracking_code}) تایید می‌شود؟ با این کار درخواست جهت بررسی و تایید خروج به پنل بازرگانی ارجاع داده می‌شود.`)) return;
+    
+    setIsLoading(true);
+    try {
+      // تغییر وضعیت برای ارسال به کارتابل بازرگانی
+      const { error } = await supabase
+        .from('repair_requests')
+        .update({ status: 'pending_commercial_checkout' })
+        .eq('id', req.id);
+
+      if (error) throw error;
+
+      toast.success('تایید پرداخت با موفقیت ثبت شد و درخواست به واحد بازرگانی ارجاع یافت.');
+      fetchData();
+    } catch (err: any) {
+      toast.error('خطا در تایید پرداخت: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePrintInvoice = (req: any) => {
+    const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
+    const customerName = isCommercial ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام');
+    const customerPhone = isCommercial ? 'ثبت سازمانی' : (req.profiles?.phone || '---');
+    const dateStr = new Date().toLocaleDateString('fa-IR');
+
+    const printContent = `
+      <html dir="rtl" lang="fa">
+        <head>
+          <title>فاکتور خدمات - ${req.tracking_code}</title>
+          <style>
+            body { font-family: Tahoma, Arial, sans-serif; padding: 40px; color: #333; }
+            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+            .content { line-height: 2.5; font-size: 15px; }
+            .row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 10px 0; }
+            .total { font-size: 20px; font-weight: bold; margin-top: 30px; text-align: left; background: #f9f9f9; padding: 15px; border: 2px dashed #ccc;}
+            .footer { margin-top: 70px; text-align: center; font-size: 14px; color: #777; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>فاکتور رسمی خدمات سامانه فیکسیز</h1>
+            <p>تاریخ صدور فاکتور: ${dateStr}</p>
+          </div>
+          <div class="content">
+            <div class="row"><span>کد پیگیری درخواست:</span> <strong>${req.tracking_code}</strong></div>
+            <div class="row"><span>نام مشتری / درخواست کننده:</span> <strong>${customerName}</strong></div>
+            <div class="row"><span>شماره تماس:</span> <strong dir="ltr">${customerPhone}</strong></div>
+            <div class="row"><span>نام دستگاه (قطعه):</span> <strong>${req.device_info}</strong></div>
+            <div class="row"><span>برند سازنده:</span> <strong>${req.brand || 'ثبت نشده'}</strong></div>
+            <div class="total">مبلغ نهایی فاکتور: ${req.final_price?.toLocaleString() || 0} ریال</div>
+          </div>
+          <div class="footer">
+            <p>مهر و امضای واحد امور مالی</p>
+          </div>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `;
+    const printWindow = window.open('', '', 'width=800,height=800');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
     }
   };
 
@@ -152,7 +223,7 @@ export default function FinancePanelPage() {
         {/* لیست درخواست‌ها */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-6">
-            {activeTab === 'queue' ? 'درخواست‌های در انتظار بررسی و صدور فاکتور نهایی' : 'تاریخچه فاکتورهای صادر شده و تسویه حساب‌ها'}
+            {activeTab === 'queue' ? 'درخواست‌های در انتظار بررسی و صدور فاکتور نهایی' : 'فاکتورهای صادر شده در انتظار پرداخت و تسویه'}
           </h2>
           
           <div className="overflow-x-auto">
@@ -162,7 +233,7 @@ export default function FinancePanelPage() {
                   <th className="pb-3 px-3">کد پیگیری</th>
                   <th className="pb-3 px-3">مشتری و موبایل</th>
                   <th className="pb-3 px-3">دستگاه و برند</th>
-                  <th className="pb-3 px-3">مبلغ تایید شده (تومان)</th>
+                  <th className="pb-3 px-3">مبلغ نهایی (ریال)</th>
                   <th className="pb-3 px-3 text-center">وضعیت / عملیات مالی</th>
                 </tr>
               </thead>
@@ -211,9 +282,20 @@ export default function FinancePanelPage() {
                             <CheckCircle size={16} /> صدور فاکتور و اطلاع پیامکی
                           </button>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-800 rounded-lg text-xs font-bold">
-                            <Check size={16} /> فاکتور صادر شده
-                          </span>
+                          <div className="flex flex-col gap-2">
+                            <button 
+                              onClick={() => handlePrintInvoice(req)} 
+                              className="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors inline-flex items-center justify-center gap-1.5"
+                            >
+                              <Printer size={16} /> چاپ فاکتور
+                            </button>
+                            <button 
+                              onClick={() => handleConfirmPayment(req)} 
+                              className="px-4 py-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl text-xs font-bold transition-colors inline-flex items-center justify-center gap-1.5"
+                            >
+                              <DollarSign size={16} /> تایید پرداخت و ارجاع
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

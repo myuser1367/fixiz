@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, FileSpreadsheet, Check, Calendar, Clock, Wrench, Activity, List, Save } from 'lucide-react';
+import { LogOut, Home, Check, Calendar, Clock, Wrench, Activity, List, Save, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import * as XLSX from 'xlsx';
 
 export default function CoordinatorPanelPage() {
   const { profile, logout } = useAuth();
@@ -37,7 +36,7 @@ export default function CoordinatorPanelPage() {
   };
 
   const sendDeviceSendSms = (phone: string, trackingCode: string) => {
-    console.log(`[SMS SIMULATION] To: ${phone} | Message: برآورد قیمت درخواست تعمیر شما با کد ${trackingCode} تایید شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فرافن`);
+    console.log(`[SMS SIMULATION] To: ${phone} | Message: برآورد قیمت درخواست تعمیر شما با کد ${trackingCode} تایید شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فیکسیز`);
   };
 
   const handleSaveDateTime = async (id: string, silent: boolean = false) => {
@@ -45,19 +44,26 @@ export default function CoordinatorPanelPage() {
     
     const recDateEl = document.getElementById(`recDate_${id}`) as HTMLInputElement;
     const recTimeEl = document.getElementById(`recTime_${id}`) as HTMLInputElement;
-    if (recDateEl && recDateEl.value) {
+    if (recDateEl) {
+      if (recDateEl.value) {
         updateData.received_at = new Date(`${recDateEl.value}T${recTimeEl?.value || '00:00'}:00`).toISOString();
-    } else if (recDateEl && !recDateEl.value) {
+      } else {
         updateData.received_at = null;
+      }
     }
 
     const delDateEl = document.getElementById(`delDate_${id}`) as HTMLInputElement;
     const delTimeEl = document.getElementById(`delTime_${id}`) as HTMLInputElement;
-    if (delDateEl && delDateEl.value) {
+    if (delDateEl) {
+      if (delDateEl.value) {
         updateData.delivered_at = new Date(`${delDateEl.value}T${delTimeEl?.value || '00:00'}:00`).toISOString();
-    } else if (delDateEl && !delDateEl.value) {
+      } else {
         updateData.delivered_at = null;
+      }
     }
+
+    // اگر هیچ فیلدی برای آپدیت وجود نداشت (رندر نشده بود)، خارج شو
+    if (Object.keys(updateData).length === 0) return true;
 
     const { error } = await supabase.from('repair_requests').update(updateData).eq('id', id);
     
@@ -93,39 +99,22 @@ export default function CoordinatorPanelPage() {
     }
   };
 
-  const exportToExcel = () => {
-    const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'تاریخ دریافت', 'تاریخ تحویل'];
+  // تابع جدید برای کنترل ثبت خروج و ارجاع به مدیر مرکز
+  const handleSendToCeoFinal = async (req: any) => {
+    const delDateEl = document.getElementById(`delDate_${req.id}`) as HTMLInputElement;
+    if (!delDateEl || !delDateEl.value) {
+      return toast.error('لطفاً ابتدا تاریخ و زمان خروج دستگاه را در فیلد مربوطه وارد کنید.');
+    }
     
-    const rows = requests.map((req, index) => {
-      const rDate = req.received_at ? new Date(req.received_at).toLocaleDateString('fa-IR') : '---';
-      const dDate = req.delivered_at ? new Date(req.delivered_at).toLocaleDateString('fa-IR') : '---';
-      const customerName = req.customer_id === COMMERCIAL_CUSTOMER_ID ? 'واحد بازرگانی' : (req.profiles?.full_name || 'نامشخص');
-      return [
-        index + 1,
-        req.project_name || '---',
-        req.device_info,
-        req.part_number || '---',
-        req.brand || '---',
-        req.tracking_code,
-        req.serial_number || '---',
-        customerName,
-        req.status,
-        rDate,
-        dDate
-      ];
-    });
-
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    worksheet['!views'] = [{ RTL: true, rightToLeft: true }];
-    worksheet['!cols'] = [
-      { wch: 8 }, { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, 
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    workbook.Workbook = { Views: [{ RTL: true }] };
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'گزارش هماهنگی');
-    XLSX.writeFile(workbook, 'گزارش_جامع_سیستم.xlsx');
+    await handleSaveDateTime(req.id, true);
+    
+    const { error } = await supabase.from('repair_requests').update({ status: 'pending_ceo_final' }).eq('id', req.id);
+    if (error) {
+       toast.error('خطا در ثبت وضعیت');
+    } else {
+       toast.success('تاریخ خروج ثبت و درخواست برای تایید نهایی به مدیر مرکز ارسال شد.');
+       fetchRequests();
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -141,13 +130,19 @@ export default function CoordinatorPanelPage() {
       case 'estimated': return <span className="bg-fuchsia-100 text-fuchsia-800 px-2.5 py-1 rounded-lg text-xs font-bold">نیازمند برآورد نهایی</span>;
       case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بازرگانی</span>;
       case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار واحد مالی</span>;
-      case 'invoiced': return <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-lg text-xs font-bold">فاکتور صادر شده</span>;
+      case 'invoiced': return <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-lg text-xs font-bold">فاکتور صادر شده - انتظار پرداخت</span>;
+      case 'pending_commercial_final': return <span className="bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded-lg text-xs font-bold">تایید مالی - ارجاع به بازرگانی</span>;
+      case 'ready_for_delivery': return <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg text-xs font-bold">آماده تحویل (در انتظار ثبت خروج)</span>;
+      case 'pending_ceo_final': return <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار تایید نهایی مدیر</span>;
+      case 'completed': return <span className="bg-emerald-200 text-emerald-900 px-2.5 py-1 rounded-lg text-xs font-bold">پایان کار / تحویل داده شده</span>;
       case 'rejected': return <span className="bg-red-100 text-red-700 px-2.5 py-1 rounded-lg text-xs font-bold">عدم پذیرش</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold">وضعیت نامشخص</span>;
     }
   };
 
-  const queueRequests = requests.filter(r => r.status === 'pending_coordinator' || r.status === 'waiting_for_device');
+  const queueRequests = requests.filter(r => 
+    ['pending_coordinator', 'waiting_for_device', 'ready_for_delivery'].includes(r.status)
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
@@ -191,11 +186,6 @@ export default function CoordinatorPanelPage() {
             <h2 className="text-xl font-bold text-slate-800">
               {activeTab === 'queue' ? 'مدیریت و پیگیری درخواست‌ها' : 'لیست جامع تمامی درخواست‌های سیستم'}
             </h2>
-            {activeTab === 'reports' && (
-              <button onClick={exportToExcel} className="flex items-center gap-1.5 text-sm bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-xl font-bold transition-colors">
-                <FileSpreadsheet size={18} /> خروجی اکسل
-              </button>
-            )}
           </div>
           
           <div className="overflow-x-auto">
@@ -217,21 +207,26 @@ export default function CoordinatorPanelPage() {
                   <tr><td colSpan={activeTab === 'queue' ? 6 : 5} className="py-8 text-center text-slate-400">هیچ درخواستی یافت نشد.</td></tr>
                 ) : (
                   (activeTab === 'queue' ? queueRequests : requests).map(req => {
-                    const receivedObj = req.received_at ? new Date(req.received_at) : null;
-                    const deliveredObj = req.delivered_at ? new Date(req.delivered_at) : null;
+                    // استخراج تاریخ محلی (رفع باگ تداخل زمانی UTC)
+                    const pad = (n: number) => n.toString().padStart(2, '0');
+                    let recDate = '', recTime = '', delDate = '', delTime = '';
                     
-                    const recDate = receivedObj ? receivedObj.toISOString().split('T')[0] : '';
-                    const recTime = receivedObj ? receivedObj.toTimeString().slice(0, 5) : '';
+                    if (req.received_at) {
+                      const d = new Date(req.received_at);
+                      recDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                      recTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    }
                     
-                    const delDate = deliveredObj ? deliveredObj.toISOString().split('T')[0] : '';
-                    const delTime = deliveredObj ? deliveredObj.toTimeString().slice(0, 5) : '';
-
-                    //const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]');
+                    if (req.delivered_at) {
+                      const d = new Date(req.delivered_at);
+                      delDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                      delTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    }
 
                     return (
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
-                       <td className="py-4 px-3">
+                        <td className="py-4 px-3">
                           {(() => {
                             const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
                             return (
@@ -261,48 +256,54 @@ export default function CoordinatorPanelPage() {
                         <td className="py-4 px-3">
                           {activeTab === 'queue' ? (
                             <div className="space-y-2">
-                              <div className="flex items-center gap-2 text-xs text-slate-600">
-                                <span className="flex items-center gap-1 font-bold w-12"><Calendar size={13} className="text-slate-400"/> ورود:</span>
-                                <input 
-                                  id={`recDate_${req.id}`}
-                                  type="date" 
-                                  defaultValue={recDate}
-                                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                                />
-                                <input 
-                                  id={`recTime_${req.id}`}
-                                  type="time" 
-                                  defaultValue={recTime}
-                                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                                />
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-slate-600">
-                                <span className="flex items-center gap-1 font-bold w-12"><Clock size={13} className="text-slate-400"/> خروج:</span>
-                                <input 
-                                  id={`delDate_${req.id}`}
-                                  type="date" 
-                                  defaultValue={delDate}
-                                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                                />
-                                <input 
-                                  id={`delTime_${req.id}`}
-                                  type="time" 
-                                  defaultValue={delTime}
-                                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                                />
-                              </div>
-                              
-                              <button 
-                                onClick={() => handleSaveDateTime(req.id)}
-                                className="w-full mt-1.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"
-                              >
-                                <Save size={14}/> ذخیره تاریخ
-                              </button>
+                              {/* نمایش فیلد ورود فقط در وضعیت دریافت دستگاه */}
+                              {req.status === 'waiting_for_device' ? (
+                                <div className="flex items-center gap-2 text-xs text-slate-600">
+                                  <span className="flex items-center gap-1 font-bold w-12"><Calendar size={13} className="text-slate-400"/> ورود:</span>
+                                  <input 
+                                    id={`recDate_${req.id}`}
+                                    type="date" 
+                                    defaultValue={recDate}
+                                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                  />
+                                  <input 
+                                    id={`recTime_${req.id}`}
+                                    type="time" 
+                                    defaultValue={recTime}
+                                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                  />
+                                  <button onClick={() => handleSaveDateTime(req.id)} className="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600" title="ذخیره">
+                                    <Save size={14} />
+                                  </button>
+                                </div>
+                              ) : req.status === 'ready_for_delivery' ? (
+                                // نمایش فیلد خروج فقط در وضعیت آماده تحویل
+                                <div className="flex items-center gap-2 text-xs text-slate-600">
+                                  <span className="flex items-center gap-1 font-bold w-12"><Clock size={13} className="text-slate-400"/> خروج:</span>
+                                  <input 
+                                    id={`delDate_${req.id}`}
+                                    type="date" 
+                                    defaultValue={delDate}
+                                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                  />
+                                  <input 
+                                    id={`delTime_${req.id}`}
+                                    type="time" 
+                                    defaultValue={delTime}
+                                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                  />
+                                  <button onClick={() => handleSaveDateTime(req.id)} className="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600" title="ذخیره">
+                                    <Save size={14} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400">---</span>
+                              )}
                             </div>
                           ) : (
                             <div className="space-y-1 text-xs text-slate-600">
-                              <div><span className="font-bold text-slate-400">ورود: </span> {receivedObj ? new Date(receivedObj).toLocaleString('fa-IR') : 'ثبت نشده'}</div>
-                              <div><span className="font-bold text-slate-400">خروج: </span> {deliveredObj ? new Date(deliveredObj).toLocaleString('fa-IR') : 'ثبت نشده'}</div>
+                              <div><span className="font-bold text-slate-400">ورود: </span> {req.received_at ? new Date(req.received_at).toLocaleString('fa-IR') : 'ثبت نشده'}</div>
+                              <div><span className="font-bold text-slate-400">خروج: </span> {req.delivered_at ? new Date(req.delivered_at).toLocaleString('fa-IR') : 'ثبت نشده'}</div>
                             </div>
                           )}
                         </td>
@@ -334,6 +335,15 @@ export default function CoordinatorPanelPage() {
                                 className="w-full p-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
                               >
                                 <Check size={16} /> ثبت ورود و ارسال به تعمیرات
+                              </button>
+                            )}
+                            
+                            {req.status === 'ready_for_delivery' && (
+                              <button 
+                                onClick={() => handleSendToCeoFinal(req)} 
+                                className="w-full p-2 bg-blue-500 text-white hover:bg-blue-600 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-md mt-1"
+                              >
+                                <Send size={14} /> ثبت نهایی خروج و ارجاع به مدیر
                               </button>
                             )}
                           </td>

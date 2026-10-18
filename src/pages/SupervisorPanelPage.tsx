@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Wrench, Plus, Trash2, Loader2, Save, Key, FileText } from 'lucide-react';
+import { LogOut, Home, Wrench, Plus, Trash2, Loader2, Save, Key, FileText, Search, CheckCircle, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -16,6 +16,9 @@ export default function SupervisorPanelPage() {
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
+  // استیت مربوط به مودال بررسی اولیه (نمایش تمام فیلدها و پذیرش/عدم پذیرش)
+  const [reviewRequest, setReviewRequest] = useState<any | null>(null);
+
   // استیت‌های مربوط به مودال گزارش کار و ثبت قطعات
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [supervisorReport, setSupervisorReport] = useState('');
@@ -24,13 +27,13 @@ export default function SupervisorPanelPage() {
   const [newPartQty, setNewPartQty] = useState(1);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
-
   useEffect(() => {
     fetchRequests();
   }, []);
 
   const fetchRequests = async () => {
     setIsLoading(true);
+    // تعمیرکار فقط درخواست‌های مربوط به خودش را می‌بیند
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -46,7 +49,7 @@ export default function SupervisorPanelPage() {
   };
 
   const sendAcceptedSms = (phone: string, trackingCode: string) => {
-    console.log(`[SMS SIMULATION] To: ${phone} | Message: درخواست تعمیر شما با کد پیگیری ${trackingCode} پذیرش شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فرافن`);
+    console.log(`[SMS SIMULATION] To: ${phone} | Message: درخواست تعمیر شما با کد پیگیری ${trackingCode} پذیرش شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فیکسیز`);
   };
 
   const handleStatusChange = async (id: string, newStatus: string, customerPhone?: string, trackingCode?: string) => {
@@ -58,11 +61,14 @@ export default function SupervisorPanelPage() {
     if (error) {
       toast.error('خطا در تغییر وضعیت');
     } else {
-      toast.success('وضعیت با موفقیت به‌روزرسانی شد');
+      toast.success(newStatus === 'rejected' ? 'درخواست رد شد' : 'وضعیت با موفقیت به‌روزرسانی شد');
+      
       if (newStatus === 'waiting_for_device' && customerPhone) {
         sendAcceptedSms(customerPhone, trackingCode || '');
         toast.success(`پیامک اطلاع‌رسانی ارسال دستگاه به شماره ${customerPhone} ارسال شد.`);
       }
+      
+      setReviewRequest(null);
       fetchRequests();
     }
   };
@@ -149,25 +155,33 @@ export default function SupervisorPanelPage() {
     }
   };
 
-
+  // رنگ‌بندی ساده فقط برای وضعیت‌هایی که تعمیرکار می‌بیند
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending_coordinator': return <span className="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بررسی هماهنگی</span>;
-      case 'pending_ceo_initial': return <span className="bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار برآورد اولیه</span>;
-      case 'pending_customer_approval': return <span className="bg-orange-100 text-orange-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار تایید مشتری</span>;
-      case 'canceled_by_customer': return <span className="bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-bold">لغو توسط مشتری</span>;
-      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بررسی سرپرست</span>;
+      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بررسی شما</span>;
       case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار دریافت دستگاه</span>;
-      case 'accepted': return <span className="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg text-xs font-bold">پذیرش شده</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg text-xs font-bold">در حال تعمیر</span>;
-      case 'estimated': return <span className="bg-fuchsia-100 text-fuchsia-800 px-2.5 py-1 rounded-lg text-xs font-bold">نیازمند برآورد نهایی</span>;
-      case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بازرگانی</span>;
-      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار واحد مالی</span>;
-      case 'invoiced': return <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-lg text-xs font-bold">فاکتور صادر شده</span>;
-      case 'rejected': return <span className="bg-red-100 text-red-700 px-2.5 py-1 rounded-lg text-xs font-bold">عدم پذیرش</span>;
-      default: return <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold">وضعیت نامشخص</span>;
+      default: return <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold">{status}</span>;
     }
   };
+
+  // کامپوننت داخلی برای نمایش تمامی فیلدهای تجهیز
+  const FullRequestDetails = ({ req }: { req: any }) => (
+    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 mb-6" dir="rtl">
+      <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات کامل تجهیز ارسالی</h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div><span className="text-slate-400">نام تجهیز (Unit Name):</span> <strong className="text-slate-800">{req.device_info}</strong></div>
+        <div><span className="text-slate-400">کارخانه سازنده (Brand):</span> <strong className="text-slate-800">{req.brand || 'ثبت نشده'}</strong></div>
+        <div><span className="text-slate-400">پارت نامبر (Part Number):</span> <strong className="font-mono text-slate-800" dir="ltr">{req.part_number || 'ثبت نشده'}</strong></div>
+        <div><span className="text-slate-400">شماره سریال (S/N):</span> <strong className="font-mono text-slate-800" dir="ltr">{req.serial_number || 'ثبت نشده'}</strong></div>
+        <div className="sm:col-span-2"><span className="text-slate-400">نام پروژه / ارجاع کار:</span> <strong className="text-slate-800">{req.project_name || 'ثبت نشده'}</strong></div>
+      </div>
+      <div className="pt-2 border-t border-slate-200">
+        <span className="text-slate-400 text-xs block mb-1">شرح کامل مشکل (اظهار مشتری):</span>
+        <p className="text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 leading-relaxed">{req.fault_description}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
@@ -210,8 +224,8 @@ export default function SupervisorPanelPage() {
               <thead>
                 <tr className="border-b border-slate-200 text-slate-400 text-xs uppercase">
                   <th className="pb-3 px-3">کد پیگیری</th>
+                  <th className="pb-3 px-3">مشتری و اطلاعات تماس</th>
                   <th className="pb-3 px-3">دستگاه و برند</th>
-                  <th className="pb-3 px-3">شرح مشکل (اظهار مشتری)</th>
                   <th className="pb-3 px-3">وضعیت فعلی</th>
                   <th className="pb-3 px-3 text-center">عملیات فنی</th>
                 </tr>
@@ -223,36 +237,47 @@ export default function SupervisorPanelPage() {
                   <tr><td colSpan={5} className="py-8 text-center text-slate-400">قطعه‌ای برای بررسی در کارتابل شما وجود ندارد.</td></tr>
                 ) : (
                   requests.map(req => {
-                    // بررسی اینکه آیا این درخواست از مرحله تایید قیمت مشتری عبور کرده است یا خیر
-                    //const isPriceApprovedByCustomer = ['accepted', 'repairing', 'estimated', 'pending_commercial', 'pending_finance', 'invoiced'].includes(req.status);
+                    const isCommercial = req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
                     return (
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
-                      <td className="py-4 px-3">
-  <div className="font-bold text-slate-800">
-    {req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی') ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام')}
-  </div>
-  <div className="text-xs font-mono text-slate-500" dir="ltr">
-    {req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی') ? 'ثبت سازمانی' : (req.profiles?.phone || '---')}
-  </div>
-  {(req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی')) && (
-    <span className="inline-block mt-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-md font-bold">
-      🛒 درخواست بازرگانی
-    </span>
-  )}
-</td>
-                       <td className="py-4 px-3">
-  {getStatusBadge(req.status)}
-</td>
+                        <td className="py-4 px-3">
+                          <div className="font-bold text-slate-800">
+                            {isCommercial ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام')}
+                          </div>
+                          <div className="text-xs font-mono text-slate-500" dir="ltr">
+                            {isCommercial ? 'ثبت سازمانی' : (req.profiles?.phone || '---')}
+                          </div>
+                          {isCommercial && (
+                            <span className="inline-block mt-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-md font-bold">
+                              🛒 درخواست بازرگانی
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-3">
+                          <div className="font-bold text-slate-800">{req.device_info}</div>
+                          <div className="text-xs text-slate-500">{req.brand || 'بدون برند'}</div>
+                        </td>
+                        <td className="py-4 px-3">
+                          {getStatusBadge(req.status)}
+                        </td>
                         <td className="py-4 px-3 text-center">
                           <div className="flex flex-wrap items-center justify-center gap-2">
                             {req.status === 'pending_supervisor' && (
-                              <button onClick={() => handleStatusChange(req.id, 'waiting_for_device', req.profiles?.phone, req.tracking_code)} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors">پذیرش و ارسال پیامک</button>
+                              <button 
+                                onClick={() => setReviewRequest(req)} 
+                                className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5"
+                              >
+                                <Search size={16} /> بررسی و تصمیم‌گیری
+                              </button>
                             )}
                             {req.status === 'repairing' && (
-                              <button onClick={() => openReportModal(req)} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-colors w-full flex justify-center items-center gap-1">
-                                <FileText size={14} /> ثبت گزارش و اتمام
+                              <button onClick={() => openReportModal(req)} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5 shadow-sm">
+                                <FileText size={16} /> ثبت گزارش و اتمام
                               </button>
+                            )}
+                            {req.status === 'waiting_for_device' && (
+                              <span className="text-xs text-slate-400">منتظر ثبت ورود توسط هماهنگی</span>
                             )}
                           </div>
                         </td>
@@ -266,17 +291,60 @@ export default function SupervisorPanelPage() {
         </div>
       </main>
 
+      {/* مودال بررسی درخواست (پذیرش یا عدم پذیرش) */}
+      {reviewRequest && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">بررسی درخواست تعمیر</h3>
+                <p className="text-sm text-slate-500 font-mono mt-1">کد پیگیری: {reviewRequest.tracking_code}</p>
+              </div>
+              <button onClick={() => setReviewRequest(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
+            </div>
+
+            <FullRequestDetails req={reviewRequest} />
+
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-sm text-amber-800 mb-6 font-bold flex items-center gap-2">
+              <Wrench size={18} className="shrink-0" />
+              آیا با بررسی اطلاعات فوق، تعمیر این دستگاه را می‌پذیرید؟
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button 
+                onClick={() => handleStatusChange(reviewRequest.id, 'waiting_for_device', reviewRequest.profiles?.phone, reviewRequest.tracking_code)}
+                className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2 shadow-sm"
+              >
+                <CheckCircle size={18} /> پذیرش (ارسال پیامک به مشتری)
+              </button>
+              <button 
+                onClick={() => {
+                  if (confirm('آیا از عدم پذیرش این دستگاه اطمینان دارید؟ با این کار درخواست لغو خواهد شد.')) {
+                    handleStatusChange(reviewRequest.id, 'rejected');
+                  }
+                }}
+                className="px-6 py-3.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl font-bold transition-colors flex justify-center items-center gap-2"
+              >
+                <XCircle size={18} /> عدم پذیرش
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* مودال ثبت گزارش کار و قطعات مصرفی */}
       {selectedRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
             <div className="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold text-slate-800">ثبت گزارش کار و پایان تعمیر</h3>
-                <p className="text-sm text-slate-500 font-mono mt-1">کد: {selectedRequest.tracking_code} | دستگاه: {selectedRequest.device_info}</p>
+                <p className="text-sm text-slate-500 font-mono mt-1">کد: {selectedRequest.tracking_code}</p>
               </div>
               <button onClick={() => setSelectedRequest(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
             </div>
+
+            <FullRequestDetails req={selectedRequest} />
 
             <div className="space-y-6">
               <div>

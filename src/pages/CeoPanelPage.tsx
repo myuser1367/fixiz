@@ -25,10 +25,9 @@ export default function CeoPanelPage() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
 
+  // آیدی یکپارچه شده واحد بازرگانی
+  const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-20352ef29f73';
 
-  const COMMERCIAL_CUSTOMER_ID = '5a78bd79-b143-4b40-b603-2b55fdbc32eb';
-
-  
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -97,11 +96,30 @@ export default function CeoPanelPage() {
     }
   };
 
+  // تابع جدید برای تایید نهایی و پایان کار
+  const handleFinalApproval = async (id: string) => {
+    if (!confirm('آیا پرونده این درخواست بسته شده و عملیات را تایید نهایی می‌کنید؟')) return;
+    try {
+      const { error } = await supabase.from('repair_requests').update({ status: 'completed' }).eq('id', id);
+      if (error) throw error;
+      toast.success('درخواست با موفقیت تایید نهایی شد و در وضعیت پایان کار قرار گرفت.');
+      fetchRequests();
+    } catch (err: any) {
+      toast.error('خطا در ثبت وضعیت');
+    }
+  };
+
   const exportToExcel = () => {
     const headers = ['ردیف', 'نام پروژه / ارجاع کار', 'نام تجهیز (Unit Name)', 'پارت نامبر', 'کارخانه سازنده', 'کد پیگیری (TR)', 'شماره سریال', 'نام مشتری', 'وضعیت کنونی', 'مبلغ کل فاکتور (ریال)', 'تاریخ ثبت درخواست'];
-    const rows = requests.map((req, index) => [
-      index + 1, req.project_name || '---', req.device_info, req.part_number || '---', req.brand || '---', req.tracking_code, req.serial_number || '---', req.profiles?.full_name || 'نامشخص', req.status, req.final_price || 0, new Date(req.created_at).toLocaleDateString('fa-IR')
-    ]);
+    const rows = requests.map((req, index) => {
+      const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
+      const customerName = isCommercial ? 'واحد بازرگانی' : (req.profiles?.full_name || 'نامشخص');
+      
+      return [
+        index + 1, req.project_name || '---', req.device_info, req.part_number || '---', req.brand || '---', req.tracking_code, req.serial_number || '---', customerName, req.status, req.final_price || 0, new Date(req.created_at).toLocaleDateString('fa-IR')
+      ];
+    });
+    
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     worksheet['!views'] = [{ RTL: true, rightToLeft: true }];
     worksheet['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }];
@@ -134,16 +152,25 @@ export default function CeoPanelPage() {
       case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">در انتظار دریافت دستگاه</span>;
       case 'accepted': return <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-bold">پذیرش شده</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold">در حال تعمیر</span>;
-      case 'estimated': return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold animate-pulse">نیازمند برآورد نهایی</span>;
+      case 'estimated': return <span className="bg-fuchsia-100 text-fuchsia-800 px-2 py-1 rounded text-xs font-bold animate-pulse">نیازمند برآورد نهایی</span>;
       case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">در انتظار بازرگانی</span>;
       case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2 py-1 rounded text-xs font-bold">در انتظار مالی</span>;
-      case 'invoiced': return <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">فاکتور شده</span>;
+      case 'invoiced': return <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">فاکتور شده - انتظار پرداخت</span>;
+      case 'pending_commercial_checkout': return <span className="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">تایید مالی - ارجاع به بازرگانی</span>;
+      case 'ready_for_delivery': return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">در انتظار ثبت خروج (هماهنگی)</span>;
+      case 'pending_ceo_final': return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold">در انتظار تایید نهایی مدیریت</span>;
+      case 'completed': return <span className="bg-emerald-200 text-emerald-900 px-2 py-1 rounded text-xs font-bold">پایان کار / تحویل داده شده</span>;
       case 'rejected': return <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">رد شده</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-bold">{status}</span>;
     }
   };
 
-  const queueRequests = requests.filter(r => r.status === 'estimated' || r.status === 'pending_ceo_initial');
+  // اضافه شدن وضعیت pending_ceo_final به لیست کارتابل مدیر مرکز
+  const queueRequests = requests.filter(r => 
+    r.status === 'estimated' || 
+    r.status === 'pending_ceo_initial' || 
+    r.status === 'pending_ceo_final'
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
@@ -175,7 +202,7 @@ export default function CeoPanelPage() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 mb-6 w-full max-w-md mx-auto md:mx-0">
           <button onClick={() => setActiveTab('queue')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'queue' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
-            <Activity size={18} /> کارتابل قیمت‌گذاری 
+            <Activity size={18} /> کارتابل بررسی 
             {queueRequests.length > 0 && <span className="bg-white text-purple-600 px-2 py-0.5 rounded-full text-xs">{queueRequests.length}</span>}
           </button>
           <button onClick={() => setActiveTab('reports')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'reports' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
@@ -186,7 +213,7 @@ export default function CeoPanelPage() {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-800">
-              {activeTab === 'queue' ? 'درخواست‌های نیازمند بررسی و برآورد مدیر مرکز' : 'لیست جامع تمامی درخواست‌های سیستم'}
+              {activeTab === 'queue' ? 'درخواست‌های نیازمند بررسی مدیر مرکز' : 'لیست جامع تمامی درخواست‌های سیستم'}
             </h2>
             {activeTab === 'reports' && (
               <button onClick={exportToExcel} className="flex items-center gap-1.5 text-sm bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-xl font-bold transition-colors">
@@ -247,6 +274,10 @@ export default function CeoPanelPage() {
                           <button onClick={() => handleOpenPricingModal(req)} className="px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5">
                             <DollarSign size={16} /> {req.status === 'pending_ceo_initial' ? 'برآورد اولیه' : 'بررسی و قیمت‌گذاری نهایی'}
                           </button>
+                        ) : req.status === 'pending_ceo_final' ? (
+                           <button onClick={() => handleFinalApproval(req.id)} className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-md">
+                             <CheckCircle size={16} /> تایید نهایی و پایان کار
+                           </button>
                         ) : (
                           <button onClick={() => handleOpenPricingModal(req)} className="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5">
                             <Search size={16} /> مشاهده جزئیات
@@ -329,7 +360,7 @@ export default function CeoPanelPage() {
               {(selectedRequest.status === 'estimated' || selectedRequest.status === 'pending_ceo_initial') ? (
                 <form onSubmit={submitPricing} className="bg-purple-50 p-5 rounded-2xl border border-purple-100 mt-6">
                   
-                  {/* === اضافه شدن بخش نمایش برآورد اولیه پیش از دریافت قیمت نهایی === */}
+                  {/* === نمایش برآورد اولیه پیش از دریافت قیمت نهایی === */}
                   {selectedRequest.status === 'estimated' && selectedRequest.estimated_price && (
                     <div className="mb-5 bg-white p-4 rounded-xl border border-purple-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
                       <span className="text-sm font-bold text-slate-600">مبلغ برآورد اولیه (اعلام شده به مشتری):</span>
@@ -338,8 +369,7 @@ export default function CeoPanelPage() {
                       </span>
                     </div>
                   )}
-                  {/* ========================================================= */}
-
+                  
                   <label className="block text-sm font-bold text-purple-900 mb-2">
                     {selectedRequest.status === 'pending_ceo_initial' ? 'برآورد هزینه اولیه (برحسب ریال)' : 'برآورد هزینه نهایی (برحسب ریال)'} <span className="text-red-500">*</span>
                   </label>

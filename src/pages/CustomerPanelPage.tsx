@@ -42,7 +42,7 @@ export default function CustomerPanelPage() {
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [companyName, setCompanyName] = useState('');
 
-  // فرم ثبت درخواست جدید - آپدیت شده با فیلدهای جدید
+  // فرم ثبت درخواست جدید
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
@@ -211,7 +211,6 @@ export default function CustomerPanelPage() {
     }
   };
 
-  // تابع تایید یا رد برآورد هزینه اولیه توسط مشتری (با واحد ریال)
   const handleCustomerApproval = async (id: string, isApproved: boolean) => {
     if (!confirm(isApproved ? 'آیا قیمت حدودی را تایید می‌کنید؟ درخواست جهت هماهنگی و تعمیر ارجاع داده می‌شود.' : 'آیا از تعمیر این دستگاه انصراف می‌دهید؟')) return;
     
@@ -236,63 +235,79 @@ export default function CustomerPanelPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending_coordinator': return <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> ثبت اولیه</span>;
-      case 'pending_ceo_initial': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> در حال برآورد (مدیر مرکز)</span>;
+      case 'pending_ceo_initial': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> در حال برآورد هزینه</span>;
       case 'pending_customer_approval': return <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse"><AlertCircle size={14}/> منتظر تایید شما (قیمت)</span>;
       case 'canceled_by_customer': return <span className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> انصراف مشتری</span>;
-      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Wrench size={14}/> در حال بررسی / پذیرش</span>;
+      case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Wrench size={14}/> در حال بررسی تکنسین</span>;
       case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> در انتظار دریافت دستگاه</span>;
-      case 'accepted': return <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> پذیرش شده</span>;
+      case 'accepted': return <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> دریافت و پذیرش شد</span>;
       case 'rejected': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> عدم پذیرش</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Loader2 size={14} className="animate-spin"/> در حال تعمیر</span>;
-      case 'estimated': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> برآورد هزینه نهایی</span>;
-      case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><ShoppingCart size={14}/> در انتظار بازرگانی</span>;
-      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> در انتظار واحد مالی</span>;
-      case 'invoiced': return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> آماده تحویل (فاکتور صادر شد)</span>;
+      case 'estimated': 
+      case 'pending_commercial': 
+      case 'pending_finance': 
+        return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> در حال محاسبه فاکتور نهایی</span>;
+      case 'invoiced': return <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> فاکتور صادر شد (در انتظار پرداخت)</span>;
+      case 'pending_commercial_checkout': return <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Check size={14}/> پرداخت تایید شد</span>;
+      case 'ready_for_delivery': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Check size={14}/> آماده تحویل</span>;
+      case 'pending_ceo_final': return <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Check size={14}/> تحویل داده شد (در انتظار بستن پرونده)</span>;
+      case 'completed': return <span className="bg-emerald-200 text-emerald-900 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> پایان کار</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
     }
   };
 
   const renderWorkflowSteps = (currentStatus: string) => {
     const steps = [
-      { id: 'registered', label: 'ثبت درخواست', desc: 'درخواست توسط مشتری ثبت شد' },
-      { id: 'acceptance', label: 'پذیرش یا عدم پذیرش', desc: 'بررسی اولیه توسط واحد هماهنگی و سرپرست' },
-      { id: 'repairing', label: 'در حال تعمیر', desc: 'تکنسین در حال عیب‌یابی و تعمیر دستگاه است' },
-      { id: 'estimation', label: 'برآورد هزینه', desc: 'محاسبه قطعات مصرفی و اعلام قیمت' },
-      { id: 'invoiced', label: 'صدور فاکتور', desc: 'آماده تحویل و تسویه حساب نهایی' },
+      { id: 'registered', label: 'ثبت و بررسی اولیه', desc: 'درخواست ثبت شده و در حال بررسی یا اعلام هزینه است' },
+      { id: 'acceptance', label: 'دریافت دستگاه و پذیرش', desc: 'در انتظار رسیدن دستگاه شما به مرکز و تایید تکنسین' },
+      { id: 'repairing', label: 'در حال تعمیر', desc: 'دستگاه شما توسط متخصصین در حال عیب‌یابی و تعمیر است' },
+      { id: 'invoiced', label: 'صدور فاکتور و تسویه', desc: 'تعمیرات پایان یافته و فاکتور نهایی صادر شده است' },
+      { id: 'completed', label: 'آماده تحویل و پایان کار', desc: 'پرداخت تایید شده و دستگاه آماده‌ی تحویل می‌باشد' },
     ];
 
-  let activeIndex = 0;
-    // اضافه شدن وضعیت waiting_for_device به مرحله دوم (پذیرش یا بررسی)
-    if (['pending_supervisor', 'accepted', 'waiting_for_device'].includes(currentStatus)) activeIndex = 1;
-    else if (currentStatus === 'repairing') activeIndex = 2;
-    else if (['estimated', 'pending_commercial', 'pending_finance'].includes(currentStatus)) activeIndex = 3;
-    else if (currentStatus === 'invoiced') activeIndex = 4;
-    else if (currentStatus === 'rejected') activeIndex = 1;
+    let activeIndex = 0;
+    
+    // وضعیت‌های لغو شده و رد شده
+    const isCanceled = currentStatus === 'canceled_by_customer';
+    const isRejected = currentStatus === 'rejected';
+    const isFailed = isCanceled || isRejected;
+
+    if (!isFailed) {
+      if (['waiting_for_device', 'pending_supervisor', 'accepted'].includes(currentStatus)) activeIndex = 1;
+      else if (currentStatus === 'repairing') activeIndex = 2;
+      else if (['estimated', 'pending_commercial', 'pending_finance', 'invoiced'].includes(currentStatus)) activeIndex = 3;
+      else if (['pending_commercial_checkout', 'ready_for_delivery', 'pending_ceo_final', 'completed'].includes(currentStatus)) activeIndex = 4;
+    } else {
+      // اگر در مرحله تایید قیمت انصراف دهد در مرحله اول متوقف می‌شود، اگر تکنسین رد کند در مرحله دوم
+      activeIndex = isCanceled ? 0 : 1;
+    }
 
     return (
       <div className="space-y-6 my-6" dir="rtl">
         <h4 className="font-bold text-slate-800 text-base mb-4">مراحل زنجیره تعمیر و خدمات</h4>
         <div className="space-y-4 relative before:absolute before:right-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
           {steps.map((step, idx) => {
-            const isCompleted = idx < activeIndex;
-            const isCurrent = idx === activeIndex;
-            const isRejected = currentStatus === 'rejected' && idx === 1;
+            const isCompleted = (idx < activeIndex || currentStatus === 'completed') && !isFailed;
+            const isCurrent = idx === activeIndex && currentStatus !== 'completed';
+            const isErrorState = isFailed && idx === activeIndex;
 
             return (
               <div key={step.id} className="relative flex items-start gap-4 pr-10">
                 <div className={`absolute right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white ${
-                  isRejected ? 'bg-red-500 text-white' :
+                  isErrorState ? 'bg-red-500 text-white' :
                   isCompleted ? 'bg-emerald-500 text-white' : 
                   isCurrent ? 'bg-brand-primary text-white animate-pulse' : 
                   'bg-slate-200 text-slate-500'
                 }`}>
-                  {isRejected ? <XCircle size={14} /> : isCompleted ? <Check size={14} /> : idx + 1}
+                  {isErrorState ? <XCircle size={14} /> : isCompleted ? <Check size={14} /> : idx + 1}
                 </div>
                 <div>
-                  <h5 className={`font-bold text-sm ${isCurrent || isCompleted ? 'text-slate-800' : 'text-slate-400'}`}>
-                    {isRejected && idx === 1 ? 'درخواست رد شد (عدم پذیرش)' : step.label}
+                  <h5 className={`font-bold text-sm ${isCurrent || isCompleted || isErrorState ? 'text-slate-800' : 'text-slate-400'}`}>
+                    {isErrorState ? (isCanceled ? 'انصراف مشتری از تعمیر' : 'دستگاه توسط تکنسین رد شد') : step.label}
                   </h5>
-                  <p className="text-xs text-slate-500 mt-0.5">{step.desc}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                     {isErrorState ? 'درخواست در این مرحله متوقف و لغو گردید.' : step.desc}
+                  </p>
                 </div>
               </div>
             );
@@ -452,7 +467,7 @@ export default function CustomerPanelPage() {
                     </div>
                   </div>
 
-                  {/* کادر تایید برآورد قیمت اولیه توسط مشتری - برحسب ریال */}
+                  {/* کادر تایید برآورد قیمت اولیه توسط مشتری */}
                   {req.status === 'pending_customer_approval' && (
                     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
                       <div>
@@ -476,6 +491,18 @@ export default function CustomerPanelPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* کادر اطلاع‌رسانی فاکتور (در صورت نیاز به پرداخت) */}
+                  {req.status === 'invoiced' && req.final_price && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+                      <div>
+                        <h5 className="font-bold text-blue-900 text-sm mb-1">مبلغ نهایی فاکتور تعمیر:</h5>
+                        <p className="text-xl font-black text-blue-700 font-mono" dir="ltr">{req.final_price.toLocaleString()} ریال</p>
+                      </div>
+                      <span className="text-xs bg-white border border-blue-100 text-blue-600 px-3 py-1.5 rounded-lg font-bold">در انتظار پرداخت</span>
+                    </div>
+                  )}
+
                 </div>
               ))
             )}

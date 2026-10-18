@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Key, ShoppingCart, Plus, CheckCircle, Loader2, List, Clock, Wrench, XCircle, AlertCircle, FileText, Check, Search, Edit, Trash2 } from 'lucide-react';
+import { LogOut, Home, Key, ShoppingCart, Plus, CheckCircle, Loader2, List, Clock, Wrench, XCircle, AlertCircle, FileText, Check, Search, Edit, Trash2, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -69,11 +69,11 @@ export default function CommercialPanelPage() {
   const fetchData = async () => {
     setIsLoading(true);
     
-    // ۱. دریافت کارتابل تاییدیه بازرگانی
+    // ۱. دریافت کارتابل بازرگانی (در انتظار تایید قیمت اولیه + در انتظار تایید خروج پس از پرداخت مالی)
     const { data: queueData, error: queueError } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
-      .eq('status', 'pending_commercial')
+      .in('status', ['pending_commercial', 'pending_commercial_checkout'])
       .order('created_at', { ascending: false });
       
     if (queueError) toast.error('خطا در دریافت کارتابل');
@@ -114,35 +114,42 @@ export default function CommercialPanelPage() {
     }
   };
 
-const handleSubmitNewRequest = async (e: React.FormEvent) => {
+  // تابع جدید برای تایید نهایی و خروج از بازرگانی پس از پرداخت مالی
+  const handleFinalApproval = async (id: string) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('repair_requests')
+        .update({ status: 'ready_for_delivery' })
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('تاییدیه نهایی صادر شد و درخواست جهت ثبت خروج به هماهنگی ارجاع داده شد');
+      fetchData();
+    } catch (err: any) {
+      toast.error('خطا در تایید نهایی: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmitNewRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.device_info || !formData.fault_description) return toast.error('نام دستگاه و شرح مشکل الزامی است');
     
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
     
-    // مشخص کردن واضح واحد بازرگانی در توضیحات و پروژه بدون براکت‌های اضافه
+    // مشخص کردن واضح واحد بازرگانی در توضیحات
     const finalDescription = `ثبت شده توسط واحد بازرگانی\n` +
       (formData.serial_number ? `شماره سریال: ${formData.serial_number}\n` : '') + 
       formData.fault_description;
 
     try {
-      // ۱. پیدا کردن یک مشتری معتبر و قطعی از جدول profiles برای عبور از کلید خارجی دیتابیس
-      const { data: defaultProfiles, error: profileErr } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1);
-
-      if (profileErr || !defaultProfiles || defaultProfiles.length === 0) {
-        throw new Error('هیچ پروفایل مشتری معتبری در سیستم یافت نشد.');
-      }
-
-      const validCustomerId = defaultProfiles[0].id;
-
-      // ۲. ثبت درخواست با آیدی معتبر و برچسب مشخص واحد بازرگانی
+      // ثبت درخواست مستقیماً با آیدی سازمانی بازرگانی (مشکل جستجوی تصادفی حل شد)
       const { error } = await supabase.from('repair_requests').insert([
         {
-          customer_id: validCustomerId,
+          customer_id: COMMERCIAL_CUSTOMER_ID,
           tracking_code: trackingCode,
           device_info: formData.device_info,
           brand: formData.brand,
@@ -255,6 +262,10 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
       case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><ShoppingCart size={14}/> در انتظار بازرگانی</span>;
       case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> در انتظار واحد مالی</span>;
       case 'invoiced': return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> آماده تحویل (فاکتور صادر شد)</span>;
+      case 'pending_commercial_checkout': return <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><ShoppingCart size={14}/> تایید مالی - ارجاع به بازرگانی</span>;
+      case 'ready_for_delivery': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Check size={14}/> در انتظار ثبت خروج</span>;
+      case 'pending_ceo_final': return <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> در انتظار تایید نهایی مدیریت</span>;
+      case 'completed': return <span className="bg-emerald-200 text-emerald-900 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> پایان کار</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
     }
   };
@@ -265,14 +276,14 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
       { id: 'acceptance', label: 'پذیرش یا عدم پذیرش', desc: 'بررسی اولیه توسط واحد هماهنگی و سرپرست' },
       { id: 'repairing', label: 'در حال تعمیر', desc: 'تکنسین در حال عیب‌یابی و تعمیر دستگاه است' },
       { id: 'estimation', label: 'برآورد هزینه', desc: 'محاسبه قطعات مصرفی و اعلام قیمت' },
-      { id: 'invoiced', label: 'صدور فاکتور', desc: 'آماده تحویل و تسویه حساب نهایی' },
+      { id: 'invoiced', label: 'تسویه و خروج', desc: 'آماده تحویل، تسویه حساب و پایان کار' },
     ];
 
     let activeIndex = 0;
     if (['pending_supervisor', 'accepted', 'waiting_for_device'].includes(currentStatus)) activeIndex = 1;
     else if (currentStatus === 'repairing') activeIndex = 2;
     else if (['estimated', 'pending_commercial', 'pending_finance'].includes(currentStatus)) activeIndex = 3;
-    else if (currentStatus === 'invoiced') activeIndex = 4;
+    else if (['invoiced', 'pending_commercial_checkout', 'ready_for_delivery', 'pending_ceo_final', 'completed'].includes(currentStatus)) activeIndex = 4;
     else if (currentStatus === 'rejected') activeIndex = 1;
 
     return (
@@ -280,8 +291,8 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
         <h4 className="font-bold text-slate-800 text-base mb-4">مراحل زنجیره تعمیر و خدمات</h4>
         <div className="space-y-4 relative before:absolute before:right-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
           {steps.map((step, idx) => {
-            const isCompleted = idx < activeIndex;
-            const isCurrent = idx === activeIndex;
+            const isCompleted = idx < activeIndex || currentStatus === 'completed';
+            const isCurrent = idx === activeIndex && currentStatus !== 'completed';
             const isRejected = currentStatus === 'rejected' && idx === 1;
 
             return (
@@ -354,7 +365,7 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
 
         {activeTab === 'queue' && (
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h2 className="text-xl font-bold text-slate-800 mb-6">درخواست‌های در انتظار تایید قطعات و هزینه</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-6">درخواست‌های در انتظار تایید قطعات و تایید خروج</h2>
             
             <div className="overflow-x-auto">
               <table className="w-full text-right border-collapse">
@@ -362,15 +373,16 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
                   <tr className="border-b border-slate-200 text-slate-400 text-xs uppercase">
                     <th className="pb-3 px-3">کد پیگیری</th>
                     <th className="pb-3 px-3">دستگاه و قطعه</th>
-                    <th className="pb-3 px-3">مبلغ برآورد شده (تومان)</th>
+                    <th className="pb-3 px-3">مبلغ (تومان)</th>
+                    <th className="pb-3 px-3">وضعیت</th>
                     <th className="pb-3 px-3 text-center">عملیات بازرگانی</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {isLoading ? (
-                    <tr><td colSpan={4} className="py-8 text-center text-slate-400"><Loader2 className="animate-spin mx-auto h-6 w-6 mb-2" />در حال دریافت اطلاعات...</td></tr>
+                    <tr><td colSpan={5} className="py-8 text-center text-slate-400"><Loader2 className="animate-spin mx-auto h-6 w-6 mb-2" />در حال دریافت اطلاعات...</td></tr>
                   ) : queueRequests.length === 0 ? (
-                    <tr><td colSpan={4} className="py-8 text-center text-slate-400">موردی برای تایید در کارتابل شما وجود ندارد.</td></tr>
+                    <tr><td colSpan={5} className="py-8 text-center text-slate-400">موردی برای تایید در کارتابل شما وجود ندارد.</td></tr>
                   ) : (
                     queueRequests.map(req => (
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
@@ -380,15 +392,27 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
                           <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
                         </td>
                         <td className="py-4 px-3 font-mono font-bold text-blue-700 text-lg" dir="ltr">
-                          {req.final_price ? req.final_price.toLocaleString() : 'ثبت نشده'}
+                          {req.final_price ? req.final_price.toLocaleString() : '---'}
+                        </td>
+                        <td className="py-4 px-3">
+                          {getStatusBadge(req.status)}
                         </td>
                         <td className="py-4 px-3 text-center">
-                          <button 
-                            onClick={() => handleApprovePrice(req.id)} 
-                            className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5"
-                          >
-                            <CheckCircle size={16} /> تایید و ارسال به مالی
-                          </button>
+                          {req.status === 'pending_commercial' ? (
+                            <button 
+                              onClick={() => handleApprovePrice(req.id)} 
+                              className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5"
+                            >
+                              <CheckCircle size={16} /> تایید قیمت و ارسال به مالی
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleFinalApproval(req.id)} 
+                              className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5"
+                            >
+                              <Send size={16} /> تایید خروج و ارجاع به هماهنگی
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
