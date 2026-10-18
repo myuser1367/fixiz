@@ -234,17 +234,19 @@ export default function CoordinatorPanelPage() {
                           <div className="font-bold text-slate-800">{req.profiles?.full_name || 'بدون نام'}</div>
                           <div className="text-xs font-mono text-slate-500" dir="ltr">{req.profiles?.phone}</div>
                         </td>
-                        <td className="py-4 px-3">
-                          <div className="font-bold text-slate-800">{req.device_info}</div>
-                          <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
-                          {req.needs_price_estimate && (
-                            <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded font-bold ${
-                              isPriceApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-700'
-                            }`}>
-                              {isPriceApproved ? 'برآورد قیمت به تایید مشتری رسید' : 'نیاز به برآورد قیمت دارد'}
-                            </span>
-                          )}
-                        </td>
+                       <td className="py-4 px-3">
+  <div className="font-bold text-slate-800">
+    {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' ? 'واحد بازرگانی (سازمانی)' : (req.profiles?.full_name || 'بدون نام')}
+  </div>
+  <div className="text-xs font-mono text-slate-500" dir="ltr">
+    {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' ? 'ثبت داخلی شرکت' : req.profiles?.phone}
+  </div>
+  {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' && (
+    <span className="inline-block mt-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-md font-bold">
+      🛒 درخواست بازرگانی
+    </span>
+  )}
+</td>
                         <td className="py-4 px-3">
                           {getStatusBadge(req.status)}
                         </td>

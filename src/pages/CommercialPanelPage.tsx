@@ -84,7 +84,7 @@ export default function CommercialPanelPage() {
     const { data: myData, error: myError } = await supabase
       .from('repair_requests')
       .select('*')
-      .or(`customer_id.eq.${COMMERCIAL_CUSTOMER_ID},project_name.ilike.%[بازرگانی]%,fault_description.ilike.%[ثبت شده توسط واحد بازرگانی]%`)
+.eq('customer_id', COMMERCIAL_CUSTOMER_ID)
       .order('created_at', { ascending: false });
         
     if (myError) {
@@ -121,8 +121,10 @@ export default function CommercialPanelPage() {
     
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
+    
+    // توضیحات کاملاً تمیز و بدون براکت‌های اضافی
     const finalDescription = formData.serial_number 
-      ? `[شماره سریال: ${formData.serial_number}]\n${formData.fault_description}` 
+      ? `شماره سریال: ${formData.serial_number}\n${formData.fault_description}` 
       : formData.fault_description;
 
     try {
@@ -136,7 +138,7 @@ export default function CommercialPanelPage() {
           needs_price_estimate: formData.needs_price_estimate,
           status: 'pending_coordinator',
           part_number: formData.part_number,
-          project_name: formData.project_name ? `[بازرگانی] ${formData.project_name}` : '[ثبت سازمانی واحد بازرگانی]'
+          project_name: formData.project_name || 'ثبت سازمانی'
         }
       ]);
 
@@ -152,7 +154,6 @@ export default function CommercialPanelPage() {
       setIsSubmitting(false);
     }
   };
-
   const handleOpenEdit = (req: RepairRequest) => {
     setEditingReq(req);
     setEditFormData({
