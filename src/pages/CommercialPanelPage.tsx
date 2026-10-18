@@ -483,7 +483,7 @@ export default function CommercialPanelPage() {
                         <span className="bg-slate-50 px-2.5 py-1 rounded border border-slate-100">{req.project_name || 'بدون پروژه'}</span>
                         <span dir="ltr">{new Date(req.created_at).toLocaleDateString('fa-IR')}</span>
                       </div>
-                      <p className="text-sm text-slate-600 line-clamp-2 mt-2"><span className="font-bold text-slate-500">شرح مشکل:</span> {req.fault_description}</p>
+<p className="text-sm text-slate-600 line-clamp-2 mt-2"><span className="font-bold text-slate-500">شرح مشکل:</span> {req.fault_description?.replace('ثبت شده توسط واحد بازرگانی', '').trim()}</p>
                     </div>
                     
                     <div className="flex items-center gap-2 md:flex-col shrink-0">
