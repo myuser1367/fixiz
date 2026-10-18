@@ -81,8 +81,9 @@ export default function CommercialPanelPage() {
     }
   };
 
- const handleSubmitNewRequest = async (e: React.FormEvent) => {
+const handleSubmitNewRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!profile?.username) return toast.error('خطا در تشخیص نام کاربری شما');
     if (!formData.device_info || !formData.fault_description) return toast.error('نام دستگاه و شرح مشکل الزامی است');
     
     setIsSubmitting(true);
@@ -92,12 +93,21 @@ export default function CommercialPanelPage() {
       : formData.fault_description;
 
     try {
-      // استفاده مستقیم و قطعی از آیدی واحد بازرگانی که در جدول profiles ساختیم
-      const commercialProfileId = 'c78297a5-bb21-4701-b289-20352ef29f73';
+      // پیدا کردن خودکار آیدی واحد بازرگانی از روی شماره موبایل (username پرسنل)
+      const { data: commercialProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('phone', profile.username)
+        .single();
 
+      if (profileError || !commercialProfile) {
+        throw new Error('پروفایل واحد بازرگانی در جدول مشتریان یافت نشد.');
+      }
+
+      // ثبت درخواست با آیدی دقیق واحد بازرگانی
       const { error } = await supabase.from('repair_requests').insert([
         {
-          customer_id: commercialProfileId, // آیدی ثابتی که در تصویر ۲۴ مشاهده شد
+          customer_id: commercialProfile.id,
           tracking_code: trackingCode,
           device_info: formData.device_info,
           brand: formData.brand,
