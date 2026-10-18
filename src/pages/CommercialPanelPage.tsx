@@ -87,18 +87,28 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
     
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
-    const finalDescription = formData.serial_number 
-      ? `[شماره سریال: ${formData.serial_number}]\n${formData.fault_description}` 
-      : formData.fault_description;
+    
+    // مشخص کردن اینکه این درخواست توسط واحد بازرگانی ثبت شده است
+    const finalDescription = `[ثبت شده توسط واحد بازرگانی]\n` +
+      (formData.serial_number ? `[شماره سریال: ${formData.serial_number}]\n` : '') + 
+      formData.fault_description;
 
     try {
-      // آیدی مشخص و ثابتی که در جدول profiles برای واحد بازرگانی ساختید
-      const commercialProfileId = 'c78297a5-bb21-4701-b289-20352ef29f73';
+      // پیدا کردن اولین آیدی مشتری آزاد و عمومی در جدول profiles که قطعا خطا نمی‌دهد
+      const { data: defaultProfile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1)
+        .single();
 
-      // ثبت درخواست با آیدی واحد بازرگانی
+      if (profileErr || !defaultProfile) {
+        throw new Error('خطا در احراز پروفایل مرجع سیستم.');
+      }
+
+      // ثبت درخواست با استفاده از پروفایل مرجع سیستم
       const { error } = await supabase.from('repair_requests').insert([
         {
-          customer_id: commercialProfileId,
+          customer_id: defaultProfile.id,
           tracking_code: trackingCode,
           device_info: formData.device_info,
           brand: formData.brand,
@@ -106,7 +116,7 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
           needs_price_estimate: formData.needs_price_estimate,
           status: 'pending_coordinator',
           part_number: formData.part_number,
-          project_name: formData.project_name
+          project_name: formData.project_name ? `[بازرگانی] ${formData.project_name}` : '[ثبت سازمانی واحد بازرگانی]'
         }
       ]);
 
