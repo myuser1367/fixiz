@@ -240,11 +240,14 @@ export default function CustomerPanelPage() {
       case 'pending_customer_approval': return <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 animate-pulse"><AlertCircle size={14}/> منتظر تایید شما (قیمت)</span>;
       case 'canceled_by_customer': return <span className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> انصراف مشتری</span>;
       case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Wrench size={14}/> در حال بررسی / پذیرش</span>;
+      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> در انتظار دریافت دستگاه</span>;
       case 'accepted': return <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> پذیرش شده</span>;
       case 'rejected': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> عدم پذیرش</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Loader2 size={14} className="animate-spin"/> در حال تعمیر</span>;
-      case 'estimated': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> برآورد هزینه</span>;
-      case 'invoiced': return <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> صدور فاکتور</span>;
+      case 'estimated': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> برآورد هزینه نهایی</span>;
+      case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><ShoppingCart size={14}/> در انتظار بازرگانی</span>;
+      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> در انتظار واحد مالی</span>;
+      case 'invoiced': return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> آماده تحویل (فاکتور صادر شد)</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
     }
   };

@@ -122,14 +122,15 @@ export default function CeoPanelPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending_ceo_initial': return <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold animate-pulse">نیازمند برآورد اولیه</span>;
+      case 'pending_coordinator': return <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold">ثبت اولیه</span>;
+      case 'pending_ceo_initial': return <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold animate-pulse">نیازمند برآورد اولیه</span>;
       case 'pending_customer_approval': return <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-bold">در انتظار تایید مشتری</span>;
       case 'canceled_by_customer': return <span className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs font-bold">لغو شده توسط مشتری</span>;
-      case 'estimated': return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold animate-pulse">نیازمند برآورد نهایی</span>;
-      case 'pending_coordinator': return <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-bold">ثبت اولیه</span>;
       case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">بررسی سرپرست</span>;
+      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">در انتظار دریافت دستگاه</span>;
       case 'accepted': return <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-bold">پذیرش شده</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold">در حال تعمیر</span>;
+      case 'estimated': return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold animate-pulse">نیازمند برآورد نهایی</span>;
       case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">در انتظار بازرگانی</span>;
       case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2 py-1 rounded text-xs font-bold">در انتظار مالی</span>;
       case 'invoiced': return <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">فاکتور شده</span>;
