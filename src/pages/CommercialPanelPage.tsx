@@ -81,9 +81,8 @@ export default function CommercialPanelPage() {
     }
   };
 
-  const handleSubmitNewRequest = async (e: React.FormEvent) => {
+ const handleSubmitNewRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.id) return toast.error('خطا در احراز هویت');
     if (!formData.device_info || !formData.fault_description) return toast.error('نام دستگاه و شرح مشکل الزامی است');
     
     setIsSubmitting(true);
@@ -93,20 +92,12 @@ export default function CommercialPanelPage() {
       : formData.fault_description;
 
     try {
-      // --- بخش جدید برای حل خطای Foreign Key ---
-      // ایجاد پروفایل سازمانی برای کاربر پرسنل تا دیتابیس خطای customer_id نگیرد
-      await supabase.from('profiles').upsert([
-        {
-          id: profile.id,
-          full_name: profile.full_name || 'درخواست سازمانی (واحد بازرگانی)',
-          phone: profile.username || '00000000000'
-        }
-      ], { onConflict: 'id' });
-      // ------------------------------------------
+      // استفاده مستقیم و قطعی از آیدی واحد بازرگانی که در جدول profiles ساختیم
+      const commercialProfileId = 'c78297a5-bb21-4701-b289-20352ef29f73';
 
       const { error } = await supabase.from('repair_requests').insert([
         {
-          customer_id: profile.id,
+          customer_id: commercialProfileId, // آیدی ثابتی که در تصویر ۲۴ مشاهده شد
           tracking_code: trackingCode,
           device_info: formData.device_info,
           brand: formData.brand,
@@ -120,7 +111,7 @@ export default function CommercialPanelPage() {
 
       if (error) throw error;
       
-      toast.success(`درخواست شما با کد ${trackingCode} با موفقیت ثبت شد`);
+      toast.success(`درخواست سازمانی شما با کد ${trackingCode} با موفقیت ثبت شد`);
       setFormData({ device_info: '', brand: '', serial_number: '', part_number: '', project_name: '', fault_description: '', needs_price_estimate: false });
       setActiveTab('my_requests');
       fetchData();
@@ -130,7 +121,6 @@ export default function CommercialPanelPage() {
       setIsSubmitting(false);
     }
   };
-
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) return toast.error('رمز عبور باید حداقل ۶ کاراکتر باشد');
