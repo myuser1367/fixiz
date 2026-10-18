@@ -24,6 +24,8 @@ export default function SupervisorPanelPage() {
   const [newPartQty, setNewPartQty] = useState(1);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
+const COMMERCIAL_CUSTOMER_ID = '5a78bd79-b143-4b40-b603-2b55fdbc32eb';
+
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -223,31 +225,24 @@ export default function SupervisorPanelPage() {
                 ) : (
                   requests.map(req => {
                     // بررسی اینکه آیا این درخواست از مرحله تایید قیمت مشتری عبور کرده است یا خیر
-                    const isPriceApprovedByCustomer = ['accepted', 'repairing', 'estimated', 'pending_commercial', 'pending_finance', 'invoiced'].includes(req.status);
-
+                    //const isPriceApprovedByCustomer = ['accepted', 'repairing', 'estimated', 'pending_commercial', 'pending_finance', 'invoiced'].includes(req.status);
+const isCommercial = req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
                     return (
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
-                        <td className="py-4 px-3">
-                          {(() => {
-                            const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
-                            return (
-                              <>
-                                <div className="font-bold text-slate-800">
-                                  {isCommercial ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام')}
-                                </div>
-                                <div className="text-xs font-mono text-slate-500" dir="ltr">
-                                  {isCommercial ? 'ثبت سازمانی' : (req.profiles?.phone || '---')}
-                                </div>
-                                {isCommercial && (
-                                  <span className="inline-block mt-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-md font-bold">
-                                    🛒 درخواست بازرگانی
-                                  </span>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </td>
+                      <td className="py-4 px-3">
+  <div className="font-bold text-slate-800">
+    {req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی') ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام')}
+  </div>
+  <div className="text-xs font-mono text-slate-500" dir="ltr">
+    {req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی') ? 'ثبت سازمانی' : (req.profiles?.phone || '---')}
+  </div>
+  {(req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی')) && (
+    <span className="inline-block mt-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-md font-bold">
+      🛒 درخواست بازرگانی
+    </span>
+  )}
+</td>
                        <td className="py-4 px-3">
   {getStatusBadge(req.status)}
 </td>

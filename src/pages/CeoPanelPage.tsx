@@ -25,6 +25,10 @@ export default function CeoPanelPage() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
 
+
+  const COMMERCIAL_CUSTOMER_ID = '5a78bd79-b143-4b40-b603-2b55fdbc32eb';
+
+  
   useEffect(() => {
     fetchRequests();
   }, []);

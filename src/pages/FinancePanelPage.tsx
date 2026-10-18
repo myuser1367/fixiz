@@ -18,6 +18,10 @@ export default function FinancePanelPage() {
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
+
+  const COMMERCIAL_CUSTOMER_ID = '5a78bd79-b143-4b40-b603-2b55fdbc32eb';
+
+  
   useEffect(() => {
     fetchData();
   }, []);
