@@ -69,6 +69,7 @@ export default function CommercialPanelPage() {
   const fetchData = async () => {
     setIsLoading(true);
     
+    // ۱. دریافت کارتابل تاییدیه بازرگانی
     const { data: queueData, error: queueError } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -78,11 +79,11 @@ export default function CommercialPanelPage() {
     if (queueError) toast.error('خطا در دریافت کارتابل');
     else setQueueRequests(queueData || []);
 
-    // دریافت درخواست‌های ثبت شده توسط واحد بازرگانی (بر اساس آیدی ثابت یا برچسب پروژه)
+    // ۲. دریافت درخواست‌های ثبت شده توسط واحد بازرگانی (فقط بر اساس آیدی ثابت سازمانی)
     const { data: myData, error: myError } = await supabase
       .from('repair_requests')
       .select('*')
-      .or(`customer_id.eq.${COMMERCIAL_CUSTOMER_ID},project_name.ilike.%[بازرگانی]%,fault_description.ilike.%[ثبت شده توسط واحد بازرگانی]%`)
+      .eq('customer_id', COMMERCIAL_CUSTOMER_ID)
       .order('created_at', { ascending: false });
         
     if (myError) {
