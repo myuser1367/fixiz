@@ -83,7 +83,6 @@ export default function CommercialPanelPage() {
 
 const handleSubmitNewRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.username) return toast.error('خطا در تشخیص نام کاربری شما');
     if (!formData.device_info || !formData.fault_description) return toast.error('نام دستگاه و شرح مشکل الزامی است');
     
     setIsSubmitting(true);
@@ -93,21 +92,13 @@ const handleSubmitNewRequest = async (e: React.FormEvent) => {
       : formData.fault_description;
 
     try {
-      // پیدا کردن خودکار آیدی واحد بازرگانی از روی شماره موبایل (username پرسنل)
-      const { data: commercialProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('phone', profile.username)
-        .single();
+      // آیدی مشخص و ثابتی که در جدول profiles برای واحد بازرگانی ساختید
+      const commercialProfileId = 'c78297a5-bb21-4701-b289-20352ef29f73';
 
-      if (profileError || !commercialProfile) {
-        throw new Error('پروفایل واحد بازرگانی در جدول مشتریان یافت نشد.');
-      }
-
-      // ثبت درخواست با آیدی دقیق واحد بازرگانی
+      // ثبت درخواست با آیدی واحد بازرگانی
       const { error } = await supabase.from('repair_requests').insert([
         {
-          customer_id: commercialProfile.id,
+          customer_id: commercialProfileId,
           tracking_code: trackingCode,
           device_info: formData.device_info,
           brand: formData.brand,
