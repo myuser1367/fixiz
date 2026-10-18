@@ -124,7 +124,7 @@ export default function CommercialPanelPage() {
         .eq('id', id);
 
       if (error) throw error;
-      toast.success('تاییدیه نهایی صادر شد و درخواست جهت ثبت خروج به هماهنگی ارجاع داده شد');
+      toast.success('تاییدیه نهایی صادر شد و درخواست جهت ثبت خروج ارجاع داده شد');
       fetchData();
     } catch (err: any) {
       toast.error('خطا در تایید نهایی: ' + err.message);
@@ -410,7 +410,7 @@ export default function CommercialPanelPage() {
                               onClick={() => handleFinalApproval(req.id)} 
                               className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5"
                             >
-                              <Send size={16} /> تایید خروج و ارجاع به هماهنگی
+                              <Send size={16} /> تایید خروج 
                             </button>
                           )}
                         </td>
