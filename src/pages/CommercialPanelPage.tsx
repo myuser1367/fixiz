@@ -45,7 +45,7 @@ export default function CommercialPanelPage() {
     needs_price_estimate: false,
   });
 
-  // استیت‌های پیگیری و ویرایش مشابه پنل مشتری
+  // استیت‌های پیگیری و ویرایش
   const [selectedTrackingReq, setSelectedTrackingReq] = useState<RepairRequest | null>(null);
   const [editingReq, setEditingReq] = useState<RepairRequest | null>(null);
   const [editFormData, setEditFormData] = useState({
@@ -80,11 +80,11 @@ export default function CommercialPanelPage() {
     if (queueError) toast.error('خطا در دریافت کارتابل');
     else setQueueRequests(queueData || []);
 
-    // ۲. دریافت درخواست‌های ثبت شده توسط واحد بازرگانی (بر اساس customer_id ثابت یا برچسب سازمانی)
+    // ۲. دریافت درخواست‌های ثبت شده توسط واحد بازرگانی بر اساس آیدی ثابت
     const { data: myData, error: myError } = await supabase
       .from('repair_requests')
       .select('*')
-.eq('customer_id', COMMERCIAL_CUSTOMER_ID)
+      .eq('customer_id', COMMERCIAL_CUSTOMER_ID)
       .order('created_at', { ascending: false });
         
     if (myError) {
@@ -121,13 +121,17 @@ export default function CommercialPanelPage() {
     
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
-    
-    // توضیحات کاملاً تمیز و بدون براکت‌های اضافی
     const finalDescription = formData.serial_number 
       ? `شماره سریال: ${formData.serial_number}\n${formData.fault_description}` 
       : formData.fault_description;
 
     try {
+      // اطمینان از اینکه پروفایل بازرگانی نام و تلفن درستی دارد
+      await supabase.from('profiles').update({
+        full_name: 'واحد بازرگانی',
+        phone: '09120001144'
+      }).eq('id', COMMERCIAL_CUSTOMER_ID);
+
       const { error } = await supabase.from('repair_requests').insert([
         {
           customer_id: COMMERCIAL_CUSTOMER_ID,
@@ -138,7 +142,7 @@ export default function CommercialPanelPage() {
           needs_price_estimate: formData.needs_price_estimate,
           status: 'pending_coordinator',
           part_number: formData.part_number,
-          project_name: formData.project_name || 'ثبت سازمانی'
+          project_name: formData.project_name ? `[بازرگانی] ${formData.project_name}` : 'ثبت سازمانی'
         }
       ]);
 
@@ -154,6 +158,7 @@ export default function CommercialPanelPage() {
       setIsSubmitting(false);
     }
   };
+
   const handleOpenEdit = (req: RepairRequest) => {
     setEditingReq(req);
     setEditFormData({
@@ -453,7 +458,6 @@ export default function CommercialPanelPage() {
                       <p className="text-sm text-slate-600 line-clamp-2 mt-2">{req.fault_description}</p>
                     </div>
                     
-                    {/* دکمه‌های پیگیری، ویرایش و حذف مشابه پنل مشتری */}
                     <div className="flex items-center gap-2 md:flex-col shrink-0">
                       <button 
                         onClick={() => setSelectedTrackingReq(req)}
@@ -488,7 +492,7 @@ export default function CommercialPanelPage() {
         )}
       </main>
 
-      {/* مودال ویرایش درخواست */}
+      {/* مدال ویرایش درخواست */}
       {editingReq && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
@@ -557,7 +561,7 @@ export default function CommercialPanelPage() {
         </div>
       )}
 
-      {/* مدال پیگیری مراحل (مشابه پنل مشتری) */}
+      {/* مدال پیگیری مراحل */}
       {selectedTrackingReq && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">

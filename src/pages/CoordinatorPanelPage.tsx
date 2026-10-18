@@ -236,10 +236,10 @@ export default function CoordinatorPanelPage() {
                         </td>
                        <td className="py-4 px-3">
   <div className="font-bold text-slate-800">
-    {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' ? 'واحد بازرگانی (سازمانی)' : (req.profiles?.full_name || 'بدون نام')}
+    {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام')}
   </div>
   <div className="text-xs font-mono text-slate-500" dir="ltr">
-    {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' ? 'ثبت داخلی شرکت' : req.profiles?.phone}
+    {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' ? 'ثبت سازمانی' : req.profiles?.phone}
   </div>
   {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' && (
     <span className="inline-block mt-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-md font-bold">
