@@ -139,9 +139,8 @@ export default function CommercialPanelPage() {
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
     
-    const finalDescription = `ثبت شده توسط واحد بازرگانی\n` +
-      (formData.serial_number ? `شماره سریال: ${formData.serial_number}\n` : '') + 
-      formData.fault_description;
+    // اصلاح: حذف عبارت "ثبت شده توسط واحد بازرگانی" از متن شرح مشکل
+    const finalDescription = (formData.serial_number ? `[شماره سریال: ${formData.serial_number}]\n` : '') + formData.fault_description;
 
     try {
       const { error } = await supabase.from('repair_requests').insert([
@@ -484,7 +483,7 @@ export default function CommercialPanelPage() {
                         <span className="bg-slate-50 px-2.5 py-1 rounded border border-slate-100">{req.project_name || 'بدون پروژه'}</span>
                         <span dir="ltr">{new Date(req.created_at).toLocaleDateString('fa-IR')}</span>
                       </div>
-                      <p className="text-sm text-slate-600 line-clamp-2 mt-2">{req.fault_description}</p>
+                      <p className="text-sm text-slate-600 line-clamp-2 mt-2"><span className="font-bold text-slate-500">شرح مشکل:</span> {req.fault_description}</p>
                     </div>
                     
                     <div className="flex items-center gap-2 md:flex-col shrink-0">
