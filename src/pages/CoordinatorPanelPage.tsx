@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, FileSpreadsheet, Check, Calendar, Clock, Wrench, Activity, List } from 'lucide-react';
+import { LogOut, Home, FileSpreadsheet, Check, Calendar, Clock, Wrench, Activity, List, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -10,7 +10,6 @@ export default function CoordinatorPanelPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
   
-  // استیت‌های مربوط به مدیریت تب‌ها
   const [activeTab, setActiveTab] = useState<'queue' | 'reports'>('queue');
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,7 +20,6 @@ export default function CoordinatorPanelPage() {
 
   const fetchRequests = async () => {
     setIsLoading(true);
-    // دریافت تمامی درخواست‌های سیستم بدون فیلتر جهت استفاده در تب گزارشات
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -39,7 +37,45 @@ export default function CoordinatorPanelPage() {
     console.log(`[SMS SIMULATION] To: ${phone} | Message: برآورد قیمت درخواست تعمیر شما با کد ${trackingCode} تایید شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فرافن`);
   };
 
+  // تابع جدید برای خواندن مقادیر تاریخ از صفحه و ثبت آن‌ها (بدون نیاز به onBlur)
+  const handleSaveDateTime = async (id: string, silent: boolean = false) => {
+    const updateData: any = {};
+    
+    const recDateEl = document.getElementById(`recDate_${id}`) as HTMLInputElement;
+    const recTimeEl = document.getElementById(`recTime_${id}`) as HTMLInputElement;
+    if (recDateEl && recDateEl.value) {
+        updateData.received_at = new Date(`${recDateEl.value}T${recTimeEl?.value || '00:00'}:00`).toISOString();
+    } else if (recDateEl && !recDateEl.value) {
+        updateData.received_at = null;
+    }
+
+    const delDateEl = document.getElementById(`delDate_${id}`) as HTMLInputElement;
+    const delTimeEl = document.getElementById(`delTime_${id}`) as HTMLInputElement;
+    if (delDateEl && delDateEl.value) {
+        updateData.delivered_at = new Date(`${delDateEl.value}T${delTimeEl?.value || '00:00'}:00`).toISOString();
+    } else if (delDateEl && !delDateEl.value) {
+        updateData.delivered_at = null;
+    }
+
+    const { error } = await supabase.from('repair_requests').update(updateData).eq('id', id);
+    
+    if (error) {
+      if (!silent) toast.error('خطا در ثبت زمان');
+      return false;
+    } else {
+      if (!silent) {
+        toast.success('زمان با موفقیت ثبت شد');
+        fetchRequests();
+      }
+      return true;
+    }
+  };
+
+  // تابع تغییر وضعیت که حالا ابتدا تاریخ‌ها را نیز ذخیره می‌کند
   const handleStatusChange = async (id: string, newStatus: string, customerPhone?: string, trackingCode?: string) => {
+    // ابتدا تاریخ و زمان تایپ شده را به صورت بی‌صدا ذخیره می‌کند
+    await handleSaveDateTime(id, true);
+
     const { error } = await supabase
       .from('repair_requests')
       .update({ status: newStatus })
@@ -48,31 +84,11 @@ export default function CoordinatorPanelPage() {
     if (error) {
       toast.error('خطا در بروزرسانی وضعیت');
     } else {
-      toast.success('وضعیت با موفقیت تغییر کرد');
+      toast.success('وضعیت و زمان با موفقیت ثبت شد');
       if (newStatus === 'waiting_for_device' && customerPhone) {
         sendDeviceSendSms(customerPhone, trackingCode || '');
         toast.success(`پیامک درخواست ارسال دستگاه به شماره ${customerPhone} ارسال شد.`);
       }
-      fetchRequests();
-    }
-  };
-
-  const handleDateTimeUpdate = async (id: string, field: 'received_at' | 'delivered_at', dateVal: string, timeVal: string) => {
-    let combinedDateTime = null;
-    if (dateVal) {
-      const time = timeVal || '00:00';
-      combinedDateTime = new Date(`${dateVal}T${time}:00`).toISOString();
-    }
-    
-    const { error } = await supabase
-      .from('repair_requests')
-      .update({ [field]: combinedDateTime })
-      .eq('id', id);
-
-    if (error) {
-      toast.error('خطا در ثبت تاریخ و ساعت');
-    } else {
-      toast.success('اطلاعات زمان با موفقیت ثبت شد');
       fetchRequests();
     }
   };
@@ -130,7 +146,6 @@ export default function CoordinatorPanelPage() {
     }
   };
 
-  // فیلتر کردن درخواست‌ها برای تب "کارتابل هماهنگی"
   const queueRequests = requests.filter(r => r.status === 'pending_coordinator' || r.status === 'waiting_for_device');
 
   return (
@@ -160,7 +175,6 @@ export default function CoordinatorPanelPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* تب‌های جابجایی بین کارتابل و گزارشات */}
         <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 mb-6 w-full max-w-md mx-auto md:mx-0">
           <button onClick={() => setActiveTab('queue')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'queue' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
             <Activity size={18} /> کارتابل هماهنگی 
@@ -235,39 +249,48 @@ export default function CoordinatorPanelPage() {
                           {getStatusBadge(req.status)}
                         </td>
                         <td className="py-4 px-3">
-                          {/* اگر در تب هماهنگی باشیم فیلدهای قابل تغییر نشان داده می‌شود، در گزارشات فقط متن خواندنی */}
+                          {/* نمایش فیلدها فقط در تب کارتابل */}
                           {activeTab === 'queue' ? (
                             <div className="space-y-2">
                               <div className="flex items-center gap-2 text-xs text-slate-600">
                                 <span className="flex items-center gap-1 font-bold w-12"><Calendar size={13} className="text-slate-400"/> ورود:</span>
+                                {/* دقت کنید onBlur ها کاملا حذف شدند و id اضافه شد */}
                                 <input 
+                                  id={`recDate_${req.id}`}
                                   type="date" 
                                   defaultValue={recDate}
-                                  onBlur={(e) => handleDateTimeUpdate(req.id, 'received_at', e.target.value, recTime)}
                                   className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
                                 />
                                 <input 
+                                  id={`recTime_${req.id}`}
                                   type="time" 
                                   defaultValue={recTime}
-                                  onBlur={(e) => handleDateTimeUpdate(req.id, 'received_at', recDate, e.target.value)}
                                   className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
                                 />
                               </div>
                               <div className="flex items-center gap-2 text-xs text-slate-600">
                                 <span className="flex items-center gap-1 font-bold w-12"><Clock size={13} className="text-slate-400"/> خروج:</span>
                                 <input 
+                                  id={`delDate_${req.id}`}
                                   type="date" 
                                   defaultValue={delDate}
-                                  onBlur={(e) => handleDateTimeUpdate(req.id, 'delivered_at', e.target.value, delTime)}
                                   className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
                                 />
                                 <input 
+                                  id={`delTime_${req.id}`}
                                   type="time" 
                                   defaultValue={delTime}
-                                  onBlur={(e) => handleDateTimeUpdate(req.id, 'delivered_at', delDate, e.target.value)}
                                   className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
                                 />
                               </div>
+                              
+                              {/* دکمه اختصاصی برای ثبت تاریخ در صورتی که کاربر نخواهد روی دکمه‌های اصلی کلیک کند */}
+                              <button 
+                                onClick={() => handleSaveDateTime(req.id)}
+                                className="w-full mt-1.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"
+                              >
+                                <Save size={14}/> ذخیره تاریخ
+                              </button>
                             </div>
                           ) : (
                             <div className="space-y-1 text-xs text-slate-600">
@@ -277,7 +300,7 @@ export default function CoordinatorPanelPage() {
                           )}
                         </td>
                         {activeTab === 'queue' && (
-                          <td className="py-4 px-3 text-center">
+                          <td className="py-4 px-3 text-center align-top pt-5">
                             {req.status === 'pending_coordinator' && (
                               <div className="flex flex-col items-center justify-center gap-2">
                                 {req.needs_price_estimate ? (
