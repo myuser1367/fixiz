@@ -14,6 +14,9 @@ export default function CoordinatorPanelPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // آیدی ثابتی که برای واحد بازرگانی در جدول profiles ایجاد شده است
+  const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-20352ef29f73';
+
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -37,7 +40,6 @@ export default function CoordinatorPanelPage() {
     console.log(`[SMS SIMULATION] To: ${phone} | Message: برآورد قیمت درخواست تعمیر شما با کد ${trackingCode} تایید شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فرافن`);
   };
 
-  // تابع جدید برای خواندن مقادیر تاریخ از صفحه و ثبت آن‌ها (بدون نیاز به onBlur)
   const handleSaveDateTime = async (id: string, silent: boolean = false) => {
     const updateData: any = {};
     
@@ -71,9 +73,7 @@ export default function CoordinatorPanelPage() {
     }
   };
 
-  // تابع تغییر وضعیت که حالا ابتدا تاریخ‌ها را نیز ذخیره می‌کند
   const handleStatusChange = async (id: string, newStatus: string, customerPhone?: string, trackingCode?: string) => {
-    // ابتدا تاریخ و زمان تایپ شده را به صورت بی‌صدا ذخیره می‌کند
     await handleSaveDateTime(id, true);
 
     const { error } = await supabase
@@ -99,6 +99,7 @@ export default function CoordinatorPanelPage() {
     const rows = requests.map((req, index) => {
       const rDate = req.received_at ? new Date(req.received_at).toLocaleDateString('fa-IR') : '---';
       const dDate = req.delivered_at ? new Date(req.delivered_at).toLocaleDateString('fa-IR') : '---';
+      const customerName = req.customer_id === COMMERCIAL_CUSTOMER_ID ? 'واحد بازرگانی' : (req.profiles?.full_name || 'نامشخص');
       return [
         index + 1,
         req.project_name || '---',
@@ -107,7 +108,7 @@ export default function CoordinatorPanelPage() {
         req.brand || '---',
         req.tracking_code,
         req.serial_number || '---',
-        req.profiles?.full_name || 'نامشخص',
+        customerName,
         req.status,
         rDate,
         dDate
@@ -225,38 +226,36 @@ export default function CoordinatorPanelPage() {
                     const delDate = deliveredObj ? deliveredObj.toISOString().split('T')[0] : '';
                     const delTime = deliveredObj ? deliveredObj.toTimeString().slice(0, 5) : '';
 
-                    //const isPriceApproved = req.status !== 'pending_coordinator' && req.status !== 'pending_ceo_initial' && req.status !== 'pending_customer_approval' && req.status !== 'canceled_by_customer';
+                    const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]');
 
                     return (
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
                         <td className="py-4 px-3">
-                          <div className="font-bold text-slate-800">{req.profiles?.full_name || 'بدون نام'}</div>
-                          <div className="text-xs font-mono text-slate-500" dir="ltr">{req.profiles?.phone}</div>
+                          <div className="font-bold text-slate-800">
+                            {isCommercial ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام')}
+                          </div>
+                          <div className="text-xs font-mono text-slate-500" dir="ltr">
+                            {isCommercial ? 'ثبت سازمانی' : req.profiles?.phone}
+                          </div>
+                          {isCommercial && (
+                            <span className="inline-block mt-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-md font-bold">
+                              🛒 درخواست بازرگانی
+                            </span>
+                          )}
                         </td>
-                       <td className="py-4 px-3">
-  <div className="font-bold text-slate-800">
-    {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام')}
-  </div>
-  <div className="text-xs font-mono text-slate-500" dir="ltr">
-    {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' ? 'ثبت سازمانی' : req.profiles?.phone}
-  </div>
-  {req.customer_id === 'c78297a5-bb21-4701-b289-20352ef29f73' && (
-    <span className="inline-block mt-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-md font-bold">
-      🛒 درخواست بازرگانی
-    </span>
-  )}
-</td>
+                        <td className="py-4 px-3">
+                          <div className="font-bold text-slate-800">{req.device_info}</div>
+                          <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
+                        </td>
                         <td className="py-4 px-3">
                           {getStatusBadge(req.status)}
                         </td>
                         <td className="py-4 px-3">
-                          {/* نمایش فیلدها فقط در تب کارتابل */}
                           {activeTab === 'queue' ? (
                             <div className="space-y-2">
                               <div className="flex items-center gap-2 text-xs text-slate-600">
                                 <span className="flex items-center gap-1 font-bold w-12"><Calendar size={13} className="text-slate-400"/> ورود:</span>
-                                {/* دقت کنید onBlur ها کاملا حذف شدند و id اضافه شد */}
                                 <input 
                                   id={`recDate_${req.id}`}
                                   type="date" 
@@ -286,7 +285,6 @@ export default function CoordinatorPanelPage() {
                                 />
                               </div>
                               
-                              {/* دکمه اختصاصی برای ثبت تاریخ در صورتی که کاربر نخواهد روی دکمه‌های اصلی کلیک کند */}
                               <button 
                                 onClick={() => handleSaveDateTime(req.id)}
                                 className="w-full mt-1.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"

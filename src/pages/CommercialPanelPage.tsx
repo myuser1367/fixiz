@@ -18,6 +18,7 @@ interface RepairRequest {
   final_price?: number;
   part_number?: string;
   project_name?: string;
+  customer_id?: string;
 }
 
 export default function CommercialPanelPage() {
@@ -34,7 +35,6 @@ export default function CommercialPanelPage() {
   // آیدی ثابتی که برای واحد بازرگانی در جدول profiles ایجاد شده است
   const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-20352ef29f73';
 
-  // استیت فرم ثبت درخواست جدید
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
@@ -45,7 +45,6 @@ export default function CommercialPanelPage() {
     needs_price_estimate: false,
   });
 
-  // استیت‌های پیگیری و ویرایش
   const [selectedTrackingReq, setSelectedTrackingReq] = useState<RepairRequest | null>(null);
   const [editingReq, setEditingReq] = useState<RepairRequest | null>(null);
   const [editFormData, setEditFormData] = useState({
@@ -70,7 +69,6 @@ export default function CommercialPanelPage() {
   const fetchData = async () => {
     setIsLoading(true);
     
-    // ۱. دریافت کارتابل تاییدیه بازرگانی
     const { data: queueData, error: queueError } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -80,11 +78,11 @@ export default function CommercialPanelPage() {
     if (queueError) toast.error('خطا در دریافت کارتابل');
     else setQueueRequests(queueData || []);
 
-    // ۲. دریافت درخواست‌های ثبت شده توسط واحد بازرگانی بر اساس آیدی ثابت
+    // دریافت درخواست‌های ثبت شده توسط واحد بازرگانی (بر اساس آیدی ثابت یا برچسب پروژه)
     const { data: myData, error: myError } = await supabase
       .from('repair_requests')
       .select('*')
-      .eq('customer_id', COMMERCIAL_CUSTOMER_ID)
+      .or(`customer_id.eq.${COMMERCIAL_CUSTOMER_ID},project_name.ilike.%[بازرگانی]%,fault_description.ilike.%[ثبت شده توسط واحد بازرگانی]%`)
       .order('created_at', { ascending: false });
         
     if (myError) {
@@ -121,17 +119,11 @@ export default function CommercialPanelPage() {
     
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
-    const finalDescription = formData.serial_number 
-      ? `شماره سریال: ${formData.serial_number}\n${formData.fault_description}` 
-      : formData.fault_description;
+    const finalDescription = `[ثبت شده توسط واحد بازرگانی]\n` +
+      (formData.serial_number ? `شماره سریال: ${formData.serial_number}\n` : '') + 
+      formData.fault_description;
 
     try {
-      // اطمینان از اینکه پروفایل بازرگانی نام و تلفن درستی دارد
-      await supabase.from('profiles').update({
-        full_name: 'واحد بازرگانی',
-        phone: '09120001144'
-      }).eq('id', COMMERCIAL_CUSTOMER_ID);
-
       const { error } = await supabase.from('repair_requests').insert([
         {
           customer_id: COMMERCIAL_CUSTOMER_ID,
@@ -142,7 +134,7 @@ export default function CommercialPanelPage() {
           needs_price_estimate: formData.needs_price_estimate,
           status: 'pending_coordinator',
           part_number: formData.part_number,
-          project_name: formData.project_name ? `[بازرگانی] ${formData.project_name}` : 'ثبت سازمانی'
+          project_name: formData.project_name ? `[بازرگانی] ${formData.project_name}` : '[ثبت سازمانی]'
         }
       ]);
 
