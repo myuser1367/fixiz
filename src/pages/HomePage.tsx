@@ -4,8 +4,7 @@ import { Header } from '../components/Header';
 import { supabase } from '../lib/supabase';
 import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, Check, FileText, Wrench, Search, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { sendUserNotification } from '../lib/notifications';
-
+import { sendUserNotification, sendOtpSMS } from '../lib/notifications';
 interface RepairRequest {
   id: string;
   tracking_code: string;
@@ -174,6 +173,23 @@ const handleCustVerify = async (e: React.FormEvent) => {
     setIsLoading(true);
     try {
       const { isFirstLogin } = await personnelLogin(persUsername, persPassword);
+      
+      // === بخش جدید: دریافت شماره موبایل پرسنل از دیتابیس و ارسال پیامک ===
+      const { data: personnelData, error } = await supabase
+        .from('personnel_users')
+        .select('phone')
+        .eq('username', persUsername)
+        .single();
+        
+      if (!error && personnelData?.phone) {
+         // ارسال پیامک OTP (شبیه‌سازی). فعلا کد ثابت 123456 است.
+         await sendOtpSMS(personnelData.phone, '123456');
+         console.log(`💬 پیامک کد تایید برای پرسنل ${persUsername} به شماره ${personnelData.phone} ارسال شد.`);
+      } else {
+         console.warn(`⚠️ شماره موبایلی برای نام کاربری ${persUsername} یافت نشد یا خطا رخ داد.`);
+      }
+      // =================================================================
+
       if (isFirstLogin) {
         setPersStep('first_login');
         toast.success('رمز پیش‌فرض تایید شد. کد تایید و رمز عبور جدید را وارد کنید (کد تستی: 123456)', { duration: 6000 });
