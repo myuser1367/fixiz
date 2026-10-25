@@ -133,7 +133,39 @@ export async function sendUserNotification(data: UserNotificationData) {
 }
 
 export async function sendAdminNotifications(data: NotificationData) {
-  // شبیه‌سازی ارسال پیامک به مدیر / واحد هماهنگی
-  console.log(`💬 [SIMULATED SMS - ADMIN_NEW_REQUEST]`);
-  console.log(`📝 پیامک مدیر: درخواست جدیدی با کد پیگیری ${data.trackingCode} توسط مشتری (${data.userMobile}) ثبت شد.`);
+  try {
+    // 1. دریافت شماره موبایل پرسنلی که *فقط* نقش واحد هماهنگی (coordinator) دارند
+    const { data: personnel, error } = await supabase
+      .from('personnel_users')
+      .select('phone, role, full_name')
+      .eq('role', 'coordinator'); // 👈 تغییر اصلی اینجاست: فقط نقش coordinator فیلتر می‌شود
+
+    if (error) {
+      console.error("خطا در دریافت شماره پرسنل واحد هماهنگی:", error);
+      return;
+    }
+
+    if (!personnel || personnel.length === 0) {
+      console.warn("هیچ پرسنلی با نقش واحد هماهنگی برای دریافت پیامک یافت نشد.");
+      return;
+    }
+
+    // 2. ارسال پیامک برای تک‌تک شماره‌های پیدا شده در واحد هماهنگی
+    for (const person of personnel) {
+      if (person.phone) {
+        await sendRealSMS({
+          mobile: person.phone,
+          bodyId: 534466, // <-- در آینده کد الگوی پیامک اطلاع‌رسانی ثبت درخواست جدید را اینجا بگذارید
+          args: [data.trackingCode, `مشتری: ${data.userMobile}`], 
+          logTag: `ADMIN_NEW_REQUEST_TO_${person.role.toUpperCase()}`
+        });
+
+        // لاگ کمکی برای دیباگ در کنسول
+        console.log(`💬 پیامک اطلاع‌رسانی ثبت درخواست جدید به ${person.full_name} (واحد هماهنگی) به شماره ${person.phone} ارسال شد.`);
+      }
+    }
+
+  } catch (err) {
+    console.error("خطای غیرمنتظره در ارسال پیامک هماهنگی:", err);
+  }
 }
