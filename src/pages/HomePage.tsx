@@ -4,6 +4,7 @@ import { Header } from '../components/Header';
 import { supabase } from '../lib/supabase';
 import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, Check, FileText, Wrench, Search, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { sendUserNotification } from '../lib/notifications';
 
 interface RepairRequest {
   id: string;
@@ -144,13 +145,22 @@ export default function HomePage() {
     } finally { setIsLoading(false); }
   };
 
-  const handleCustVerify = async (e: React.FormEvent) => {
+const handleCustVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (custOtp.length < 4) return toast.error('کد را کامل وارد کنید');
     setIsLoading(true);
     try {
       await verifyCustomerOtp(custPhone, custOtp);
       toast.success('ورود موفقیت‌آمیز');
+      
+      // --- کدهای اضافه شده برای ارسال پیامک ورود ---
+      await sendUserNotification({
+        trackingCode: 'ورود به سیستم',
+        userMobile: custPhone,
+        status: 'customer_login_success'
+      });
+      // --------------------------------------------
+
       window.location.href = '/panel';
     } catch (error: any) { 
       toast.error(error.message); 
@@ -178,12 +188,17 @@ export default function HomePage() {
     }
   };
 
-  const handlePersVerifyOtp = async (e: React.FormEvent) => {
+ const handlePersVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (persOtp !== '123456') return toast.error('کد تایید اشتباه است (کد تستی 123456 می‌باشد)');
     setIsLoading(true);
     try {
       toast.success('ورود شما تایید شد');
+      
+      // --- لاگ شبیه‌سازی ورود پرسنل ---
+      console.log(`💬 [SIMULATED SMS] Personnel logged in: ${persUsername}`);
+      // --------------------------------
+
       window.location.href = '/panel';
     } catch (error: any) { 
       toast.error('خطا در ورود به پنل'); 

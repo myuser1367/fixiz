@@ -5,7 +5,7 @@ import { LogOut, Home, FileSpreadsheet, DollarSign, Loader2, Key, BarChart3, Sea
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
-
+import { sendUserNotification } from '../lib/notifications';
 export default function CeoPanelPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
@@ -76,6 +76,18 @@ export default function CeoPanelPage() {
           .eq('id', selectedRequest.id);
         if (error) throw error;
         toast.success('برآورد اولیه (ریال) ثبت شد و در انتظار تایید مشتری می‌باشد.');
+        
+        // --- کد اضافه شده برای ارسال پیامک برآورد اولیه ---
+        if (selectedRequest.profiles?.phone) {
+           await sendUserNotification({
+             trackingCode: selectedRequest.tracking_code,
+             userMobile: selectedRequest.profiles.phone,
+             status: 'pending_customer_approval',
+             price: priceInput
+           });
+        }
+        // -------------------------------------------------
+
       } else {
         const { error } = await supabase
           .from('repair_requests')

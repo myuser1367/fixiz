@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { LogOut, Home, Wrench, Plus, Trash2, Loader2, Save, Key, FileText, Search, CheckCircle, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-
+import { sendUserNotification } from '../lib/notifications';
 export default function SupervisorPanelPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
@@ -48,11 +48,11 @@ export default function SupervisorPanelPage() {
     setIsLoading(false);
   };
 
-  const sendAcceptedSms = (phone: string, trackingCode: string) => {
-    console.log(`[SMS SIMULATION] To: ${phone} | Message: درخواست تعمیر شما با کد پیگیری ${trackingCode} پذیرش شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فیکسیز`);
-  };
+  // const sendAcceptedSms = (phone: string, trackingCode: string) => {
+  //   console.log(`[SMS SIMULATION] To: ${phone} | Message: درخواست تعمیر شما با کد پیگیری ${trackingCode} پذیرش شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فیکسیز`);
+  // };
 
-  const handleStatusChange = async (id: string, newStatus: string, customerPhone?: string, trackingCode?: string) => {
+ const handleStatusChange = async (id: string, newStatus: string, customerPhone?: string, trackingCode?: string) => {
     const { error } = await supabase
       .from('repair_requests')
       .update({ status: newStatus })
@@ -63,10 +63,16 @@ export default function SupervisorPanelPage() {
     } else {
       toast.success(newStatus === 'rejected' ? 'درخواست رد شد' : 'وضعیت با موفقیت به‌روزرسانی شد');
       
+      // --- ارسال پیامک پذیرش دستگاه ---
       if (newStatus === 'waiting_for_device' && customerPhone) {
-        sendAcceptedSms(customerPhone, trackingCode || '');
+        await sendUserNotification({
+          trackingCode: trackingCode || '',
+          userMobile: customerPhone,
+          status: 'accepted_waiting_device'
+        });
         toast.success(`پیامک اطلاع‌رسانی ارسال دستگاه به شماره ${customerPhone} ارسال شد.`);
       }
+      // --------------------------------
       
       setReviewRequest(null);
       fetchRequests();

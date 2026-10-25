@@ -110,21 +110,23 @@ export async function sendOtpSMS(mobile: string, code: string) {
 
 export async function sendUserNotification(data: UserNotificationData) {
   let statusFarsi = '';
+  
   // هماهنگ شده با وضعیت‌های سامانه تعمیرات فیکسیز
   switch (data.status) {
-    case 'pending_coordinator': statusFarsi = 'ثبت اولیه'; break;
-    case 'pending_supervisor':  statusFarsi = 'در حال بررسی'; break;
-    case 'accepted':            statusFarsi = 'پذیرش شده'; break;
-    case 'rejected':            statusFarsi = 'عدم پذیرش'; break;
-    case 'repairing':           statusFarsi = 'در حال تعمیر'; break;
-    case 'estimated':           statusFarsi = 'برآورد هزینه'; break;
-    case 'invoiced':            statusFarsi = 'صدور فاکتور و آماده تحویل'; break;
-    default:                    statusFarsi = 'بروزرسانی شده';
+    case 'customer_login_success': statusFarsi = 'ورود موفق به پنل کاربری'; break;
+    case 'pending_coordinator':    statusFarsi = 'درخواست جدید شما در سامانه ثبت شد و در حال بررسی است'; break;
+    case 'pending_supervisor':     statusFarsi = 'در حال بررسی توسط تکنسین'; break;
+    case 'accepted_waiting_device':statusFarsi = 'درخواست پذیرش شد، لطفا دستگاه را به شرکت ارسال کنید'; break;
+    case 'pending_customer_approval': statusFarsi = `هزینه اولیه: ${data.price} ریال. لطفا جهت تایید به پنل مراجعه کنید`; break;
+    case 'repairing':              statusFarsi = 'در حال تعمیر'; break;
+    case 'estimated':              statusFarsi = 'برآورد هزینه نهایی'; break;
+    case 'invoiced':               statusFarsi = `فاکتور نهایی صادر شد. مبلغ: ${data.price} ریال`; break;
+    default:                       statusFarsi = 'وضعیت درخواست شما بروزرسانی شد';
   }
   
   await sendRealSMS({ 
     mobile: data.userMobile, 
-    bodyId: 534466, // باید بعدا با کد الگوی تغییر وضعیت تعمیرات در پنل پیامک جایگزین شود
+    bodyId: 534466, 
     args: [data.trackingCode, statusFarsi], 
     logTag: 'USER_STATUS_UPDATE' 
   });

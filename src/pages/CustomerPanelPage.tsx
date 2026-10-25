@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { sendUserNotification, sendAdminNotifications } from '../lib/notifications';
 import { Home, Plus, List, Edit, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Loader2, LogOut, Search, Check, FileText, Wrench } from 'lucide-react';
 interface RepairRequest {
   id: string;
@@ -126,7 +127,7 @@ export default function CustomerPanelPage() {
       ? `[شماره سریال: ${formData.serial_number}]\n${formData.fault_description}` 
       : formData.fault_description;
 
-    try {
+  try {
       const { error } = await supabase.from('repair_requests').insert([
         {
           customer_id: profile.id,
@@ -144,6 +145,24 @@ export default function CustomerPanelPage() {
       if (error) throw error;
       
       toast.success(`درخواست شما با کد پیگیری ${trackingCode} ثبت شد`);
+      
+      // --- کدهای اضافه شده برای ارسال پیامک ثبت درخواست ---
+      if (profile?.phone) {
+        // پیامک به مشتری
+        await sendUserNotification({
+          trackingCode: trackingCode,
+          userMobile: profile.phone,
+          status: 'pending_coordinator'
+        });
+        
+        // پیامک به مدیر/هماهنگی
+        await sendAdminNotifications({
+          trackingCode: trackingCode,
+          userMobile: profile.phone
+        });
+      }
+      // ----------------------------------------------------
+
       setFormData({ device_info: '', brand: '', serial_number: '', part_number: '', project_name: '', fault_description: '', needs_price_estimate: false });
       setActiveTab('list');
       fetchRequests();
