@@ -230,7 +230,7 @@ export default function HomePage() {
 
           <div className="relative z-10 w-full max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8 xl:gap-16">
             
-            {/* سمت راست: متن‌ها و تصویر کارگاه */}
+           {/* سمت راست: متن‌ها و تصویر کارگاه */}
             <div className="text-center flex-1 animate-slide-up w-full max-w-2xl">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-10 leading-tight">
                 <span className="text-brand-light text-xl md:text-2xl block mb-4 font-bold tracking-wide">سامانه فیکسیز</span>
@@ -238,7 +238,8 @@ export default function HomePage() {
               </h1>
 
               {/* تصویر محیط کارگاه با افکت */}
-              <div className="relative w-full max-w-lg mx-auto lg:mx-0 rounded-[2.5rem] p-3 bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500">
+              {/* تغییر در خط زیر: lg:mx-0 حذف شد تا mx-auto در همه سایزها عمل کند */}
+              <div className="relative w-full max-w-lg mx-auto rounded-[2.5rem] p-3 bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500">
                 <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/20 to-transparent opacity-50 z-10 mix-blend-overlay"></div>
                 <img 
                   src="/hero-image.jpg" 
