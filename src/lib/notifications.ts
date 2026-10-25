@@ -131,3 +131,9 @@ export async function sendUserNotification(data: UserNotificationData) {
     logTag: 'USER_STATUS_UPDATE' 
   });
 }
+
+export async function sendAdminNotifications(data: NotificationData) {
+  // شبیه‌سازی ارسال پیامک به مدیر / واحد هماهنگی
+  console.log(`💬 [SIMULATED SMS - ADMIN_NEW_REQUEST]`);
+  console.log(`📝 پیامک مدیر: درخواست جدیدی با کد پیگیری ${data.trackingCode} توسط مشتری (${data.userMobile}) ثبت شد.`);
+}
