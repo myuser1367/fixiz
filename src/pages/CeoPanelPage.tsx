@@ -5,7 +5,7 @@ import { LogOut, Home, FileSpreadsheet, DollarSign, Loader2, Key, BarChart3, Sea
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
-import { sendUserNotification } from '../lib/notifications';
+
 export default function CeoPanelPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export default function CeoPanelPage() {
   const [newPassword, setNewPassword] = useState('');
 
   // آیدی یکپارچه شده واحد بازرگانی
- const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-203d5ea50acb';
+  const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-203d5ea50acb';
 
   useEffect(() => {
     fetchRequests();
@@ -76,18 +76,6 @@ export default function CeoPanelPage() {
           .eq('id', selectedRequest.id);
         if (error) throw error;
         toast.success('برآورد اولیه (ریال) ثبت شد و در انتظار تایید مشتری می‌باشد.');
-        
-        // --- کد اضافه شده برای ارسال پیامک برآورد اولیه ---
-        if (selectedRequest.profiles?.phone) {
-           await sendUserNotification({
-             trackingCode: selectedRequest.tracking_code,
-             userMobile: selectedRequest.profiles.phone,
-             status: 'pending_customer_approval',
-             price: priceInput
-           });
-        }
-        // -------------------------------------------------
-
       } else {
         const { error } = await supabase
           .from('repair_requests')
@@ -202,6 +190,19 @@ export default function CeoPanelPage() {
     } catch (err: any) { toast.error('خطا در تغییر رمز'); }
   };
 
+  // تابعی برای فرمت کردن تاریخ و زمان بدون ثانیه در هنگام استخراج
+  const formatDateTimeNoSeconds = (dateString: string | null) => {
+    if (!dateString) return 'ثبت نشده';
+    const date = new Date(dateString);
+    return date.toLocaleString('fa-IR', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const queueRequests = requests.filter(r => 
     r.status === 'estimated' || 
     r.status === 'pending_ceo_initial' || 
@@ -217,7 +218,7 @@ export default function CeoPanelPage() {
               <BarChart3 size={26} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-800">سامانه تعمیرات فرافن </h1>
+              <h1 className="text-xl font-extrabold text-slate-800">سامانه فیکسیز</h1>
               <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md">مدیریت مرکز</span>
             </div>
           </div>
@@ -368,14 +369,14 @@ export default function CeoPanelPage() {
                 </div>
               </div>
 
-              {/* نمایش زمان‌بندی دقیق ثبت، ورود و خروج دستگاه */}
+              {/* نمایش زمان‌بندی دقیق ثبت، ورود و خروج دستگاه (بدون ثانیه) */}
               <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 space-y-3">
                  <h4 className="font-bold text-indigo-900 text-xs uppercase tracking-wider flex items-center gap-1.5"><Clock size={14}/> زمان‌بندی فرآیند</h4>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                   <div><span className="text-indigo-400">تاریخ ثبت درخواست:</span> <strong className="text-indigo-900" dir="ltr">{new Date(selectedRequest.created_at).toLocaleString('fa-IR')}</strong></div>
+                   <div><span className="text-indigo-400">تاریخ ثبت درخواست:</span> <strong className="text-indigo-900" dir="ltr">{formatDateTimeNoSeconds(selectedRequest.created_at)}</strong></div>
                    <div><span className="text-indigo-400">تایید نهایی مشتری:</span> <strong className="text-indigo-900">{selectedRequest.needs_price_estimate ? 'بله' : 'بدون نیاز به برآورد'}</strong></div>
-                   <div><span className="text-indigo-400">زمان ورود دستگاه:</span> <strong className="text-indigo-900" dir="ltr">{selectedRequest.received_at ? new Date(selectedRequest.received_at).toLocaleString('fa-IR') : 'ثبت نشده'}</strong></div>
-                   <div><span className="text-indigo-400">زمان خروج دستگاه:</span> <strong className="text-indigo-900" dir="ltr">{selectedRequest.delivered_at ? new Date(selectedRequest.delivered_at).toLocaleString('fa-IR') : 'ثبت نشده'}</strong></div>
+                   <div><span className="text-indigo-400">زمان ورود دستگاه:</span> <strong className="text-indigo-900" dir="ltr">{formatDateTimeNoSeconds(selectedRequest.received_at)}</strong></div>
+                   <div><span className="text-indigo-400">زمان خروج دستگاه:</span> <strong className="text-indigo-900" dir="ltr">{formatDateTimeNoSeconds(selectedRequest.delivered_at)}</strong></div>
                  </div>
               </div>
 

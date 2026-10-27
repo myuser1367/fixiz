@@ -17,7 +17,6 @@ export default function CoordinatorPanelPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // استیت ذخیره‌سازی مقادیر تقویم شمسی
   const [dateValues, setDateValues] = useState<Record<string, {rec: Date | null, del: Date | null}>>({});
 
   const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-203d5ea50acb';
@@ -38,7 +37,6 @@ export default function CoordinatorPanelPage() {
     } else {
       setRequests(data || []);
       
-      // مقداردهی اولیه تاریخ‌ها برای تقویم
       const initialDates: any = {};
       (data || []).forEach(req => {
         initialDates[req.id] = {
@@ -70,9 +68,17 @@ export default function CoordinatorPanelPage() {
     const dates = dateValues[id];
     if (!dates) return true;
 
+    // حذف ثانیه و میلی‌ثانیه قبل از ذخیره در دیتابیس
+    const formatForDB = (d: Date | null) => {
+      if (!d) return null;
+      d.setSeconds(0);
+      d.setMilliseconds(0);
+      return d.toISOString();
+    };
+
     const updateData = {
-      received_at: dates.rec ? dates.rec.toISOString() : null,
-      delivered_at: dates.del ? dates.del.toISOString() : null
+      received_at: formatForDB(dates.rec),
+      delivered_at: formatForDB(dates.del)
     };
 
     const { error } = await supabase.from('repair_requests').update(updateData).eq('id', id);
@@ -147,6 +153,19 @@ export default function CoordinatorPanelPage() {
       case 'rejected': return <span className="bg-red-100 text-red-700 px-2.5 py-1 rounded-lg text-xs font-bold">عدم پذیرش</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold">وضعیت نامشخص</span>;
     }
+  };
+
+  // تابعی برای فرمت کردن تاریخ و زمان بدون ثانیه در هنگام استخراج
+  const formatDateTimeNoSeconds = (dateString: string | null) => {
+    if (!dateString) return 'ثبت نشده';
+    const date = new Date(dateString);
+    return date.toLocaleString('fa-IR', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const queueRequests = requests.filter(r => 
@@ -286,8 +305,8 @@ export default function CoordinatorPanelPage() {
                             </div>
                           ) : (
                             <div className="space-y-1 text-xs text-slate-600">
-                              <div><span className="font-bold text-slate-400">ورود: </span> {req.received_at ? new Date(req.received_at).toLocaleString('fa-IR') : 'ثبت نشده'}</div>
-                              <div><span className="font-bold text-slate-400">خروج: </span> {req.delivered_at ? new Date(req.delivered_at).toLocaleString('fa-IR') : 'ثبت نشده'}</div>
+                              <div><span className="font-bold text-slate-400">ورود: </span> {formatDateTimeNoSeconds(req.received_at)}</div>
+                              <div><span className="font-bold text-slate-400">خروج: </span> {formatDateTimeNoSeconds(req.delivered_at)}</div>
                             </div>
                           )}
                         </td>
@@ -295,7 +314,6 @@ export default function CoordinatorPanelPage() {
                           <td className="py-4 px-3 text-center align-top pt-5">
                             {req.status === 'pending_coordinator' && (
                               <div className="flex flex-col items-center justify-center gap-2">
-                                {/* اصلاح دکمه ارجاع بر اساس وضعیت برآورد قیمت */}
                                 {req.needs_price_estimate && !req.estimated_price ? (
                                   <button 
                                     onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
