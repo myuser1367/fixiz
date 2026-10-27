@@ -88,7 +88,7 @@ export default function MonitoringPanelPage() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white">تجهیزات فعال ارجاع‌شده به سرپرست تعمیر</h2>
+            <h2 className="text-xl font-bold text-white">تجهیزات فعال ارجاع‌شده به واحد تعمیرات</h2>
             <span className="bg-brand-primary text-slate-950 font-black px-3 py-0.5 rounded-full text-xs">{requests.length} دستگاه</span>
           </div>
           
@@ -120,7 +120,7 @@ export default function MonitoringPanelPage() {
                 {isLoading ? (
                   <tr><td colSpan={5} className="py-10 text-center text-slate-400">در حال بارگذاری اطلاعات مانیتورینگ...</td></tr>
                 ) : filteredRequests.length === 0 ? (
-                  <tr><td colSpan={5} className="py-10 text-center text-slate-400">هیچ دستگاه فعالی در کارتابل سرپرست تعمیر یافت نشد.</td></tr>
+                  <tr><td colSpan={5} className="py-10 text-center text-slate-400">هیچ دستگاه فعالی در کارتابل واحد تعمیرات یافت نشد.</td></tr>
                 ) : (
                   filteredRequests.map(req => (
                     <tr key={req.id} className="hover:bg-slate-700/50 transition-colors">
