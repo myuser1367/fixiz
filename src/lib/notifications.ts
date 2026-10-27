@@ -1,5 +1,12 @@
-// src/lib/notifications.ts
 import { supabase } from './supabase';
+
+// ============================================================================
+// 🎛 کلید تغییر حالت ارسال پیامک (آزمایشی / واقعی)
+// اگر true باشد: پیامک ارسال نمی‌شود و فقط در کنسول مرورگر نمایش داده می‌شود (حالت تست)
+// اگر false باشد: پیامک‌ها به صورت واقعی به پنل ملی‌پیامک ارسال می‌شوند.
+// ============================================================================
+const IS_SIMULATION_MODE = false; 
+
 
 export interface NotificationData {
   trackingCode: string;
@@ -44,12 +51,6 @@ async function getSmsConfig() {
 async function sendRealSMS(params: SmsParams) {
   if (!params.mobile) return;
   
-  const config = await getSmsConfig();
-  if (!config || !config.apiKey) {
-    console.warn(`⚠️ [${params.logTag}] پیامک ارسال نشد: تنظیمات تکمیل نیست.`);
-    return;
-  }
-
   let formattedMobile = String(params.mobile).replace(/[^\d]/g, '');
   if (formattedMobile.startsWith('98')) {
     formattedMobile = '0' + formattedMobile.substring(2);
@@ -62,6 +63,7 @@ async function sendRealSMS(params: SmsParams) {
     return;
   }
 
+  // جلوگیری از ارسال تکراری در فاصله کمتر از ۱۰ ثانیه
   const cacheKey = `${formattedMobile}_${params.bodyId}_${params.args?.join('')}`;
   const now = Date.now();
   if (sentSmsCache.has(cacheKey) && (now - sentSmsCache.get(cacheKey)!) < 10000) {
@@ -69,22 +71,28 @@ async function sendRealSMS(params: SmsParams) {
   }
   sentSmsCache.set(cacheKey, now);
 
-  // =========================================================================
-  // حالت شبیه‌سازی (فعلا پیامک واقعی ارسال نمی‌شود)
-  // وقتی خواستید پیامک واقعی فعال شود، خطوط مربوط به console.log را پاک کنید
-  // و کامنت کدهای fetch را بردارید.
-  // =========================================================================
-  console.log(`💬 [SIMULATED SMS - ${params.logTag}]`);
-  console.log(`📱 To: ${formattedMobile}`);
-  console.log(`📝 BodyID: ${params.bodyId} | Args:`, params.args);
-  
-  /* ---> کدهای ارسال واقعی (فعلا غیرفعال) <---
+  // === حالت شبیه‌سازی ===
+  if (IS_SIMULATION_MODE) {
+    console.log(`\n💬 [پیامک شبیه‌سازی شده - ${params.logTag}]`);
+    console.log(`📱 ارسال به: ${formattedMobile}`);
+    console.log(`📝 کد الگو: ${params.bodyId} | متغیرها:`, params.args);
+    console.log('--------------------------------------------------\n');
+    return; // در حالت تست، ادامه کد و ارسال واقعی متوقف می‌شود
+  }
+
+  // === حالت ارسال واقعی پیامک ===
+  const config = await getSmsConfig();
+  if (!config || !config.apiKey) {
+    console.warn(`⚠️ [${params.logTag}] پیامک ارسال نشد: تنظیمات API در دیتابیس تکمیل نیست.`);
+    return;
+  }
+
   try {
-    await fetch('/api/send-sms', {
+    const response = await fetch('/api/send-sms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: '09362476933', // نام کاربری پنل شما
+        username: '09362476933', // نام کاربری ورود به پنل ملی‌پیامک شما
         apiKey: config.apiKey, 
         sender: config.sender,
         mobile: formattedMobile,
@@ -93,78 +101,90 @@ async function sendRealSMS(params: SmsParams) {
         args: params.args
       }),
     });
+    
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
   } catch (error) {
-    console.error(`🚨 [NETWORK ERROR - ${params.logTag}] خطا در ارتباط با سرور:`, error);
+    console.error(`🚨 [NETWORK ERROR - ${params.logTag}] خطا در ارتباط با سرور کلودفلر ورکر:`, error);
   }
-  */
 }
 
+// ۱. ارسال پیامک کد تایید (OTP) - کد الگو: 569556
 export async function sendOtpSMS(mobile: string, code: string) {
   await sendRealSMS({
     mobile: mobile,
-    bodyId: 534465, // کد الگوی پیامک ورود شما در پنل پیامک
-    args: [code],
+    bodyId: 569556, 
+    args: [code], // {0} -> کد تایید
     logTag: 'OTP_LOGIN'
   });
 }
 
+// ارسال اعلان‌های تغییر وضعیت بر اساس الگوهای تایید شده
 export async function sendUserNotification(data: UserNotificationData) {
-  let statusFarsi = '';
-  
-  // هماهنگ شده با وضعیت‌های سامانه تعمیرات 
-  switch (data.status) {
-    case 'customer_login_success': statusFarsi = 'ورود موفق به پنل کاربری'; break;
-    case 'pending_coordinator':    statusFarsi = 'درخواست جدید شما در سامانه ثبت شد و در حال بررسی است'; break;
-    case 'pending_supervisor':     statusFarsi = 'در حال بررسی توسط تکنسین'; break;
-    case 'accepted_waiting_device':statusFarsi = 'درخواست پذیرش شد، لطفا دستگاه را به شرکت ارسال کنید'; break;
-    case 'pending_customer_approval': statusFarsi = `هزینه اولیه: ${data.price} ریال. لطفا جهت تایید به پنل مراجعه کنید`; break;
-    case 'repairing':              statusFarsi = 'در حال تعمیر'; break;
-    case 'estimated':              statusFarsi = 'برآورد هزینه نهایی'; break;
-    case 'invoiced':               statusFarsi = `فاکتور نهایی صادر شد. مبلغ: ${data.price} ریال`; break;
-    default:                       statusFarsi = 'وضعیت درخواست شما بروزرسانی شد';
+  // ۲. الگوی پذیرش و درخواست ارسال دستگاه (زمانی که سرپرست دستگاه را پذیرش می‌کند) - کد الگو: 569559
+  if (data.status === 'accepted_waiting_device' || data.status === 'waiting_for_device') {
+    await sendRealSMS({ 
+      mobile: data.userMobile, 
+      bodyId: 569559, 
+      args: [data.trackingCode], // {0} -> کد پیگیری
+      logTag: 'NOTIFY_ACCEPTED_SEND_DEVICE' 
+    });
+    return;
   }
-  
-  await sendRealSMS({ 
-    mobile: data.userMobile, 
-    bodyId: 534466, 
-    args: [data.trackingCode, statusFarsi], 
-    logTag: 'USER_STATUS_UPDATE' 
-  });
+
+  // ۳. الگوی برآورد هزینه (نیاز به تایید مشتری در پنل کاربری) - کد الگو: 569557
+  if (data.status === 'pending_customer_approval') {
+    await sendRealSMS({ 
+      mobile: data.userMobile, 
+      bodyId: 569557, 
+      args: [data.trackingCode], // {0} -> کد پیگیری
+      logTag: 'NOTIFY_ESTIMATE_APPROVAL' 
+    });
+    return;
+  }
+
+  // ۴. الگوی صدور فاکتور نهایی - کد الگو: 570068
+  if (data.status === 'invoiced' && data.price) {
+    // حذف ویرگول‌های احتمالی در مبلغ ارسالی از فرانت‌اند تا فقط عدد خالص بماند
+    const cleanPrice = String(data.price).replace(/,/g, '');
+    
+    await sendRealSMS({ 
+      mobile: data.userMobile, 
+      bodyId: 570068, 
+      args: [data.trackingCode, cleanPrice], // {0} -> کد پیگیری | {1} -> مبلغ فاکتور
+      logTag: 'NOTIFY_INVOICED' 
+    });
+    return;
+  }
 }
 
 export async function sendAdminNotifications(data: NotificationData) {
   try {
-    // 1. دریافت شماره موبایل پرسنلی که *فقط* نقش واحد هماهنگی (coordinator) دارند
+    // دریافت شماره موبایل پرسنلی که *فقط* نقش واحد هماهنگی (coordinator) دارند
     const { data: personnel, error } = await supabase
       .from('personnel_users')
       .select('phone, role, full_name')
-      .eq('role', 'coordinator'); // 👈 تغییر اصلی اینجاست: فقط نقش coordinator فیلتر می‌شود
+      .eq('role', 'coordinator'); 
 
-    if (error) {
-      console.error("خطا در دریافت شماره پرسنل واحد هماهنگی:", error);
+    if (error || !personnel || personnel.length === 0) {
       return;
     }
 
-    if (!personnel || personnel.length === 0) {
-      console.warn("هیچ پرسنلی با نقش واحد هماهنگی برای دریافت پیامک یافت نشد.");
-      return;
-    }
-
-    // 2. ارسال پیامک برای تک‌تک شماره‌های پیدا شده در واحد هماهنگی
+    // ارسال پیامک برای تک‌تک شماره‌های پیدا شده در واحد هماهنگی (در صورت وجود الگوی تایید شده برای مدیران)
+    // برای استفاده از این بخش باید یک الگوی جدید در پنل پیامک بسازید. فعلاً غیرفعال است.
+    /*
     for (const person of personnel) {
       if (person.phone) {
         await sendRealSMS({
           mobile: person.phone,
-          bodyId: 534466, // <-- در آینده کد الگوی پیامک اطلاع‌رسانی ثبت درخواست جدید را اینجا بگذارید
-          args: [data.trackingCode, `مشتری: ${data.userMobile}`], 
+          bodyId: XXXXXX, // کد الگوی اطلاع به ادمین (در صورت ساخت)
+          args: [data.trackingCode], 
           logTag: `ADMIN_NEW_REQUEST_TO_${person.role.toUpperCase()}`
         });
-
-        // لاگ کمکی برای دیباگ در کنسول
-        console.log(`💬 پیامک اطلاع‌رسانی ثبت درخواست جدید به ${person.full_name} (واحد هماهنگی) به شماره ${person.phone} ارسال شد.`);
       }
     }
-
+    */
   } catch (err) {
     console.error("خطای غیرمنتظره در ارسال پیامک هماهنگی:", err);
   }
