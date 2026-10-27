@@ -4,16 +4,22 @@ import { supabase } from '../lib/supabase';
 import { LogOut, Home, Check, Calendar, Clock, Wrench, Activity, List, Save, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import DatePicker from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
+import TimePicker from "react-multi-date-picker/plugins/time_picker";
 
 export default function CoordinatorPanelPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
-  
+
   const [activeTab, setActiveTab] = useState<'queue' | 'reports'>('queue');
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // آیدی ثابتی که برای واحد بازرگانی در جدول profiles ایجاد شده است
+  // استیت ذخیره‌سازی مقادیر تقویم شمسی
+  const [dateValues, setDateValues] = useState<Record<string, {rec: Date | null, del: Date | null}>>({});
+
   const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-203d5ea50acb';
 
   useEffect(() => {
@@ -26,11 +32,21 @@ export default function CoordinatorPanelPage() {
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
       toast.error('خطا در دریافت اطلاعات');
     } else {
       setRequests(data || []);
+      
+      // مقداردهی اولیه تاریخ‌ها برای تقویم
+      const initialDates: any = {};
+      (data || []).forEach(req => {
+        initialDates[req.id] = {
+          rec: req.received_at ? new Date(req.received_at) : null,
+          del: req.delivered_at ? new Date(req.delivered_at) : null
+        };
+      });
+      setDateValues(initialDates);
     }
     setIsLoading(false);
   };
@@ -39,34 +55,28 @@ export default function CoordinatorPanelPage() {
     console.log(`[SMS SIMULATION] To: ${phone} | Message: برآورد قیمت درخواست تعمیر شما با کد ${trackingCode} تایید شد. لطفاً دستگاه خود را ارسال نمایید. سامانه تعمیرات فرافن`);
   };
 
+  const handleDateChange = (id: string, field: 'rec' | 'del', dateObj: any) => {
+    const d = dateObj ? dateObj.toDate() : null;
+    setDateValues(prev => ({
+      ...prev,
+      [id]: {
+        ...(prev[id] || {rec: null, del: null}),
+        [field]: d
+      }
+    }));
+  };
+
   const handleSaveDateTime = async (id: string, silent: boolean = false) => {
-    const updateData: any = {};
-    
-    const recDateEl = document.getElementById(`recDate_${id}`) as HTMLInputElement;
-    const recTimeEl = document.getElementById(`recTime_${id}`) as HTMLInputElement;
-    if (recDateEl) {
-      if (recDateEl.value) {
-        updateData.received_at = new Date(`${recDateEl.value}T${recTimeEl?.value || '00:00'}:00`).toISOString();
-      } else {
-        updateData.received_at = null;
-      }
-    }
+    const dates = dateValues[id];
+    if (!dates) return true;
 
-    const delDateEl = document.getElementById(`delDate_${id}`) as HTMLInputElement;
-    const delTimeEl = document.getElementById(`delTime_${id}`) as HTMLInputElement;
-    if (delDateEl) {
-      if (delDateEl.value) {
-        updateData.delivered_at = new Date(`${delDateEl.value}T${delTimeEl?.value || '00:00'}:00`).toISOString();
-      } else {
-        updateData.delivered_at = null;
-      }
-    }
-
-    // اگر هیچ فیلدی برای آپدیت وجود نداشت (رندر نشده بود)، خارج شو
-    if (Object.keys(updateData).length === 0) return true;
+    const updateData = {
+      received_at: dates.rec ? dates.rec.toISOString() : null,
+      delivered_at: dates.del ? dates.del.toISOString() : null
+    };
 
     const { error } = await supabase.from('repair_requests').update(updateData).eq('id', id);
-    
+
     if (error) {
       if (!silent) toast.error('خطا در ثبت زمان');
       return false;
@@ -99,15 +109,14 @@ export default function CoordinatorPanelPage() {
     }
   };
 
-  // تابع جدید برای کنترل ثبت خروج و ارجاع به مدیر مرکز
   const handleSendToCeoFinal = async (req: any) => {
-    const delDateEl = document.getElementById(`delDate_${req.id}`) as HTMLInputElement;
-    if (!delDateEl || !delDateEl.value) {
-      return toast.error('لطفاً ابتدا تاریخ و زمان خروج دستگاه را در فیلد مربوطه وارد کنید.');
+    const dates = dateValues[req.id];
+    if (!dates || !dates.del) {
+      return toast.error('لطفاً ابتدا تاریخ و زمان خروج دستگاه را وارد کنید.');
     }
-    
+
     await handleSaveDateTime(req.id, true);
-    
+
     const { error } = await supabase.from('repair_requests').update({ status: 'pending_ceo_final' }).eq('id', req.id);
     if (error) {
        toast.error('خطا در ثبت وضعیت');
@@ -129,7 +138,7 @@ export default function CoordinatorPanelPage() {
       case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg text-xs font-bold">در حال تعمیر</span>;
       case 'estimated': return <span className="bg-fuchsia-100 text-fuchsia-800 px-2.5 py-1 rounded-lg text-xs font-bold">نیازمند برآورد نهایی</span>;
       case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بازرگانی</span>;
-      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار واحد مالی</span>;
+      case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار مالی</span>;
       case 'invoiced': return <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-lg text-xs font-bold">فاکتور صادر شده - انتظار پرداخت</span>;
       case 'pending_commercial_final': return <span className="bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded-lg text-xs font-bold">تایید مالی - ارجاع به بازرگانی</span>;
       case 'ready_for_delivery': return <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg text-xs font-bold">آماده تحویل (در انتظار ثبت خروج)</span>;
@@ -170,7 +179,6 @@ export default function CoordinatorPanelPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        
         <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 mb-6 w-full max-w-md mx-auto md:mx-0">
           <button onClick={() => setActiveTab('queue')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'queue' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
             <Activity size={18} /> کارتابل هماهنگی 
@@ -187,7 +195,7 @@ export default function CoordinatorPanelPage() {
               {activeTab === 'queue' ? 'مدیریت و پیگیری درخواست‌ها' : 'لیست جامع تمامی درخواست‌های سیستم'}
             </h2>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
@@ -207,22 +215,6 @@ export default function CoordinatorPanelPage() {
                   <tr><td colSpan={activeTab === 'queue' ? 6 : 5} className="py-8 text-center text-slate-400">هیچ درخواستی یافت نشد.</td></tr>
                 ) : (
                   (activeTab === 'queue' ? queueRequests : requests).map(req => {
-                    // استخراج تاریخ محلی (رفع باگ تداخل زمانی UTC)
-                    const pad = (n: number) => n.toString().padStart(2, '0');
-                    let recDate = '', recTime = '', delDate = '', delTime = '';
-                    
-                    if (req.received_at) {
-                      const d = new Date(req.received_at);
-                      recDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-                      recTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-                    }
-                    
-                    if (req.delivered_at) {
-                      const d = new Date(req.delivered_at);
-                      delDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-                      delTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-                    }
-
                     return (
                       <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
@@ -256,43 +248,35 @@ export default function CoordinatorPanelPage() {
                         <td className="py-4 px-3">
                           {activeTab === 'queue' ? (
                             <div className="space-y-2">
-                              {/* نمایش فیلد ورود فقط در وضعیت دریافت دستگاه */}
                               {req.status === 'waiting_for_device' ? (
                                 <div className="flex items-center gap-2 text-xs text-slate-600">
                                   <span className="flex items-center gap-1 font-bold w-12"><Calendar size={13} className="text-slate-400"/> ورود:</span>
-                                  <input 
-                                    id={`recDate_${req.id}`}
-                                    type="date" 
-                                    defaultValue={recDate}
-                                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                  <DatePicker
+                                    calendar={persian}
+                                    locale={persian_fa}
+                                    format="YYYY/MM/DD HH:mm"
+                                    plugins={[<TimePicker position="bottom" />]}
+                                    value={dateValues[req.id]?.rec}
+                                    onChange={(date) => handleDateChange(req.id, 'rec', date)}
+                                    inputClass="border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-mono bg-white outline-none focus:border-brand-primary w-full text-center"
                                   />
-                                  <input 
-                                    id={`recTime_${req.id}`}
-                                    type="time" 
-                                    defaultValue={recTime}
-                                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                                  />
-                                  <button onClick={() => handleSaveDateTime(req.id)} className="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600" title="ذخیره">
+                                  <button onClick={() => handleSaveDateTime(req.id)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600" title="ذخیره">
                                     <Save size={14} />
                                   </button>
                                 </div>
                               ) : req.status === 'ready_for_delivery' ? (
-                                // نمایش فیلد خروج فقط در وضعیت آماده تحویل
                                 <div className="flex items-center gap-2 text-xs text-slate-600">
                                   <span className="flex items-center gap-1 font-bold w-12"><Clock size={13} className="text-slate-400"/> خروج:</span>
-                                  <input 
-                                    id={`delDate_${req.id}`}
-                                    type="date" 
-                                    defaultValue={delDate}
-                                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
+                                  <DatePicker
+                                    calendar={persian}
+                                    locale={persian_fa}
+                                    format="YYYY/MM/DD HH:mm"
+                                    plugins={[<TimePicker position="bottom" />]}
+                                    value={dateValues[req.id]?.del}
+                                    onChange={(date) => handleDateChange(req.id, 'del', date)}
+                                    inputClass="border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-mono bg-white outline-none focus:border-brand-primary w-full text-center"
                                   />
-                                  <input 
-                                    id={`delTime_${req.id}`}
-                                    type="time" 
-                                    defaultValue={delTime}
-                                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono bg-white outline-none focus:border-brand-primary" 
-                                  />
-                                  <button onClick={() => handleSaveDateTime(req.id)} className="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600" title="ذخیره">
+                                  <button onClick={() => handleSaveDateTime(req.id)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600" title="ذخیره">
                                     <Save size={14} />
                                   </button>
                                 </div>
@@ -311,7 +295,8 @@ export default function CoordinatorPanelPage() {
                           <td className="py-4 px-3 text-center align-top pt-5">
                             {req.status === 'pending_coordinator' && (
                               <div className="flex flex-col items-center justify-center gap-2">
-                                {req.needs_price_estimate ? (
+                                {/* اصلاح دکمه ارجاع بر اساس وضعیت برآورد قیمت */}
+                                {req.needs_price_estimate && !req.estimated_price ? (
                                   <button 
                                     onClick={() => handleStatusChange(req.id, 'pending_ceo_initial')} 
                                     className="w-full p-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl transition-colors font-bold flex items-center justify-center gap-1 text-xs shadow-sm"
@@ -337,7 +322,7 @@ export default function CoordinatorPanelPage() {
                                 <Check size={16} /> ثبت ورود و ارسال به تعمیرات
                               </button>
                             )}
-                            
+
                             {req.status === 'ready_for_delivery' && (
                               <button 
                                 onClick={() => handleSendToCeoFinal(req)} 
