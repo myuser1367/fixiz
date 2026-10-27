@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, BarChart3, FileSpreadsheet, Search, Filter, Printer, PieChart, X, Activity } from 'lucide-react';
+import { LogOut, Home, BarChart3, FileSpreadsheet, Search, Filter, Printer, PieChart, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
