@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { sendOtpSMS } from '../lib/notifications';
 
 export type Role = 'customer' | 'coordinator' | 'supervisor' | 'ceo' | 'commercial' | 'finance' | 'admin' | null;
 
@@ -18,24 +19,14 @@ interface AuthContextType {
   profile: UserProfile | null;
   isLoading: boolean;
   role: Role;
-  sendCustomerOtp: (mobile: string) => Promise<string>;
-  verifyCustomerOtp: (mobile: string, code: string) => Promise<void>;
+  sendCustomerOtp: (mobile: string, code: string) => Promise<string>;
+  verifyCustomerOtp: (mobile: string) => Promise<void>;
   personnelLogin: (username: string, password: string) => Promise<{ isFirstLogin: boolean }>;
   completePersonnelFirstLogin: (username: string, newPassword: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-function formatForSupabaseAuth(mobile: string): string {
-  const digits = mobile.replace(/\D/g, '');
-  if (digits.startsWith('09') && digits.length === 11) return '+98' + digits.slice(1);
-  if (digits.startsWith('98') && digits.length === 12) return '+' + digits;
-  if (digits.startsWith('098') && digits.length === 13) return '+' + digits.slice(1);
-  if (digits.startsWith('+98') && digits.length === 13) return digits;
-  if (digits.length === 10) return '+98' + digits;
-  return '+' + digits;
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<any | null>(null);
@@ -79,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        fetchProfile(session.user.id, session.user.phone || '');
+        fetchProfile(session.user.id, session.user.phone || session.user.email?.split('@')[0] || '');
       } else {
         setIsLoading(false);
       }
@@ -89,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (localStorage.getItem('fixiz_personnel_session')) return;
       setSession(session);
       if (session?.user) {
-        fetchProfile(session.user.id, session.user.phone || '');
+        fetchProfile(session.user.id, session.user.phone || session.user.email?.split('@')[0] || '');
       } else {
         setProfile(null);
         setIsLoading(false);
@@ -99,24 +90,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const sendCustomerOtp = useCallback(async (mobile: string) => {
-    const formattedMobile = formatForSupabaseAuth(mobile);
-    const { error } = await supabase.auth.signInWithOtp({ phone: formattedMobile });
-    if (error) throw new Error(error.message || 'خطا در ارسال کد');
+  // -------------------------------------------------------------
+  // توابع اختصاصی شده ورود مشتریان (متصل به ملی پیامک)
+  // -------------------------------------------------------------
+  const sendCustomerOtp = useCallback(async (mobile: string, code: string) => {
+    await sendOtpSMS(mobile, code);
     return "SENT"; 
   }, []);
   
-  const verifyCustomerOtp = useCallback(async (mobile: string, code: string) => {
-    const formattedMobile = formatForSupabaseAuth(mobile);
-    const { data, error } = await supabase.auth.verifyOtp({ phone: formattedMobile, token: code, type: 'sms' });
-    if (error) throw new Error(error.message || 'کد وارد شده نامعتبر است');
-    if (!data.session) throw new Error('نشست ایجاد نشد');
+  const verifyCustomerOtp = useCallback(async (mobile: string) => {
+    // استفاده از ترفند ورود با ایمیل مجازی برای دور زدن محدودیت‌های پیامکی سوپابیس
+    const dummyEmail = `${mobile}@fixiz.ir`;
+    const dummyPassword = `FixizUser#${mobile}`;
+
+    let { data, error } = await supabase.auth.signInWithPassword({
+      email: dummyEmail,
+      password: dummyPassword,
+    });
+
+    if (error && error.message.includes('Invalid login credentials')) {
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: dummyEmail,
+        password: dummyPassword,
+      });
+      if (signUpError) throw new Error('خطا در ساخت حساب کاربری: ' + signUpError.message);
+      data = signUpData;
+    } else if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data?.user) {
+      await fetchProfile(data.user.id, mobile);
+    } else {
+      throw new Error('نشست ایجاد نشد. بررسی کنید Confirm Email در سوپابیس خاموش باشد.');
+    }
   }, []);
 
+  // -------------------------------------------------------------
+  // توابع ورود پرسنل
+  // -------------------------------------------------------------
   const personnelLogin = async (username: string, password: string) => {
     const cleanUsername = username.toLowerCase().trim();
     
-    // بررسی ادمین اصلی
     if (cleanUsername === 'admin') {
       const { data, error } = await supabase.auth.signInWithPassword({ email: 'admin@fixiz.ir', password });
       if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
@@ -127,7 +142,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { isFirstLogin: false };
     }
 
-    // سایر پرسنل سازمانی
     const { data: pUser, error } = await supabase
       .from('personnel_users')
       .select('*')

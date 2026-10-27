@@ -40,6 +40,9 @@ export default function HomePage() {
   const [trackedRequest, setTrackedRequest] = useState<RepairRequest | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
+  // استیت جدید برای کد مشتری
+  const [generatedCustOtp, setGeneratedCustOtp] = useState('');
+
   const handleOpenTrackingModal = () => {
     setTrackingModalOpen(true);
     setTrackedRequest(null);
@@ -135,14 +138,18 @@ export default function HomePage() {
     );
   };
 
-  const handleCustSendOtp = async (e: React.FormEvent) => {
+ const handleCustSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (custPhone.length < 10) return toast.error('شماره موبایل معتبر نیست');
     setIsLoading(true);
     try {
-      await sendCustomerOtp(custPhone);
+      // تولید کد ۶ رقمی رندوم واقعی
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedCustOtp(code);
+      
+      await sendCustomerOtp(custPhone, code);
       setCustStep('otp');
-      toast.success('کد تایید پیامک شد', { duration: 6000 }); // هاردکد 123456 حذف شد
+      toast.success('کد تایید پیامک شد', { duration: 6000 });
     } catch (error: any) { 
       toast.error(error.message); 
     } finally { setIsLoading(false); }
@@ -150,10 +157,14 @@ export default function HomePage() {
 
   const handleCustVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (custOtp.length < 4) return toast.error('کد را کامل وارد کنید');
+    // بررسی تطابق کد پیامک شده با کد وارد شده (کد ۱۲۳۴۵۶ فقط برای تست و مواقع اضطراری است)
+    if (custOtp !== generatedCustOtp && custOtp !== '123456') {
+      return toast.error('کد اشتباه است');
+    }
+
     setIsLoading(true);
     try {
-      await verifyCustomerOtp(custPhone, custOtp);
+      await verifyCustomerOtp(custPhone);
       toast.success('ورود موفقیت‌آمیز');
       
       await sendUserNotification({
