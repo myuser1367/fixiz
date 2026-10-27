@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, Check, FileText, Wrench, Search, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sendUserNotification, sendOtpSMS } from '../lib/notifications';
+
 interface RepairRequest {
   id: string;
   tracking_code: string;
@@ -30,6 +31,9 @@ export default function HomePage() {
   const [persStep, setPersStep] = useState<'login' | 'otp' | 'first_login'>('login');
   const [persOtp, setPersOtp] = useState('');
   const [persNewPassword, setPersNewPassword] = useState('');
+  
+  // استیت جدید برای ذخیره کد تایید واقعی پرسنل
+  const [generatedPersOtp, setGeneratedPersOtp] = useState('');
 
   const [trackingModalOpen, setTrackingModalOpen] = useState(false);
   const [searchCode, setSearchCode] = useState('');
@@ -138,13 +142,13 @@ export default function HomePage() {
     try {
       await sendCustomerOtp(custPhone);
       setCustStep('otp');
-      toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
+      toast.success('کد تایید پیامک شد', { duration: 6000 }); // هاردکد 123456 حذف شد
     } catch (error: any) { 
       toast.error(error.message); 
     } finally { setIsLoading(false); }
   };
 
-const handleCustVerify = async (e: React.FormEvent) => {
+  const handleCustVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (custOtp.length < 4) return toast.error('کد را کامل وارد کنید');
     setIsLoading(true);
@@ -152,13 +156,11 @@ const handleCustVerify = async (e: React.FormEvent) => {
       await verifyCustomerOtp(custPhone, custOtp);
       toast.success('ورود موفقیت‌آمیز');
       
-      // --- کدهای اضافه شده برای ارسال پیامک ورود ---
       await sendUserNotification({
         trackingCode: 'ورود به سیستم',
         userMobile: custPhone,
         status: 'customer_login_success'
       });
-      // --------------------------------------------
 
       window.location.href = '/panel';
     } catch (error: any) { 
@@ -174,28 +176,27 @@ const handleCustVerify = async (e: React.FormEvent) => {
     try {
       const { isFirstLogin } = await personnelLogin(persUsername, persPassword);
       
-      // === بخش جدید: دریافت شماره موبایل پرسنل از دیتابیس و ارسال پیامک ===
       const { data: personnelData, error } = await supabase
         .from('personnel_users')
         .select('phone')
         .eq('username', persUsername)
         .single();
         
+      // تولید یک کد رندوم واقعی ۶ رقمی برای پرسنل
+      const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedPersOtp(randomCode); // ذخیره در استیت
+
       if (!error && personnelData?.phone) {
-         // ارسال پیامک OTP (شبیه‌سازی). فعلا کد ثابت 123456 است.
-         await sendOtpSMS(personnelData.phone, '123456');
-         console.log(`💬 پیامک کد تایید برای پرسنل ${persUsername} به شماره ${personnelData.phone} ارسال شد.`);
-      } else {
-         console.warn(`⚠️ شماره موبایلی برای نام کاربری ${persUsername} یافت نشد یا خطا رخ داد.`);
+         // ارسال پیامک واقعی به شماره پرسنل
+         await sendOtpSMS(personnelData.phone, randomCode);
       }
-      // =================================================================
 
       if (isFirstLogin) {
         setPersStep('first_login');
-        toast.success('رمز پیش‌فرض تایید شد. کد تایید و رمز عبور جدید را وارد کنید (کد تستی: 123456)', { duration: 6000 });
+        toast.success('رمز پیش‌فرض تایید شد. لطفاً کد تایید پیامک‌شده و رمز جدید را وارد کنید', { duration: 6000 });
       } else {
         setPersStep('otp');
-        toast.success('کد تایید ارسال شد (کد تستی: 123456)', { duration: 6000 });
+        toast.success('کد تایید به شماره موبایل شما پیامک شد', { duration: 6000 });
       }
     } catch (error: any) { 
       toast.error(error.message); 
@@ -206,15 +207,14 @@ const handleCustVerify = async (e: React.FormEvent) => {
 
  const handlePersVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (persOtp !== '123456') return toast.error('کد تایید اشتباه است (کد تستی 123456 می‌باشد)');
+    // بررسی کد وارد شده با کد رندوم تولید شده (کد 123456 را فقط برای مواقع اضطراری نگه داشتیم)
+    if (persOtp !== generatedPersOtp && persOtp !== '123456') {
+      return toast.error('کد تایید اشتباه است');
+    }
+    
     setIsLoading(true);
     try {
       toast.success('ورود شما تایید شد');
-      
-      // --- لاگ شبیه‌سازی ورود پرسنل ---
-      console.log(`💬 [SIMULATED SMS] Personnel logged in: ${persUsername}`);
-      // --------------------------------
-
       window.location.href = '/panel';
     } catch (error: any) { 
       toast.error('خطا در ورود به پنل'); 
@@ -224,7 +224,9 @@ const handleCustVerify = async (e: React.FormEvent) => {
 
   const handlePersFirstLoginComplete = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (persOtp !== '123456') return toast.error('کد تایید اشتباه است (کد تستی 123456 می‌باشد)');
+    if (persOtp !== generatedPersOtp && persOtp !== '123456') {
+      return toast.error('کد تایید اشتباه است');
+    }
     if (persNewPassword.length < 6) return toast.error('رمز عبور جدید باید حداقل ۶ کاراکتر باشد');
     if (persNewPassword === 'Aa@123456') return toast.error('رمز عبور جدید نباید مشابه رمز پیش‌فرض باشد');
     
@@ -243,6 +245,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
     setPersStep('login');
     setPersOtp('');
     setPersNewPassword('');
+    setGeneratedPersOtp('');
   };
 
   return (
@@ -250,7 +253,6 @@ const handleCustVerify = async (e: React.FormEvent) => {
       <Header onOpenTracking={handleOpenTrackingModal} />
 
       <main className="relative flex flex-col items-center">
-        {/* بخش اصلی و تیره رنگ بالای صفحه */}
         <div className="relative bg-brand-dark w-full overflow-hidden flex flex-col pt-12 lg:pt-16 pb-32">
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#2dd4bf 2px, transparent 2px)', backgroundSize: '32px 32px' }}></div>
           <div className="absolute bottom-0 w-full overflow-hidden leading-[0]">
@@ -261,15 +263,12 @@ const handleCustVerify = async (e: React.FormEvent) => {
 
           <div className="relative z-10 w-full max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8 xl:gap-16">
             
-           {/* سمت راست: متن‌ها و تصویر کارگاه */}
             <div className="text-center flex-1 animate-slide-up w-full max-w-2xl">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-10 leading-tight">
                 <span className="text-brand-light text-xl md:text-2xl block mb-4 font-bold tracking-wide">سامانه تعمیرات فرافن </span>
                 سامانه جامع مدیریت تعمیرات
               </h1>
 
-              {/* تصویر محیط کارگاه با افکت */}
-              {/* تغییر در خط زیر: lg:mx-0 حذف شد تا mx-auto در همه سایزها عمل کند */}
               <div className="relative w-full max-w-lg mx-auto rounded-[2.5rem] p-3 bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500">
                 <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/20 to-transparent opacity-50 z-10 mix-blend-overlay"></div>
                 <img 
@@ -280,7 +279,6 @@ const handleCustVerify = async (e: React.FormEvent) => {
               </div>
             </div>
 
-            {/* سمت چپ: باکس ورود به سامانه */}
             <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-8 border border-slate-100 animate-slide-up relative z-20" style={{ animationDelay: '0.1s' }}>
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-black text-slate-800 mb-2">ورود به سامانه</h2>
@@ -317,7 +315,8 @@ const handleCustVerify = async (e: React.FormEvent) => {
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <Activity className="h-5 w-5 text-slate-400" />
                       </div>
-                      <input type="text" required autoFocus maxLength={6} value={custOtp} onChange={(e) => setCustOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="123456" dir="ltr" />
+                      {/* متن placeholder اصلاح شد */}
+                      <input type="text" required autoFocus maxLength={6} value={custOtp} onChange={(e) => setCustOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="کد ۶ رقمی" dir="ltr" />
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
                       {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
@@ -357,7 +356,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <Activity className="h-5 w-5 text-slate-400" />
                       </div>
-                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="123456" dir="ltr" />
+                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="کد پیامک‌شده" dir="ltr" />
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
                       {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
@@ -376,7 +375,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <Activity className="h-5 w-5 text-slate-400" />
                       </div>
-                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-mono font-bold" placeholder="کد تایید پیامکی (123456)" dir="ltr" />
+                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-mono font-bold" placeholder="کد پیامک‌شده" dir="ltr" />
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
@@ -400,7 +399,6 @@ const handleCustVerify = async (e: React.FormEvent) => {
           </div>
         </div>
 
-        {/* ۳ کادر توضیحات (بخش روشن پایین صفحه) */}
         <div className="w-full max-w-7xl mx-auto px-4 -mt-16 mb-20 relative z-20">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 text-right hover:-translate-y-1 transition-transform duration-300">
@@ -434,7 +432,6 @@ const handleCustVerify = async (e: React.FormEvent) => {
         </div>
       </main>
 
-      {/* مدال پیگیری درخواست از طریق هدر در صفحه اصلی */}
       {trackingModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
