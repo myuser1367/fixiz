@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { sendUserNotification } from '../lib/notifications';
 import { LogOut, Home, Key, CheckCircle, Loader2, CreditCard, History, Printer, DollarSign } from 'lucide-react';
 export default function FinancePanelPage() {
   const { profile, logout } = useAuth();
@@ -67,8 +68,13 @@ export default function FinancePanelPage() {
       // 2. ارسال پیامک به مشتری
       const customerPhone = req.profiles?.phone;
       if (customerPhone) {
-        sendMockSms(customerPhone, req.tracking_code, req.final_price || 0);
-        toast.success(`فاکتور صادر شد. پیامک اطلاع‌رسانی به شماره ${customerPhone} ارسال گردید.`);
+        await sendUserNotification({
+          trackingCode: req.tracking_code,
+          userMobile: customerPhone,
+          status: 'invoiced',
+          price: req.final_price?.toString() || '0'
+        });
+        toast.success(`فاکتور صادر شد. پیامک اطلاع‌رسانی ارسال گردید.`);
       } else {
         toast.success('فاکتور با موفقیت صادر شد (شماره موبایل مشتری یافت نشد).');
       }
