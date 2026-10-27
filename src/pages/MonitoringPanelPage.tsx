@@ -21,10 +21,11 @@ export default function MonitoringPanelPage() {
 
   const fetchActiveRequests = async () => {
     setIsLoading(true);
+    // فیلتر کردن دقیق بر اساس وضعیت‌هایی که در کارتابل سرپرست تعمیر قرار دارد
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
-      .not('status', 'in', '("completed","canceled_by_customer","rejected")')
+      .in('status', ['pending_supervisor', 'accepted', 'waiting_for_device', 'repairing'])
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -35,14 +36,20 @@ export default function MonitoringPanelPage() {
     setIsLoading(false);
   };
 
+  // ترجمه کامل و فارسی وضعیت‌ها برای جلوگیری از نمایش کلمات انگلیسی
   const getStatusText = (status: string) => {
     switch (status) {
       case 'pending_coordinator': return 'ثبت اولیه';
       case 'pending_supervisor': return 'بررسی سرپرست';
       case 'waiting_for_device': return 'در انتظار دریافت دستگاه';
-      case 'repairing': return 'در حال تعمیر (توسط سرپرست تعمیر)';
+      case 'accepted': return 'پذیرش شده';
+      case 'repairing': return 'در حال تعمیر';
       case 'estimated': return 'برآورد هزینه';
+      case 'pending_commercial': return 'در انتظار بازرگانی';
+      case 'pending_finance': return 'در انتظار واحد مالی';
       case 'invoiced': return 'فاکتور شده';
+      case 'completed': return 'پایان کار';
+      case 'rejected': return 'عدم پذیرش';
       default: return status;
     }
   };
@@ -81,7 +88,7 @@ export default function MonitoringPanelPage() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white">تجهیزات فعال در خط تعمیرات</h2>
+            <h2 className="text-xl font-bold text-white">تجهیزات فعال ارجاع‌شده به سرپرست تعمیر</h2>
             <span className="bg-brand-primary text-slate-950 font-black px-3 py-0.5 rounded-full text-xs">{requests.length} دستگاه</span>
           </div>
           
@@ -106,14 +113,14 @@ export default function MonitoringPanelPage() {
                   <th className="py-4 px-4">نام دستگاه / تجهیز</th>
                   <th className="py-4 px-4">شماره سریال (S/N)</th>
                   <th className="py-4 px-4">وضعیت فعلی</th>
-                  <th className="py-4 px-4">کارشناس مسئول (سرپرست تعمیر)</th>
+                  <th className="py-4 px-4">کارشناس مسئول </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700 text-sm">
                 {isLoading ? (
                   <tr><td colSpan={5} className="py-10 text-center text-slate-400">در حال بارگذاری اطلاعات مانیتورینگ...</td></tr>
                 ) : filteredRequests.length === 0 ? (
-                  <tr><td colSpan={5} className="py-10 text-center text-slate-400">هیچ دستگاه فعالی در این بخش یافت نشد.</td></tr>
+                  <tr><td colSpan={5} className="py-10 text-center text-slate-400">هیچ دستگاه فعالی در کارتابل سرپرست تعمیر یافت نشد.</td></tr>
                 ) : (
                   filteredRequests.map(req => (
                     <tr key={req.id} className="hover:bg-slate-700/50 transition-colors">
