@@ -47,7 +47,7 @@ export default function FinancePanelPage() {
   // ------------------------------------------------------------------
   const sendMockSms = (phone: string, trackingCode: string, price: number) => {
     // بعداً می‌توانید این بخش را با API پنل پیامکی خود (axios.post) جایگزین کنید
-    const message = `کاربر گرامی، فاکتور نهایی تعمیر دستگاه شما با کد پیگیری ${trackingCode} به مبلغ ${price.toLocaleString()} تومان صادر شد. سامانه فیکسیز`;
+    const message = `کاربر گرامی، فاکتور نهایی تعمیر دستگاه شما با کد پیگیری ${trackingCode} به مبلغ ${price.toLocaleString()} تومان صادر شد. سامانه تعمیرات فرافن `;
     console.log(`[SMS SIMULATION] To: ${phone} | Message: ${message}`);
   };
 
@@ -127,7 +127,7 @@ export default function FinancePanelPage() {
         </head>
         <body>
           <div class="header">
-            <h1>فاکتور رسمی خدمات سامانه فیکسیز</h1>
+            <h1>فاکتور رسمی خدمات سامانه تعمیرات فرافن </h1>
             <p>تاریخ صدور فاکتور: ${dateStr}</p>
           </div>
           <div class="content">
@@ -186,7 +186,7 @@ export default function FinancePanelPage() {
               <CreditCard size={26} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-800">سامانه فیکسیز</h1>
+              <h1 className="text-xl font-extrabold text-slate-800">سامانه تعمیرات فرافن </h1>
               <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-md">واحد امور مالی</span>
             </div>
           </div>

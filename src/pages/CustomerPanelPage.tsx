@@ -341,7 +341,7 @@ export default function CustomerPanelPage() {
       <header className="bg-brand-dark text-white shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-xl font-extrabold tracking-wider">فیکسیز</span>
+            <span className="text-xl font-extrabold tracking-wider">سامانه تعمیرات فرافن </span>
             <span className="bg-white/10 px-3 py-1 rounded-lg text-sm font-medium">پنل مشتری</span>
           </div>
           <div className="flex items-center gap-3">

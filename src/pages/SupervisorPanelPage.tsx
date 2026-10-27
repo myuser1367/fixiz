@@ -49,7 +49,7 @@ export default function SupervisorPanelPage() {
   };
 
   // const sendAcceptedSms = (phone: string, trackingCode: string) => {
-  //   console.log(`[SMS SIMULATION] To: ${phone} | Message: درخواست تعمیر شما با کد پیگیری ${trackingCode} پذیرش شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فیکسیز`);
+  //   console.log(`[SMS SIMULATION] To: ${phone} | Message: درخواست تعمیر شما با کد پیگیری ${trackingCode} پذیرش شد. لطفاً دستگاه خود را ارسال نمایید. سامانه تعمیرات فرافن `);
   // };
 
  const handleStatusChange = async (id: string, newStatus: string, customerPhone?: string, trackingCode?: string) => {
@@ -198,7 +198,7 @@ export default function SupervisorPanelPage() {
               <Wrench size={26} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-800">سامانه فیکسیز</h1>
+              <h1 className="text-xl font-extrabold text-slate-800">سامانه تعمیرات فرافن </h1>
               <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md">سرپرست تعمیرات</span>
             </div>
           </div>

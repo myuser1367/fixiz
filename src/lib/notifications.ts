@@ -111,7 +111,7 @@ export async function sendOtpSMS(mobile: string, code: string) {
 export async function sendUserNotification(data: UserNotificationData) {
   let statusFarsi = '';
   
-  // هماهنگ شده با وضعیت‌های سامانه تعمیرات فیکسیز
+  // هماهنگ شده با وضعیت‌های سامانه تعمیرات 
   switch (data.status) {
     case 'customer_login_success': statusFarsi = 'ورود موفق به پنل کاربری'; break;
     case 'pending_coordinator':    statusFarsi = 'درخواست جدید شما در سامانه ثبت شد و در حال بررسی است'; break;

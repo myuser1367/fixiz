@@ -324,7 +324,7 @@ export default function CommercialPanelPage() {
               <ShoppingCart size={26} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-800">سامانه فیکسیز</h1>
+              <h1 className="text-xl font-extrabold text-slate-800">سامانه تعمیرات فرافن</h1>
               <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md">واحد بازرگانی</span>
             </div>
           </div>

@@ -36,7 +36,7 @@ export default function CoordinatorPanelPage() {
   };
 
   const sendDeviceSendSms = (phone: string, trackingCode: string) => {
-    console.log(`[SMS SIMULATION] To: ${phone} | Message: برآورد قیمت درخواست تعمیر شما با کد ${trackingCode} تایید شد. لطفاً دستگاه خود را ارسال نمایید. سامانه فیکسیز`);
+    console.log(`[SMS SIMULATION] To: ${phone} | Message: برآورد قیمت درخواست تعمیر شما با کد ${trackingCode} تایید شد. لطفاً دستگاه خود را ارسال نمایید. سامانه تعمیرات فرافن`);
   };
 
   const handleSaveDateTime = async (id: string, silent: boolean = false) => {
@@ -153,7 +153,7 @@ export default function CoordinatorPanelPage() {
               <Wrench size={26} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-800">سامانه فیکسیز</h1>
+              <h1 className="text-xl font-extrabold text-slate-800">سامانه تعمیرات فرافن </h1>
               <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md">واحد هماهنگی</span>
             </div>
           </div>

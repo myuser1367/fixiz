@@ -217,7 +217,7 @@ export default function CeoPanelPage() {
               <BarChart3 size={26} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-800">سامانه فیکسیز</h1>
+              <h1 className="text-xl font-extrabold text-slate-800">سامانه تعمیرات فرافن </h1>
               <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md">مدیریت مرکز</span>
             </div>
           </div>

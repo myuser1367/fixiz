@@ -264,7 +264,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
            {/* سمت راست: متن‌ها و تصویر کارگاه */}
             <div className="text-center flex-1 animate-slide-up w-full max-w-2xl">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-10 leading-tight">
-                <span className="text-brand-light text-xl md:text-2xl block mb-4 font-bold tracking-wide">سامانه فیکسیز</span>
+                <span className="text-brand-light text-xl md:text-2xl block mb-4 font-bold tracking-wide">سامانه تعمیرات فرافن </span>
                 سامانه جامع مدیریت تعمیرات
               </h1>
 

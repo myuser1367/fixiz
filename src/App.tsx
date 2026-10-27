@@ -67,7 +67,7 @@ export const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
     color: 'text-slate-700 bg-slate-50 border-slate-200',
     badge: 'bg-slate-100 text-slate-800',
     icon: Settings,
-    desc: 'پنل خدمات سازمانی فیکسیز'
+    desc: 'پنل خدمات سازمانی فرافن'
   };
 
   const IconComponent = meta.icon;
@@ -100,7 +100,7 @@ export const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-2xl font-extrabold text-slate-800 tracking-tight">فیکسیز</span>
+            <span className="text-2xl font-extrabold text-slate-800 tracking-tight">فرافن</span>
             <span className={`px-3 py-1 rounded-xl text-xs font-bold ${meta.badge}`}>
               {meta.title}
             </span>
