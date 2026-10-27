@@ -21,6 +21,8 @@ const roleNames: Record<string, { label: string; color: string }> = {
   ceo: { label: 'مدیر مرکز', color: 'bg-purple-100 text-purple-700' },
   commercial: { label: 'واحد بازرگانی', color: 'bg-blue-100 text-blue-700' },
   finance: { label: 'واحد مالی', color: 'bg-teal-100 text-teal-700' },
+  monitoring: { label: 'مانیتورینگ', color: 'bg-cyan-100 text-cyan-800' },
+  monitoring_manager: { label: 'مانیتورینگ مدیر', color: 'bg-indigo-100 text-indigo-800' },
 };
 
 export default function AdminDashboardPage() {
@@ -72,7 +74,6 @@ export default function AdminDashboardPage() {
         toast.success('اطلاعات پرسنل با موفقیت ویرایش شد');
         setEditingId(null);
       } else {
-        // ثبت در جدول پرسنل با تنظیم رمز عبور اولیه
         const { error } = await supabase.from('personnel_users').insert({
           full_name: fullName,
           username: cleanUsername,
@@ -146,7 +147,6 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans" dir="rtl">
-      {/* هدر پنل ادمین */}
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -172,10 +172,8 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      {/* محتوای اصلی پنل ادمین */}
       <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* فرم ثبت یا ویرایش پرسنل */}
         <div className="bg-white p-6 rounded-2xl shadow-card border border-slate-100 h-fit transition-all duration-300 relative">
           {editingId && <div className="absolute top-0 right-0 left-0 h-1 bg-amber-400 rounded-t-2xl"></div>}
           <div className="flex items-center gap-2 mb-6 text-slate-800 font-bold text-lg">
@@ -203,6 +201,8 @@ export default function AdminDashboardPage() {
                 <option value="supervisor">سرپرست تعمیر</option>
                 <option value="admin">ادمین</option>
                 <option value="ceo">مدیر مرکز</option>
+                <option value="monitoring">مانیتورینگ</option>
+                <option value="monitoring_manager">مانیتورینگ مدیر</option>
               </select>
             </div>
 
@@ -225,7 +225,6 @@ export default function AdminDashboardPage() {
           </form>
         </div>
 
-        {/* جدول فهرست پرسنل */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-card border border-slate-100">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2 text-slate-800 font-bold text-lg">
@@ -287,7 +286,6 @@ export default function AdminDashboardPage() {
 
       </main>
 
-      {/* مدال تغییر رمز ادمین */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">

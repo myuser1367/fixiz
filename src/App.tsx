@@ -6,14 +6,16 @@ import HomePage from './pages/HomePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import CustomerPanelPage from './pages/CustomerPanelPage';
 import { supabase } from './lib/supabase';
-import { Home, LogOut, Key, Wrench, FileText, ShoppingCart, UserCheck, BarChart3, Settings } from 'lucide-react';
+import { Home, LogOut, Key, Wrench, FileText, ShoppingCart, UserCheck, BarChart3, Settings, Activity } from 'lucide-react';
 import CoordinatorPanelPage from './pages/CoordinatorPanelPage';
 import SupervisorPanelPage from './pages/SupervisorPanelPage';
 import CeoPanelPage from './pages/CeoPanelPage';
 import CommercialPanelPage from './pages/CommercialPanelPage';
 import FinancePanelPage from './pages/FinancePanelPage';
+import MonitoringPanelPage from './pages/MonitoringPanelPage';
+import MonitoringManagerPanelPage from './pages/MonitoringManagerPanelPage';
 
-// اضافه کردن export برای رفع خطای بیلد و حفظ کامل کدهای شما
+// اضافه کردن متادیتای نقش‌های جدید برای سازگاری کامل
 export const roleMeta: Record<string, { title: string; color: string; badge: string; icon: any; desc: string }> = {
   coordinator: { 
     title: 'واحد هماهنگی', 
@@ -50,10 +52,22 @@ export const roleMeta: Record<string, { title: string; color: string; badge: str
     icon: FileText,
     desc: 'صدور پیش‌فاکتور، تایید تسویه‌حساب مشتریان و امور مالی سازمان'
   },
+  monitoring: { 
+    title: 'مانیتورینگ', 
+    color: 'text-cyan-700 bg-cyan-50 border-cyan-200', 
+    badge: 'bg-cyan-100 text-cyan-800',
+    icon: Activity,
+    desc: 'مشاهده لحظه‌ای تجهیزات فعال و وضعیت تعمیرات در کارگاه'
+  },
+  monitoring_manager: { 
+    title: 'مانیتورینگ مدیر', 
+    color: 'text-indigo-700 bg-indigo-50 border-indigo-200', 
+    badge: 'bg-indigo-100 text-indigo-800',
+    icon: BarChart3,
+    desc: 'گزارش‌گیری پیشرفته، فیلترینگ بازه‌های زمانی و خروجی اکسل'
+  },
 };
 
-// قالب اختصاصی و کامل برای کلیه پنل‌های پرسنلی
-// اضافه کردن export برای رفع خطای استفاده نشدن متغیر در تایپ اسکریپت
 export const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
@@ -96,7 +110,6 @@ export const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
-      {/* هدر پنل پرسنل */}
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -135,7 +148,6 @@ export const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
         </div>
       </header>
 
-      {/* محتوای اختصاصی پنل */}
       <main className="max-w-6xl mx-auto px-4 py-10">
         <div className={`p-8 rounded-3xl border shadow-sm mb-8 bg-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6`}>
           <div className="flex items-center gap-5">
@@ -152,35 +164,12 @@ export const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
             <div className="mt-1"><span className="font-bold text-slate-700">شماره تماس:</span> <span className="font-mono">{profile?.phone || '-'}</span></div>
           </div>
         </div>
-
-        {/* کارت راهنما و آغاز فرآیندها */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="font-bold text-slate-800 mb-2">درخواست‌های در دست اقدام</h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-4">کارتابل کارهای جاری مربوط به این واحد سازمانی در این قسمت نمایش داده خواهد شد.</p>
-            <span className="text-2xl font-black text-brand-primary">۰</span>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="font-bold text-slate-800 mb-2">پایان‌یافته / تاییدشده</h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-4">تاریخچه درخواست‌ها و وظایفی که توسط شما تکمیل و بسته شده‌اند.</p>
-            <span className="text-2xl font-black text-slate-400">۰</span>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="font-bold text-slate-800 mb-2">گزارشات و اعلان‌ها</h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-4">هشدارهای ضروری، نیاز به پیگیری فوری و پیام‌های بین‌واحدی.</p>
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">وضعیت عادی</span>
-          </div>
-        </div>
       </main>
 
-      {/* مدال تغییر رمز عبور */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
             <h3 className="text-xl font-bold text-slate-800 mb-2">تغییر رمز عبور</h3>
-            <p className="text-xs text-slate-500 mb-5">رمز عبور جدیدی برای ورود به پنل وارد نمایید.</p>
             <form onSubmit={handleChangePassword}>
               <div className="mb-5">
                 <input
@@ -231,6 +220,8 @@ const DashboardRouter = () => {
     case 'ceo': return <CeoPanelPage />;
     case 'commercial': return <CommercialPanelPage />;
     case 'finance': return <FinancePanelPage />;
+    case 'monitoring': return <MonitoringPanelPage />;
+    case 'monitoring_manager': return <MonitoringManagerPanelPage />;
     default: return <Navigate to="/" replace />;
   }
 };
