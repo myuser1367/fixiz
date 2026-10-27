@@ -20,14 +20,13 @@ interface RepairRequest {
 }
 
 export default function CustomerPanelPage() {
-// بررسی کنید که این متغیرها فقط یک بار تعریف شده باشند:
+  const { profile, logout } = useAuth();
+  
+  // تعریف یکپارچه تمام استیت‌ها (فقط یک بار در کل فایل)
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [companyName, setCompanyName] = useState(profile?.company_name || '');
   const [email, setEmail] = useState((profile as any)?.email || '');
 
-  const { profile, logout } = useAuth();
-
-  
   const [activeTab, setActiveTab] = useState<'list' | 'new'>('list');
   const [requests, setRequests] = useState<RepairRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,8 +44,6 @@ export default function CustomerPanelPage() {
   });
 
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [fullName, setFullName] = useState(profile?.full_name || '');
-  const [companyName, setCompanyName] = useState('');
 
   // فرم ثبت درخواست جدید
   const [formData, setFormData] = useState({
