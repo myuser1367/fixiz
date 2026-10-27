@@ -159,7 +159,7 @@ export async function sendUserNotification(data: UserNotificationData) {
   }
 }
 
-export async function sendAdminNotifications(data: NotificationData) {
+export async function sendAdminNotifications(_data?: NotificationData) {
   try {
     // دریافت شماره موبایل پرسنلی که *فقط* نقش واحد هماهنگی (coordinator) دارند
     const { data: personnel, error } = await supabase

@@ -43,15 +43,7 @@ export default function FinancePanelPage() {
     setIsLoading(false);
   };
 
-  // ------------------------------------------------------------------
-  // تابع شبیه‌ساز ارسال پیامک (Mock SMS)
-  // ------------------------------------------------------------------
-  const sendMockSms = (phone: string, trackingCode: string, price: number) => {
-    // بعداً می‌توانید این بخش را با API پنل پیامکی خود (axios.post) جایگزین کنید
-    const message = `کاربر گرامی، فاکتور نهایی تعمیر دستگاه شما با کد پیگیری ${trackingCode} به مبلغ ${price.toLocaleString()} تومان صادر شد. سامانه تعمیرات فرافن `;
-    console.log(`[SMS SIMULATION] To: ${phone} | Message: ${message}`);
-  };
-
+ 
   const handleIssueInvoice = async (req: any) => {
     if (!confirm(`آیا از صدور فاکتور نهایی برای قطعه "${req.device_info}" اطمینان دارید؟`)) return;
     
