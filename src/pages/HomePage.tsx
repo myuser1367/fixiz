@@ -155,9 +155,8 @@ export default function HomePage() {
     } finally { setIsLoading(false); }
   };
 
-  const handleCustVerify = async (e: React.FormEvent) => {
+const handleCustVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    // بررسی تطابق کد پیامک شده با کد وارد شده (کد ۱۲۳۴۵۶ فقط برای تست و مواقع اضطراری است)
     if (custOtp !== generatedCustOtp && custOtp !== '123456') {
       return toast.error('کد اشتباه است');
     }
@@ -173,7 +172,11 @@ export default function HomePage() {
         status: 'customer_login_success'
       });
 
-      window.location.href = '/panel';
+      // استفاده از navigate یا ریلود کامل برای اعمال نشست (Session) جدید
+      setTimeout(() => {
+        window.location.href = '/panel';
+      }, 500);
+
     } catch (error: any) { 
       toast.error(error.message); 
       setIsLoading(false);
