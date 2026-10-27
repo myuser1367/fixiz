@@ -87,7 +87,7 @@ async function sendRealSMS(params: SmsParams) {
     return;
   }
 
-  try {
+ try {
     const response = await fetch('/api/send-sms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -102,14 +102,16 @@ async function sendRealSMS(params: SmsParams) {
       }),
     });
     
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const result = await response.json();
+    console.log(" پاسخ سرور ملی پیامک:", result); // <-- این خط را اضافه کنید تا نتیجه را ببینیم
+
+    if (!response.ok || result.RetStatus < 0) {
+        console.error(" خطا در ارسال پیامک از طریق پترن:", result);
     }
   } catch (error) {
-    console.error(`🚨 [NETWORK ERROR - ${params.logTag}] خطا در ارتباط با سرور کلودفلر ورکر:`, error);
+    console.error(`🚨 [NETWORK ERROR - ${params.logTag}] خطا در ارتباط با سرور:`, error);
   }
-}
-
+ }
 // ۱. ارسال پیامک کد تایید (OTP) - کد الگو: 569556
 export async function sendOtpSMS(mobile: string, code: string) {
   await sendRealSMS({
