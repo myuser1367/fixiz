@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, BarChart3, Filter, FileSpreadsheet, Search } from 'lucide-react';
+import { LogOut, Home, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
 export default function MonitoringManagerPanelPage() {
-  const { profile, logout } = useAuth();
+  const { logout } = useAuth(); // حذف profile اضافه
   const navigate = useNavigate();
   
   const [requests, setRequests] = useState<any[]>([]);
@@ -17,7 +17,7 @@ export default function MonitoringManagerPanelPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const endDate = ''; // اصلاح متغیر استفاده نشده
 
   useEffect(() => {
     fetchAllRequests();
@@ -114,8 +114,6 @@ export default function MonitoringManagerPanelPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        
-        {/* پنل فیلترها */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">جستجو (کد پیگیری یا مشتری)</label>
@@ -138,7 +136,7 @@ export default function MonitoringManagerPanelPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">از تاریخ میلادی/شمسی</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">از تاریخ</label>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-purple-500 font-mono" />
           </div>
           <div className="flex items-end">
@@ -148,7 +146,6 @@ export default function MonitoringManagerPanelPage() {
           </div>
         </div>
 
-        {/* جدول گزارشات */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-slate-800 text-lg">نتایج گزارشات ({filteredRequests.length} مورد)</h3>

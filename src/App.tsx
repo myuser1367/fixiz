@@ -212,7 +212,7 @@ const DashboardRouter = () => {
   if (isLoading) return <div className="min-h-screen flex items-center justify-center font-vazir text-slate-600">در حال بارگذاری پنل...</div>;
   if (!role) return <Navigate to="/" replace />;
 
-  switch (role) {
+  switch (role as string) { // اضافه کردن as string برای رفع خطای تایپ
     case 'admin': return <AdminDashboardPage />;
     case 'customer': return <CustomerPanelPage />;
     case 'coordinator': return <CoordinatorPanelPage />;

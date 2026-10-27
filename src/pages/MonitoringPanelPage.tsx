@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Key, Activity, Wrench, Search } from 'lucide-react';
+import { LogOut, Home, Activity, Wrench, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -13,19 +13,14 @@ export default function MonitoringPanelPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-
   useEffect(() => {
     fetchActiveRequests();
-    // بروزرسانی خودکار هر ۳۰ ثانیه برای مانیتورینگ لحظه‌ای
     const interval = setInterval(fetchActiveRequests, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchActiveRequests = async () => {
     setIsLoading(true);
-    // دریافت تمامی درخواست‌هایی که در حال حاضر در روند تعمیرات و فرآیند هستند (به جز پایان کار یا لغو شده)
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -132,7 +127,7 @@ export default function MonitoringPanelPage() {
                       </td>
                       <td className="py-4 px-4 flex items-center gap-2 text-slate-300">
                         <Wrench size={16} className="text-orange-400" />
-                        <span>سرپرست تعمیر (سروش آبیار یا همکار مربوطه)</span>
+                        <span>سرپرست تعمیر (سروش آبیار)</span>
                       </td>
                     </tr>
                   ))
