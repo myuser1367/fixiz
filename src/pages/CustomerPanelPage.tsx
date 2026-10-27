@@ -20,7 +20,12 @@ interface RepairRequest {
 }
 
 export default function CustomerPanelPage() {
+const [fullName, setFullName] = useState(profile?.full_name || '');
+  const [companyName, setCompanyName] = useState(profile?.company_name || '');
+  const [email, setEmail] = useState(profile?.email || ''); // اضافه کردن استیت ایمیل
+
   const { profile, logout } = useAuth();
+
   
   const [activeTab, setActiveTab] = useState<'list' | 'new'>('list');
   const [requests, setRequests] = useState<RepairRequest[]>([]);
@@ -84,7 +89,7 @@ export default function CustomerPanelPage() {
     }
   };
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
+ const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile?.id) return;
     if (!fullName) return toast.error('نام و نام خانوادگی الزامی است');
@@ -93,7 +98,11 @@ export default function CustomerPanelPage() {
       setIsLoading(true);
       const { error } = await supabase
         .from('profiles')
-        .update({ full_name: fullName, company_name: companyName })
+        .update({ 
+          full_name: fullName, 
+          company_name: companyName,
+          email: email.trim() // ذخیره ایمیل در دیتابیس
+        })
         .eq('id', profile.id);
         
       if (error) throw error;
@@ -670,7 +679,7 @@ export default function CustomerPanelPage() {
               <p className="text-slate-500 text-sm">برای استفاده از خدمات سامانه، لطفاً اطلاعات زیر را یک‌بار تکمیل کنید.</p>
             </div>
             
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
+           <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">نام و نام خانوادگی <span className="text-red-500">*</span></label>
                 <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary" placeholder="مثال: علی احمدی" />
@@ -678,6 +687,11 @@ export default function CustomerPanelPage() {
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">نام شرکت (اختیاری)</label>
                 <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary" placeholder="مثال: پتروشیمی زاگرس" />
+              </div>
+              {/* فیلد جدید ایمیل */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">ایمیل (اختیاری)</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary text-left" placeholder="example@email.com" dir="ltr" />
               </div>
               <button type="submit" disabled={isLoading} className="w-full py-4 mt-4 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors flex justify-center items-center gap-2">
                 {isLoading ? <Loader2 className="animate-spin" /> : 'ثبت اطلاعات و ورود به پنل'}
