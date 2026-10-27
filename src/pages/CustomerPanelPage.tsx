@@ -20,9 +20,10 @@ interface RepairRequest {
 }
 
 export default function CustomerPanelPage() {
-const [fullName, setFullName] = useState(profile?.full_name || '');
+// بررسی کنید که این متغیرها فقط یک بار تعریف شده باشند:
+  const [fullName, setFullName] = useState(profile?.full_name || '');
   const [companyName, setCompanyName] = useState(profile?.company_name || '');
-  const [email, setEmail] = useState(profile?.email || ''); // اضافه کردن استیت ایمیل
+  const [email, setEmail] = useState((profile as any)?.email || '');
 
   const { profile, logout } = useAuth();
 
