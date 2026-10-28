@@ -3,7 +3,8 @@ import { supabase } from './supabase';
 // ============================================================================
 // 🎛 کلید تغییر حالت ارسال پیامک (آزمایشی / واقعی)
 // ============================================================================
-export const IS_SIMULATION_MODE = false; 
+//export const IS_SIMULATION_MODE = false;          //پیامک واقعی
+export const IS_SIMULATION_MODE = true;             //حالت تستی
 
 
 export interface NotificationData {
