@@ -75,12 +75,12 @@ export function Header({ currentPage = 'home', onNavigate, onOpenTracking }: Hea
           {/* بخش تماس و دکمه ورود به پنل */}
           <div className="hidden md:flex items-center gap-4">
             <a
-              href="tel:+982165024220"
+              href="tel:+982141297000"
               className="flex items-center gap-2 text-slate-500 hover:text-brand-600 transition-colors font-medium"
               dir="ltr"
             >
               <Phone className="w-4 h-4" />
-              <span className="text-sm">021-65024220</span>
+              <span className="text-sm">021-41297000(810)</span>
             </a>
 
             {/* دکمه ورود به پنل */}
