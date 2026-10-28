@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { sendUserNotification } from '../lib/notifications';
 import { LogOut, Home, Key, CheckCircle, Loader2, CreditCard, History, Printer, DollarSign } from 'lucide-react';
+
 export default function FinancePanelPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
@@ -27,10 +28,10 @@ export default function FinancePanelPage() {
   const fetchData = async () => {
     setIsLoading(true);
     
-    // دریافت درخواست‌های در انتظار مالی و فاکتور شده‌ها
+    // دریافت درخواست‌های در انتظار مالی و فاکتور شده‌ها همراه با پروفایل مشتری (شامل ایمیل)
     const { data, error } = await supabase
       .from('repair_requests')
-      .select(`*, profiles!customer_id(full_name, phone)`)
+      .select(`*, profiles!customer_id(full_name, phone, email)`)
       .in('status', ['pending_finance', 'invoiced'])
       .order('created_at', { ascending: false });
       
@@ -43,7 +44,21 @@ export default function FinancePanelPage() {
     setIsLoading(false);
   };
 
- 
+  // تابعی برای ارسال ایمیل از طریق پلتفرم Resend
+  const sendEmailViaApi = async (toEmail: string, subject: string, text: string) => {
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: toEmail, subject, text })
+      });
+      const resData = await response.json();
+      if (!response.ok) console.error("Email API Error:", resData);
+    } catch (err) {
+      console.error("Network error sending email:", err);
+    }
+  };
+
   const handleIssueInvoice = async (req: any) => {
     if (!confirm(`آیا از صدور فاکتور نهایی برای قطعه "${req.device_info}" اطمینان دارید؟`)) return;
     
@@ -57,6 +72,50 @@ export default function FinancePanelPage() {
 
       if (error) throw error;
 
+      // جمع‌آوری لیست ایمیل‌ها برای ارسال (ایمیل مشتری + ایمیل‌های گروه انتخاب شده در بازرگانی)
+      const recipientEmails: string[] = [];
+
+      // الف) ایمیل مشتری
+      const customerEmail = req.profiles?.email;
+      if (customerEmail) {
+        recipientEmails.push(customerEmail);
+      }
+
+      // ب) ایمیل‌های گروه بازرگانی (در صورتی که گروهی انتخاب شده باشد)
+      if (req.email_group) {
+        // پیدا کردن آیدی گروه بر اساس نام آن
+        const { data: groupData } = await supabase
+          .from('email_groups')
+          .select('id')
+          .eq('name', req.email_group)
+          .maybeSingle();
+
+        if (groupData) {
+          // پیدا کردن تمام ایمیل‌های متعلق به این گروه
+          const { data: groupEmailsData } = await supabase
+            .from('group_emails')
+            .select('email')
+            .eq('group_id', groupData.id);
+
+          if (groupEmailsData) {
+            groupEmailsData.forEach(item => {
+              if (item.email && !recipientEmails.includes(item.email)) {
+                recipientEmails.push(item.email);
+              }
+            });
+          }
+        }
+      }
+
+      // متن ایمیل فاکتور
+      const emailSubject = `صدور فاکتور رسمی خدمات - کد پیگیری: ${req.tracking_code}`;
+      const emailBody = `با سلام،\n\nفاکتور نهایی خدمات تعمیر تجهیز "${req.device_info}" (کد پیگیری: ${req.tracking_code}) صادر گردید.\n\nمبلغ قابل پرداخت: ${req.final_price?.toLocaleString() || 0} ریال\n\nلطفاً جهت تسویه حساب و تحویل دستگاه اقدام فرمایید.\n\nسامانه تعمیرات فرافن`;
+
+      // ارسال ایمیل به تک‌تک مخاطبین استخراج شده
+      for (const email of recipientEmails) {
+        await sendEmailViaApi(email, emailSubject, emailBody);
+      }
+
       // 2. ارسال پیامک به مشتری
       const customerPhone = req.profiles?.phone;
       if (customerPhone) {
@@ -66,9 +125,9 @@ export default function FinancePanelPage() {
           status: 'invoiced',
           price: req.final_price?.toString() || '0'
         });
-        toast.success(`فاکتور صادر شد. پیامک اطلاع‌رسانی ارسال گردید.`);
+        toast.success(`فاکتور صادر شد. پیامک و ایمیل‌های اطلاع‌رسانی ارسال گردید.`);
       } else {
-        toast.success('فاکتور با موفقیت صادر شد (شماره موبایل مشتری یافت نشد).');
+        toast.success('فاکتور با موفقیت صادر شد و ایمیل‌ها ارسال گردیدند.');
       }
 
       fetchData();
@@ -79,15 +138,11 @@ export default function FinancePanelPage() {
     }
   };
 
-  // ------------------------------------------------------------------
-  // توابع جدید: تایید پرداخت و چاپ فاکتور
-  // ------------------------------------------------------------------
   const handleConfirmPayment = async (req: any) => {
     if (!confirm(`آیا پرداخت فاکتور (کد پیگیری: ${req.tracking_code}) تایید می‌شود؟ با این کار درخواست جهت بررسی و تایید خروج به پنل بازرگانی ارجاع داده می‌شود.`)) return;
     
     setIsLoading(true);
     try {
-      // تغییر وضعیت برای ارسال به کارتابل بازرگانی
       const { error } = await supabase
         .from('repair_requests')
         .update({ status: 'pending_commercial_checkout' })
@@ -134,6 +189,9 @@ export default function FinancePanelPage() {
             <div class="row"><span>شماره تماس:</span> <strong dir="ltr">${customerPhone}</strong></div>
             <div class="row"><span>نام دستگاه (قطعه):</span> <strong>${req.device_info}</strong></div>
             <div class="row"><span>برند سازنده:</span> <strong>${req.brand || 'ثبت نشده'}</strong></div>
+            ${req.tr_code ? `<div class="row"><span>TR:</span> <strong>${req.tr_code}</strong></div>` : ''}
+            ${req.delivery_list_number ? `<div class="row"><span>شماره لیست تحویل:</span> <strong>${req.delivery_list_number}</strong></div>` : ''}
+            ${req.email_group ? `<div class="row"><span>گروه مرتبط:</span> <strong>${req.email_group}</strong></div>` : ''}
             <div class="total">مبلغ نهایی فاکتور: ${req.final_price?.toLocaleString() || 0} ریال</div>
           </div>
           <div class="footer">
@@ -176,7 +234,6 @@ export default function FinancePanelPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
-      {/* هدر پنل مالی */}
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -206,7 +263,6 @@ export default function FinancePanelPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* تب‌های مالی */}
         <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 mb-6 w-full max-w-md mx-auto md:mx-0 flex-col sm:flex-row gap-1">
           <button onClick={() => setActiveTab('queue')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'queue' ? 'bg-teal-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
             <CreditCard size={18} /> کارتابل صدور فاکتور
@@ -217,7 +273,6 @@ export default function FinancePanelPage() {
           </button>
         </div>
 
-        {/* لیست درخواست‌ها */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <h2 className="text-xl font-bold text-slate-800 mb-6">
             {activeTab === 'queue' ? 'درخواست‌های در انتظار بررسی و صدور فاکتور نهایی' : 'فاکتورهای صادر شده در انتظار پرداخت و تسویه'}
@@ -276,7 +331,7 @@ export default function FinancePanelPage() {
                             onClick={() => handleIssueInvoice(req)} 
                             className="px-4 py-2 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5"
                           >
-                            <CheckCircle size={16} /> صدور فاکتور و اطلاع پیامکی
+                            <CheckCircle size={16} /> صدور فاکتور و اطلاع پیامکی/ایمیلی
                           </button>
                         ) : (
                           <div className="flex flex-col gap-2">
@@ -305,7 +360,6 @@ export default function FinancePanelPage() {
 
       </main>
 
-      {/* مدال تغییر رمز عبور پرسنل */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
