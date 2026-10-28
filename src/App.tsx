@@ -207,12 +207,15 @@ export const PersonnelPanelLayout = ({ roleKey }: { roleKey: string }) => {
 };
 
 const DashboardRouter = () => {
-  const { role, isLoading } = useAuth();
+  const { role, profile, isLoading } = useAuth();
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center font-vazir text-slate-600">در حال بارگذاری پنل...</div>;
-  if (!role) return <Navigate to="/" replace />;
+  if (!role && !profile) return <Navigate to="/" replace />;
 
-  switch (role as string) { // اضافه کردن as string برای رفع خطای تایپ
+  // اطمینان از خواندن دقیق نقش حتی اگر از پروفایل کش شده بیاید
+  const currentRole = role || profile?.role;
+
+  switch (currentRole) { 
     case 'admin': return <AdminDashboardPage />;
     case 'customer': return <CustomerPanelPage />;
     case 'coordinator': return <CoordinatorPanelPage />;

@@ -123,19 +123,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const personnelLogin = async (username: string, password: string) => {
+ const personnelLogin = async (username: string, password: string) => {
     const cleanUsername = username.toLowerCase().trim();
     
+    // مدیریت لاگین ادمین
     if (cleanUsername === 'admin') {
       const { data, error } = await supabase.auth.signInWithPassword({ email: 'admin@fixiz.ir', password });
       if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
+      
       const { data: pData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+      
       if (pData) {
-        setProfile(pData as UserProfile);
+        const adminProfile = { ...pData, role: 'admin' as Role };
+        setProfile(adminProfile);
+        
+        // ذخیره سشن ادمین مشابه پرسنل برای جلوگیری از ریدایرکت به مشتری
+        localStorage.setItem('fixiz_personnel_session', JSON.stringify(adminProfile));
+        setSession({ user: { id: data.user.id } });
       }
       return { isFirstLogin: false, role: 'admin' };
     }
 
+    // مدیریت لاگین سایر پرسنل
     const { data: pUser, error } = await supabase
       .from('personnel_users')
       .select('*')
