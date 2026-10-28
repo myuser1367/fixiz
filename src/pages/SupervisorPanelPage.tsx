@@ -33,7 +33,7 @@ export default function SupervisorPanelPage() {
   const fetchRequests = async () => {
     setIsLoading(true);
     
-    // واکشی کل اطلاعات کارتابل سرپرست بدون فیلتر اولیه سفت و سخت
+    // دریافت اطلاعات
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone), personnel_users!technician_id(full_name)`)
@@ -43,14 +43,12 @@ export default function SupervisorPanelPage() {
       toast.error('خطا در دریافت اطلاعات درخواست‌ها');
     } else if (data) {
       if (activeTab === 'pending') {
-        // وضعیت‌هایی که در کارتابل ارجاع نمایش داده می‌شوند
         const pendingReqs = data.filter(req => 
           ['pending_supervisor', 'waiting_for_device', 'pending_supervisor_approval', 'canceled_by_customer', 'rejected', 'unrepairable'].includes(req.status) || 
-          (req.status === 'repairing' && !req.technician_id) // دستگاهی که تعمیر شروع شده ولی تکنسین ندارد
+          (req.status === 'repairing' && !req.technician_id)
         );
         setRequests(pendingReqs);
       } else {
-        // دستگاه‌هایی که فقط دست تکنسین هستند
         const repairingReqs = data.filter(req => 
           req.status === 'repairing' && req.technician_id
         );
@@ -124,7 +122,7 @@ export default function SupervisorPanelPage() {
 
       if (error) throw error;
       
-      toast.success('دستگاه با موفقیت به تکنسین ارجاع داده شد و به تب در حال تعمیر منتقل گردید');
+      toast.success('دستگاه با موفقیت به تکنسین ارجاع داده شد');
       setAssignRequest(null);
       setSelectedTechnicianId('');
       fetchRequests(); 
@@ -155,7 +153,6 @@ export default function SupervisorPanelPage() {
     }
   };
 
-  // تابع تغییر رمز عبور که جا افتاده بود
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) return toast.error('رمز عبور باید حداقل ۶ کاراکتر باشد');
@@ -194,6 +191,7 @@ export default function SupervisorPanelPage() {
     }
   };
 
+  // اضافه شدن تمامی فیلدهای تکمیلی مشتری و بازرگانی
   const FullRequestDetails = ({ req }: { req: any }) => (
     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 mb-6" dir="rtl">
       <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات کامل تجهیز ارسالی</h4>
@@ -203,6 +201,7 @@ export default function SupervisorPanelPage() {
         <div><span className="text-slate-400">پارت نامبر:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.part_number || 'ثبت نشده'}</strong></div>
         <div><span className="text-slate-400">شماره سریال:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.serial_number || 'ثبت نشده'}</strong></div>
         
+        {/* فیلدهای بازرگانی */}
         {req.tr_code && <div><span className="text-slate-400">TR کد:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.tr_code}</strong></div>}
         {req.delivery_list_number && <div><span className="text-slate-400">شماره لیست تحویل:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.delivery_list_number}</strong></div>}
         {req.email_group && <div><span className="text-slate-400">گروه ایمیل بازرگانی:</span> <strong className="text-slate-800">{req.email_group}</strong></div>}
@@ -328,8 +327,9 @@ export default function SupervisorPanelPage() {
                                 </button>
                               )}
 
+                              {/* اگر قطعه غیرقابل تعمیر بود، دکمه‌ای برای تغییر وضعیت یا بایگانی نمایش داده می‌شود (یا فعلاً فقط یک لیبل) */}
                               {req.status === 'unrepairable' && (
-                                <span className="text-xs text-red-500 font-bold">نیازمند بایگانی / خروج</span>
+                                <span className="text-xs text-red-500 font-bold">نیازمند اقدام / خروج</span>
                               )}
                             </div>
                           ) : (
@@ -348,6 +348,7 @@ export default function SupervisorPanelPage() {
         </div>
       </main>
 
+      {/* مدال بررسی اولیه */}
       {reviewRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -378,6 +379,7 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
+      {/* مدال ارجاع به تکنسین */}
       {assignRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-slide-up">
@@ -408,6 +410,7 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
+      {/* مدال تایید گزارش تکنسین */}
       {approvalRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -432,6 +435,7 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
+      {/* مدال تغییر رمز عبور */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
