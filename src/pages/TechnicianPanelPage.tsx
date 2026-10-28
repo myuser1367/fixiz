@@ -22,7 +22,7 @@ export default function TechnicianPanelPage() {
   const [newPartQty, setNewPartQty] = useState(1);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   
-  // استیت جدید برای چک‌باکس قطعه غیرقابل تعمیر
+  // استیت چک‌باکس غیرقابل تعمیر
   const [isUnrepairable, setIsUnrepairable] = useState(false);
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function TechnicianPanelPage() {
     setSelectedRequest(req);
     setTechnicianReport(req.supervisor_report || '');
     setParts([]);
-    setIsUnrepairable(false); // ریست کردن وضعیت چک‌باکس
+    setIsUnrepairable(false);
   };
 
   const handleAddPart = () => {
@@ -75,11 +75,12 @@ export default function TechnicianPanelPage() {
 
     setIsSubmittingReport(true);
     try {
-      // اگر تیک غیرقابل تعمیر زده شده باشد، این موضوع در گزارش ثبت می‌شود
+      // اگر تیک غیرقابل تعمیر زده شده باشد، فقط یک برچسب به ابتدای گزارش اضافه می‌کنیم تا سرپرست ببیند
       const finalReport = isUnrepairable 
-        ? `[قطعه غیرقابل تعمیر تشخیص داده شد]\n${technicianReport}`
+        ? `[دستگاه غیرقابل تعمیر اعلام شد]\n${technicianReport}`
         : technicianReport;
 
+      // در هر حالت درخواست به کارتابل سرپرست برای تایید می‌رود
       const { error: reqError } = await supabase
         .from('repair_requests')
         .update({ 
@@ -90,8 +91,8 @@ export default function TechnicianPanelPage() {
       
       if (reqError) throw reqError;
 
-      // ثبت قطعات فقط اگر تیک غیرقابل تعمیر زده نشده باشد
-      if (!isUnrepairable && parts.length > 0) {
+      // ثبت قطعات در صورت وجود (بدون توجه به تیک غیرقابل تعمیر)
+      if (parts.length > 0) {
         const partsToInsert = parts.map(p => ({
           request_id: selectedRequest.id,
           part_name: p.part_name,
@@ -137,7 +138,6 @@ export default function TechnicianPanelPage() {
     }
   };
 
-  // اضافه شدن تمامی فیلدهای تکمیلی مشتری و بازرگانی
   const FullRequestDetails = ({ req }: { req: any }) => (
     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 mb-6" dir="rtl">
       <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات تجهیز ارجاع شده</h4>
@@ -235,7 +235,7 @@ export default function TechnicianPanelPage() {
                         </td>
                         <td className="py-4 px-3 text-center">
                           <button onClick={() => openReportModal(req)} className="px-4 py-2 bg-brand-primary hover:bg-brand-600 text-white rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5 shadow-sm">
-                            <FileText size={16} /> ثبت گزارش و پایان تعمیر
+                            <FileText size={16} /> ثبت گزارش کار
                           </button>
                         </td>
                       </tr>
@@ -274,62 +274,58 @@ export default function TechnicianPanelPage() {
                 />
               </div>
 
-              {/* اضافه شدن چک باکس قطعه غیرقابل تعمیر */}
-              <div className="bg-red-50 border border-red-200 p-4 rounded-xl flex items-start gap-3">
+              {/* گزینه اعلام غیرقابل تعمیر بودن دستگاه */}
+              <div className="flex items-center gap-2">
                 <input 
                   type="checkbox" 
                   id="unrepairable" 
                   checked={isUnrepairable} 
                   onChange={e => setIsUnrepairable(e.target.checked)} 
-                  className="mt-1 w-5 h-5 rounded text-red-600 focus:ring-red-600" 
+                  className="w-5 h-5 rounded text-red-600 focus:ring-red-600 border-slate-300" 
                 />
-                <div>
-                  <label htmlFor="unrepairable" className="font-bold text-red-900 block cursor-pointer">اعلام قطعه به عنوان غیرقابل تعمیر</label>
-                  <p className="text-sm text-red-700 mt-1">با انتخاب این گزینه، لیست قطعات نادیده گرفته شده و دستگاه جهت تایید عدم امکان تعمیر به سرپرست ارجاع می‌شود.</p>
-                </div>
+                <label htmlFor="unrepairable" className="font-bold text-slate-700 cursor-pointer">
+                  اعلام دستگاه به عنوان غیرقابل تعمیر
+                </label>
               </div>
 
-              {/* اگر قطعه غیرقابل تعمیر باشد، بخش قطعات مصرفی غیرفعال/مخفی می‌شود */}
-              {!isUnrepairable && (
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <label className="block text-sm font-bold text-slate-700 mb-4">لیست قطعات مصرفی یا تعویضی (در صورت نیاز)</label>
-                  
-                  <div className="flex gap-2 mb-4">
-                    <input 
-                      type="text" 
-                      value={newPartName} 
-                      onChange={e => setNewPartName(e.target.value)} 
-                      placeholder="نام قطعه (مثلا: خازن ۱۰۰ میکرو)" 
-                      className="flex-1 px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-brand-primary text-sm" 
-                    />
-                    <input 
-                      type="number" 
-                      min="1" 
-                      value={newPartQty} 
-                      onChange={e => setNewPartQty(parseInt(e.target.value) || 1)} 
-                      className="w-20 px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-brand-primary text-sm text-center" 
-                      dir="ltr"
-                    />
-                    <button onClick={handleAddPart} className="px-3 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center justify-center">
-                      <Plus size={18} />
-                    </button>
-                  </div>
-
-                  {parts.length > 0 && (
-                    <ul className="space-y-2">
-                      {parts.map((p, idx) => (
-                        <li key={idx} className="flex justify-between items-center bg-white px-3 py-2 rounded-lg border border-slate-100 text-sm">
-                          <span className="font-bold text-slate-700">{p.part_name}</span>
-                          <div className="flex items-center gap-3">
-                            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono">{p.quantity} عدد</span>
-                            <button onClick={() => handleRemovePart(idx)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <label className="block text-sm font-bold text-slate-700 mb-4">لیست قطعات مصرفی یا تعویضی (در صورت نیاز)</label>
+                
+                <div className="flex gap-2 mb-4">
+                  <input 
+                    type="text" 
+                    value={newPartName} 
+                    onChange={e => setNewPartName(e.target.value)} 
+                    placeholder="نام قطعه (مثلا: خازن ۱۰۰ میکرو)" 
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-brand-primary text-sm" 
+                  />
+                  <input 
+                    type="number" 
+                    min="1" 
+                    value={newPartQty} 
+                    onChange={e => setNewPartQty(parseInt(e.target.value) || 1)} 
+                    className="w-20 px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-brand-primary text-sm text-center" 
+                    dir="ltr"
+                  />
+                  <button onClick={handleAddPart} className="px-3 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center justify-center">
+                    <Plus size={18} />
+                  </button>
                 </div>
-              )}
+
+                {parts.length > 0 && (
+                  <ul className="space-y-2">
+                    {parts.map((p, idx) => (
+                      <li key={idx} className="flex justify-between items-center bg-white px-3 py-2 rounded-lg border border-slate-100 text-sm">
+                        <span className="font-bold text-slate-700">{p.part_name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono">{p.quantity} عدد</span>
+                          <button onClick={() => handleRemovePart(idx)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
               <div className="flex gap-3 pt-2">
                 <button 
