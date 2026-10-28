@@ -221,8 +221,13 @@ const DashboardRouter = () => {
 
   const currentRole = role || profile?.role;
 
-  // بررسی نقش برای هدایت به صفحه مربوطه (پشتیبانی از نقش‌های پویا یا کلیدهای شامل تکنسین)
-  if (currentRole?.includes('technician') || currentRole?.includes('تکنسین')) {
+  // اگر نقش کاربر مربوط به تکنسین بود (با هر نام کلیدی در دیتابیس)
+  if (
+    currentRole?.includes('technician') || 
+    currentRole?.includes('تکنسین') || 
+    currentRole?.includes('tec') ||
+    currentRole?.startsWith('role_') // برای نقش‌های پویایی که با کلید رندوم ساخته شده‌اند
+  ) {
     return <TechnicianPanelPage />;
   }
 
