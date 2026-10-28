@@ -83,7 +83,6 @@ export default function FinancePanelPage() {
 
       // ب) ایمیل‌های گروه بازرگانی (در صورتی که گروهی انتخاب شده باشد)
       if (req.email_group) {
-        // پیدا کردن آیدی گروه بر اساس نام آن
         const { data: groupData } = await supabase
           .from('email_groups')
           .select('id')
@@ -91,7 +90,6 @@ export default function FinancePanelPage() {
           .maybeSingle();
 
         if (groupData) {
-          // پیدا کردن تمام ایمیل‌های متعلق به این گروه
           const { data: groupEmailsData } = await supabase
             .from('group_emails')
             .select('email')
@@ -111,23 +109,26 @@ export default function FinancePanelPage() {
       const emailSubject = `صدور فاکتور رسمی خدمات - کد پیگیری: ${req.tracking_code}`;
       const emailBody = `با سلام،\n\nفاکتور نهایی خدمات تعمیر تجهیز "${req.device_info}" (کد پیگیری: ${req.tracking_code}) صادر گردید.\n\nمبلغ قابل پرداخت: ${req.final_price?.toLocaleString() || 0} ریال\n\nلطفاً جهت تسویه حساب و تحویل دستگاه اقدام فرمایید.\n\nسامانه تعمیرات فرافن`;
 
-      // ارسال ایمیل به تک‌تک مخاطبین استخراج شده
+      // ارسال ایمیل به تک‌تک مخاطبین استخراج شده (حفظ حریم خصوصی ایمیل‌ها نسبت به هم)
       for (const email of recipientEmails) {
         await sendEmailViaApi(email, emailSubject, emailBody);
       }
 
-      // 2. ارسال پیامک به مشتری
+      // 2. ارسال پیامک (فقط به مشتری، نه واحد بازرگانی)
+      const isCommercial = req.customer_id === COMMERCIAL_CUSTOMER_ID || req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
       const customerPhone = req.profiles?.phone;
-      if (customerPhone) {
+
+      if (customerPhone && !isCommercial) {
         await sendUserNotification({
           trackingCode: req.tracking_code,
           userMobile: customerPhone,
           status: 'invoiced',
           price: req.final_price?.toString() || '0'
         });
-        toast.success(`فاکتور صادر شد. پیامک و ایمیل‌های اطلاع‌رسانی ارسال گردید.`);
+        toast.success(`فاکتور صادر شد. پیامک به مشتری و ایمیل‌ها ارسال گردید.`);
       } else {
-        toast.success('فاکتور با موفقیت صادر شد و ایمیل‌ها ارسال گردیدند.');
+        // پیام موفقیت متفاوت برای زمانی که درخواست مربوط به بازرگانی است یا شماره ثبت نشده
+        toast.success(`فاکتور صادر شد و ایمیل‌ها ارسال گردیدند${isCommercial ? ' (بدون ارسال پیامک به بازرگانی)' : ''}.`);
       }
 
       fetchData();
