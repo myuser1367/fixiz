@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Wrench, Loader2, Save, Key, Search, CheckCircle, XCircle, UserPlus, List, CheckSquare } from 'lucide-react';
+import { LogOut, Home, Wrench, Key, Search, CheckCircle, XCircle, UserPlus, List, CheckSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { sendUserNotification } from '../lib/notifications';
@@ -14,10 +14,9 @@ export default function SupervisorPanelPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'repairing'>('pending');
 
-  // استیت‌های مودال تغییر رمز
+  // استیت‌های مربوط به مودال تغییر رمز
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   // استیت مودال‌های مختلف
   const [reviewRequest, setReviewRequest] = useState<any | null>(null);
@@ -37,10 +36,8 @@ export default function SupervisorPanelPage() {
     let statusFilter = [];
     
     if (activeTab === 'pending') {
-      // در کارتابل اصلی: در انتظار بررسی، پذیرش شده (منتظر دستگاه)، یا تعمیر شده توسط تکنسین (منتظر تایید سرپرست)
       statusFilter = ['pending_supervisor', 'accepted', 'waiting_for_device', 'pending_supervisor_approval'];
     } else {
-      // در تب در حال تعمیر: دستگاه‌هایی که دست تکنسین‌ها هستند
       statusFilter = ['repairing'];
     }
 
@@ -59,7 +56,6 @@ export default function SupervisorPanelPage() {
   };
 
   const fetchTechnicians = async () => {
-    // دریافت لیست کاربرانی که در نقش آنها کلمه "تکنسین" یا "tec" وجود دارد
     const { data, error } = await supabase
       .from('personnel_users')
       .select('id, full_name, role, roles!inner(role_label)')
@@ -81,7 +77,6 @@ export default function SupervisorPanelPage() {
     } else {
       toast.success(newStatus === 'rejected' ? 'درخواست رد شد' : 'وضعیت با موفقیت به‌روزرسانی شد');
       
-      // ارسال پیامک پذیرش دستگاه
       if (newStatus === 'waiting_for_device' && customerPhone) {
         await sendUserNotification({
           trackingCode: trackingCode || '',
@@ -105,7 +100,7 @@ export default function SupervisorPanelPage() {
         .from('repair_requests')
         .update({ 
           technician_id: selectedTechnicianId,
-          status: 'repairing' // وضعیت به در حال تعمیر تغییر می‌کند
+          status: 'repairing'
         })
         .eq('id', assignRequest.id);
 
@@ -143,25 +138,6 @@ export default function SupervisorPanelPage() {
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword.length < 6) return toast.error('رمز عبور باید حداقل ۶ کاراکتر باشد');
-    setIsUpdatingPassword(true);
-    try {
-      if (profile?.username) {
-        const { error } = await supabase.from('personnel_users').update({ password: newPassword }).eq('username', profile.username);
-        if (error) throw error;
-      }
-      toast.success('رمز عبور شما با موفقیت تغییر کرد');
-      setShowPasswordModal(false);
-      setNewPassword('');
-    } catch (err: any) {
-      toast.error(err.message || 'خطا در تغییر رمز عبور');
-    } finally {
-      setIsUpdatingPassword(false);
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بررسی شما</span>;
@@ -192,7 +168,6 @@ export default function SupervisorPanelPage() {
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
-        {/* ... (هدر دقیقاً مشابه قبل) ... */}
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-amber-100 p-2.5 rounded-xl text-amber-700">
@@ -205,6 +180,7 @@ export default function SupervisorPanelPage() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="text-xs font-medium text-slate-500 hidden md:inline ml-2">خوش آمدید، {profile?.full_name || 'همکار گرامی'}</span>
+            
             <button onClick={() => setShowPasswordModal(true)} className="flex items-center gap-1.5 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl font-bold transition-colors">
               <Key size={16} /> <span className="hidden sm:inline">تغییر رمز</span>
             </button>
@@ -218,7 +194,6 @@ export default function SupervisorPanelPage() {
         </div>
       </header>
 
-      {/* تب‌های مدیریت */}
       <div className="max-w-7xl mx-auto px-4 pt-6">
         <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 w-full max-w-md gap-1">
           <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'pending' ? 'bg-amber-500 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
@@ -273,29 +248,24 @@ export default function SupervisorPanelPage() {
                         </td>
                         <td className="py-4 px-3 text-center">
                           <div className="flex flex-col items-center justify-center gap-2">
-                            
                             {req.status === 'pending_supervisor' && (
                               <button onClick={() => setReviewRequest(req)} className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
                                 <Search size={16} /> بررسی اولیه و پذیرش
                               </button>
                             )}
-
                             {req.status === 'waiting_for_device' && (
                               <button onClick={() => {setAssignRequest(req); setSelectedTechnicianId('');}} className="px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
                                 <UserPlus size={16} /> ارجاع به تکنسین
                               </button>
                             )}
-
                             {req.status === 'pending_supervisor_approval' && (
                               <button onClick={() => setApprovalRequest(req)} className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
                                 <CheckSquare size={16} /> بررسی گزارش و تایید
                               </button>
                             )}
-
                             {req.status === 'repairing' && (
                               <span className="text-xs text-slate-400">در دست تکنسین</span>
                             )}
-
                           </div>
                         </td>
                       </tr>
@@ -308,7 +278,7 @@ export default function SupervisorPanelPage() {
         </div>
       </main>
 
-      {/* 1. مودال بررسی اولیه (پذیرش یا عدم پذیرش) */}
+      {/* مودال بررسی اولیه */}
       {reviewRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -339,7 +309,7 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
-      {/* 2. مودال جدید: ارجاع به تکنسین */}
+      {/* مودال ارجاع به تکنسین */}
       {assignRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-slide-up">
@@ -370,7 +340,7 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
-      {/* 3. مودال جدید: بررسی گزارش تکنسین و تایید نهایی */}
+      {/* مودال بررسی گزارش تکنسین و تایید نهایی */}
       {approvalRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -381,7 +351,6 @@ export default function SupervisorPanelPage() {
                 <span className="text-slate-400 block mb-1">گزارش کار تکنسین ({approvalRequest.personnel_users?.full_name}):</span>
                 <p className="font-bold text-slate-800 leading-relaxed whitespace-pre-wrap">{approvalRequest.supervisor_report}</p>
               </div>
-              <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">قطعات مصرفی در این نسخه شبیه‌سازی شده است.</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
@@ -397,9 +366,26 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
+      {/* مودال تغییر رمز */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          {/* ... */}
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
+            <h3 className="text-xl font-bold text-slate-800 mb-2">تغییر رمز عبور</h3>
+            <div className="mb-5">
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="حداقل ۶ کاراکتر"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary text-left font-mono"
+                dir="ltr"
+                required
+              />
+            </div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 py-3 bg-brand-primary hover:bg-brand-600 text-white rounded-xl font-bold transition-colors text-sm">بستن</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
