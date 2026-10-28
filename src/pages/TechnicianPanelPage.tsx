@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Wrench, Loader2, Save, Key, FileText, Plus, Trash2 } from 'lucide-react';
+import { LogOut, Home, Wrench, Loader2, Save, Key, FileText, Plus, Trash2, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -65,23 +65,29 @@ export default function TechnicianPanelPage() {
     setParts(newParts);
   };
 
-  const submitReportAndParts = async () => {
+  const submitReportAndParts = async (isRepairable: boolean) => {
     if (!selectedRequest) return;
     if (!technicianReport.trim()) return toast.error('لطفاً گزارش کار را بنویسید');
 
+    if (!isRepairable) {
+      if (!confirm('آیا مطمئن هستید که این دستگاه غیرقابل تعمیر است؟ با این کار دستگاه برای خروج آماده می‌شود.')) return;
+    }
+
     setIsSubmittingReport(true);
     try {
+      const nextStatus = isRepairable ? 'pending_supervisor_approval' : 'unrepairable';
+      
       const { error: reqError } = await supabase
         .from('repair_requests')
         .update({ 
           supervisor_report: technicianReport,
-          status: 'pending_supervisor_approval' 
+          status: nextStatus 
         })
         .eq('id', selectedRequest.id);
       
       if (reqError) throw reqError;
 
-      if (parts.length > 0) {
+      if (isRepairable && parts.length > 0) {
         const partsToInsert = parts.map(p => ({
           request_id: selectedRequest.id,
           part_name: p.part_name,
@@ -95,7 +101,7 @@ export default function TechnicianPanelPage() {
         if (partsError) throw partsError;
       }
 
-      toast.success('گزارش شما ثبت شد و برای تایید به کارتابل سرپرست ارسال گردید');
+      toast.success(isRepairable ? 'گزارش شما ثبت شد و برای تایید به کارتابل سرپرست ارسال گردید' : 'دستگاه به عنوان غیرقابل تعمیر ثبت شد');
       setSelectedRequest(null);
       fetchRequests();
     } catch (error: any) {
@@ -127,9 +133,10 @@ export default function TechnicianPanelPage() {
     }
   };
 
+  // آپدیت شده با تمام فیلدهای بازرگانی و مشتری
   const FullRequestDetails = ({ req }: { req: any }) => (
     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 mb-6" dir="rtl">
-      <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات تجهیز ارجاع شده</h4>
+      <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات کامل تجهیز ارجاع شده</h4>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div><span className="text-slate-400">نام تجهیز:</span> <strong className="text-slate-800">{req.device_info}</strong></div>
         <div><span className="text-slate-400">کارخانه سازنده:</span> <strong className="text-slate-800">{req.brand || 'ثبت نشده'}</strong></div>
@@ -200,7 +207,7 @@ export default function TechnicianPanelPage() {
               <thead>
                 <tr className="border-b border-slate-200 text-slate-400 text-xs uppercase">
                   <th className="pb-3 px-3">کد پیگیری</th>
-                  <th className="pb-3 px-3">مشتری</th>
+                  <th className="pb-3 px-3">مشتری / بازرگانی</th>
                   <th className="pb-3 px-3">دستگاه و برند</th>
                   <th className="pb-3 px-3 text-center">عملیات</th>
                 </tr>
@@ -227,7 +234,7 @@ export default function TechnicianPanelPage() {
                         </td>
                         <td className="py-4 px-3 text-center">
                           <button onClick={() => openReportModal(req)} className="px-4 py-2 bg-brand-primary hover:bg-brand-600 text-white rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5 shadow-sm">
-                            <FileText size={16} /> ثبت گزارش و پایان تعمیر
+                            <FileText size={16} /> ثبت گزارش کار
                           </button>
                         </td>
                       </tr>
@@ -246,7 +253,7 @@ export default function TechnicianPanelPage() {
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
             <div className="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-slate-800">ثبت گزارش کار و قطعات مصرفی</h3>
+                <h3 className="text-xl font-bold text-slate-800">ثبت گزارش کار و پایان تعمیر</h3>
                 <p className="text-sm text-slate-500 font-mono mt-1">کد: {selectedRequest.tracking_code}</p>
               </div>
               <button onClick={() => setSelectedRequest(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
@@ -305,9 +312,9 @@ export default function TechnicianPanelPage() {
                 )}
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button 
-                  onClick={submitReportAndParts} 
+                  onClick={() => submitReportAndParts(true)} 
                   disabled={isSubmittingReport} 
                   className="flex-1 py-3.5 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors flex justify-center items-center gap-2 shadow-md"
                 >
@@ -315,10 +322,11 @@ export default function TechnicianPanelPage() {
                   ثبت نهایی و ارجاع به سرپرست
                 </button>
                 <button 
-                  onClick={() => setSelectedRequest(null)} 
-                  className="px-6 py-3.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl font-bold transition-colors"
+                  onClick={() => submitReportAndParts(false)} 
+                  disabled={isSubmittingReport} 
+                  className="px-6 py-3.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold transition-colors flex justify-center items-center gap-2 border border-red-100"
                 >
-                  انصراف
+                  <XCircle size={18} /> اعلام قطعه غیرقابل تعمیر
                 </button>
               </div>
             </div>
@@ -326,7 +334,6 @@ export default function TechnicianPanelPage() {
         </div>
       )}
 
-      {/* مودال تغییر رمز عبور */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
