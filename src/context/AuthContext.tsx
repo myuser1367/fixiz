@@ -22,7 +22,7 @@ interface AuthContextType {
   role: Role;
   sendCustomerOtp: (mobile: string, code: string) => Promise<string>;
   verifyCustomerOtp: (mobile: string) => Promise<void>;
-  personnelLogin: (username: string, password: string) => Promise<{ isFirstLogin: boolean, role: string }>;
+  personnelLogin: (username: string, password: string) => Promise<{ isFirstLogin: boolean, role: string, phone?: string }>;
   completePersonnelFirstLogin: (username: string, newPassword: string) => Promise<void>;
   logout: () => void;
 }
@@ -126,25 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
  const personnelLogin = async (username: string, password: string) => {
     const cleanUsername = username.toLowerCase().trim();
     
-    // مدیریت لاگین ادمین
     if (cleanUsername === 'admin') {
       const { data, error } = await supabase.auth.signInWithPassword({ email: 'admin@fixiz.ir', password });
       if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
-      
       const { data: pData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
-      
       if (pData) {
-        const adminProfile = { ...pData, role: 'admin' as Role };
-        setProfile(adminProfile);
-        
-        // ذخیره سشن ادمین مشابه پرسنل برای جلوگیری از ریدایرکت به مشتری
-        localStorage.setItem('fixiz_personnel_session', JSON.stringify(adminProfile));
-        setSession({ user: { id: data.user.id } });
+        setProfile(pData as UserProfile);
       }
-      return { isFirstLogin: false, role: 'admin' };
+      // شماره موبایل ادمین هم برگردانده می‌شود
+      return { isFirstLogin: false, role: 'admin', phone: pData?.phone };
     }
 
-    // مدیریت لاگین سایر پرسنل
     const { data: pUser, error } = await supabase
       .from('personnel_users')
       .select('*')
@@ -161,7 +153,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession({ user: { id: pUser.id } });
     }
 
-    return { isFirstLogin: pUser.is_first_login, role: pUser.role };
+    // شماره موبایل پرسنل برگردانده می‌شود
+    return { isFirstLogin: pUser.is_first_login, role: pUser.role, phone: pUser.phone };
   };
 
   const completePersonnelFirstLogin = async (username: string, newPassword: string) => {

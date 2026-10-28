@@ -185,14 +185,16 @@ export default function HomePage() {
     }
   };
 
-  const handlePersLoginStart = async (e: React.FormEvent) => {
+ const handlePersLoginStart = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!persUsername || !persPassword) return toast.error('نام کاربری و رمز عبور الزامی است');
     setIsLoading(true);
     try {
-      const { isFirstLogin, role } = await personnelLogin(persUsername, persPassword);
+      // دریافت نقش و شماره موبایل به صورت مستقیم
+      const { isFirstLogin, role, phone } = await personnelLogin(persUsername, persPassword);
       
-      if (role === 'monitoring' || role === 'monitoring_manager' || role === 'admin') {
+      // فقط مانیتورینگ‌ها بدون پیامک وارد می‌شوند
+      if (role === 'monitoring' || role === 'monitoring_manager') {
          if (isFirstLogin) {
            setPersStep('first_login_no_otp');
            toast.success('اولین ورود: لطفاً رمز عبور خود را تغییر دهید', { duration: 6000 });
@@ -203,12 +205,6 @@ export default function HomePage() {
          setIsLoading(false);
          return;
       }
-
-      const { data: personnelData, error } = await supabase
-        .from('personnel_users')
-        .select('phone')
-        .eq('username', persUsername)
-        .single();
         
       let code = '';
       if (IS_SIMULATION_MODE) {
@@ -216,10 +212,15 @@ export default function HomePage() {
          toast.success('حالت آزمایشی: کد تایید 123456 است', { duration: 6000 });
       } else {
          code = Math.floor(100000 + Math.random() * 900000).toString();
-         if (!error && personnelData?.phone) {
-           await sendOtpSMS(personnelData.phone, code);
+         if (phone) {
+           // ارسال پیامک واقعی به شماره موبایل پرسنل یا ادمین
+           await sendOtpSMS(phone, code);
+           toast.success('کد تایید به شماره موبایل شما پیامک شد', { duration: 6000 });
+         } else {
+           toast.error('شماره موبایلی برای این حساب ثبت نشده است.');
+           setIsLoading(false);
+           return;
          }
-         toast.success('کد تایید به شماره موبایل شما پیامک شد', { duration: 6000 });
       }
       
       setGeneratedPersOtp(code);
@@ -235,7 +236,6 @@ export default function HomePage() {
       setIsLoading(false); 
     }
   };
-
   const handlePersVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (persOtp !== generatedPersOtp) {
