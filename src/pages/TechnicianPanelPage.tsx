@@ -11,12 +11,10 @@ export default function TechnicianPanelPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // استیت‌های مودال تغییر رمز
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-  // استیت‌های مودال گزارش کار و ثبت قطعات
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [technicianReport, setTechnicianReport] = useState('');
   const [parts, setParts] = useState<{ part_name: string; quantity: number }[]>([]);
@@ -32,7 +30,6 @@ export default function TechnicianPanelPage() {
 
   const fetchRequests = async () => {
     setIsLoading(true);
-    // تکنسین فقط دستگاه‌هایی را می‌بیند که به او ارجاع شده و در حال تعمیر هستند
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -50,7 +47,6 @@ export default function TechnicianPanelPage() {
 
   const openReportModal = (req: any) => {
     setSelectedRequest(req);
-    // استفاده از فیلد supervisor_report برای ذخیره متن تکنسین تا سرپرست آن را ببیند
     setTechnicianReport(req.supervisor_report || '');
     setParts([]);
   };
@@ -75,18 +71,16 @@ export default function TechnicianPanelPage() {
 
     setIsSubmittingReport(true);
     try {
-      // ثبت گزارش کار در دیتابیس (استفاده از همان فیلدی که برای سرپرست در نظر گرفته شده بود)
       const { error: reqError } = await supabase
         .from('repair_requests')
         .update({ 
           supervisor_report: technicianReport,
-          status: 'pending_supervisor_approval' // تغییر وضعیت به "منتظر تایید سرپرست"
+          status: 'pending_supervisor_approval' 
         })
         .eq('id', selectedRequest.id);
       
       if (reqError) throw reqError;
 
-      // ثبت قطعات مصرفی (در صورت وجود)
       if (parts.length > 0) {
         const partsToInsert = parts.map(p => ({
           request_id: selectedRequest.id,
@@ -103,7 +97,7 @@ export default function TechnicianPanelPage() {
 
       toast.success('گزارش شما ثبت شد و برای تایید به کارتابل سرپرست ارسال گردید');
       setSelectedRequest(null);
-      fetchRequests(); // به‌روزرسانی لیست (دستگاه از کارتابل تکنسین خارج می‌شود)
+      fetchRequests();
     } catch (error: any) {
       toast.error('خطا در ثبت اطلاعات: ' + error.message);
     } finally {
@@ -141,10 +135,25 @@ export default function TechnicianPanelPage() {
         <div><span className="text-slate-400">کارخانه سازنده:</span> <strong className="text-slate-800">{req.brand || 'ثبت نشده'}</strong></div>
         <div><span className="text-slate-400">پارت نامبر:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.part_number || 'ثبت نشده'}</strong></div>
         <div><span className="text-slate-400">شماره سریال:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.serial_number || 'ثبت نشده'}</strong></div>
+        
+        {/* فیلدهای بازرگانی */}
+        {req.tr_code && <div><span className="text-slate-400">TR کد:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.tr_code}</strong></div>}
+        {req.delivery_list_number && <div><span className="text-slate-400">شماره لیست تحویل:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.delivery_list_number}</strong></div>}
+        {req.email_group && <div><span className="text-slate-400">گروه ایمیل بازرگانی:</span> <strong className="text-slate-800">{req.email_group}</strong></div>}
+        
         <div className="sm:col-span-2"><span className="text-slate-400">نام پروژه / ارجاع کار:</span> <strong className="text-slate-800">{req.project_name || 'ثبت نشده'}</strong></div>
+        
+        {/* وضعیت استعلام قیمت */}
+        {req.needs_price_estimate && (
+          <div className="sm:col-span-2 mt-1">
+            <span className="inline-block bg-amber-100 text-amber-800 px-2.5 py-1 rounded font-bold border border-amber-200">
+              ⚠️ این دستگاه نیاز به برآورد قیمت پیش از تعمیر نهایی دارد
+            </span>
+          </div>
+        )}
       </div>
       <div className="pt-2 border-t border-slate-200">
-        <span className="text-slate-400 text-xs block mb-1">شرح کامل مشکل (اظهار مشتری):</span>
+        <span className="text-slate-400 text-xs block mb-1">شرح کامل مشکل (اظهار مشتری/بازرگانی):</span>
         <p className="text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 leading-relaxed">{req.fault_description}</p>
       </div>
     </div>
