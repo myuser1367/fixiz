@@ -400,7 +400,7 @@ export default function HomePage() {
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <Activity className="h-5 w-5 text-slate-400" />
                       </div>
-                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-bold transition-all" placeholder="کد پیامک‌شده" dir="ltr" />
+                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl  transition-all" placeholder="کد پیامک‌شده" dir="ltr" />
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
                       {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
@@ -419,7 +419,7 @@ export default function HomePage() {
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <Activity className="h-5 w-5 text-slate-400" />
                       </div>
-                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-bold" placeholder="کد پیامک‌شده" dir="ltr" />
+                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl " placeholder="کد پیامک‌شده" dir="ltr" />
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">

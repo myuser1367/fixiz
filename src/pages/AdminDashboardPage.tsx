@@ -31,7 +31,6 @@ export default function AdminDashboardPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
   
-  // اضافه شدن 'roles' به استیت تب‌ها
   const [activeAdminTab, setActiveAdminTab] = useState<'personnel' | 'emails' | 'roles'>('personnel');
 
   const [personnelList, setPersonnelList] = useState<PersonnelUser[]>([]);
@@ -40,20 +39,17 @@ export default function AdminDashboardPage() {
 
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
-  const [role, setRole] = useState(''); // مقدار اولیه خالی است تا بعد از فچ شدن نقش‌ها پر شود
+  const [role, setRole] = useState(''); 
   const [phone, setPhone] = useState('');
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
 
-  // استیت‌های مربوط به مدیریت گروه‌ها و ایمیل‌ها
   const [groups, setGroups] = useState<EmailGroup[]>([]);
   const [newGroupName, setNewGroupName] = useState('');
   const [groupEmails, setGroupEmails] = useState<string[]>(['']);
 
-  // استیت‌های مربوط به نقش‌های پویا
   const [roles, setRoles] = useState<Role[]>([]);
-  const [newRoleKey, setNewRoleKey] = useState('');
   const [newRoleLabel, setNewRoleLabel] = useState('');
 
   const fetchPersonnel = async () => {
@@ -188,7 +184,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // مدیریت فیلدهای ایمیل داینامیک برای افزودن گروه جدید
   const handleAddEmailInput = () => {
     setGroupEmails([...groupEmails, '']);
   };
@@ -214,7 +209,6 @@ export default function AdminDashboardPage() {
 
     setIsLoading(true);
     try {
-      // ذخیره گروه
       const { data: groupData, error: groupErr } = await supabase
         .from('email_groups')
         .insert({ name: newGroupName.trim() })
@@ -223,7 +217,6 @@ export default function AdminDashboardPage() {
 
       if (groupErr) throw groupErr;
 
-      // ذخیره ایمیل‌های مربوط به این گروه
       const emailInserts = validEmails.map(email => ({
         group_id: groupData.id,
         email: email.trim()
@@ -254,20 +247,20 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // توابع جدید مربوط به مدیریت نقش‌ها
   const handleSaveRole = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRoleKey.trim() || !newRoleLabel.trim()) return toast.error('کلید و عنوان نقش الزامی است');
+    if (!newRoleLabel.trim()) return toast.error('عنوان نقش الزامی است');
     
     setIsLoading(true);
     try {
-      // رنگ پیش‌فرض برای نقش‌های جدید
+      // تولید خودکار کلید یکتا برای دیتابیس در پس‌زمینه
+      const generatedRoleKey = `role_${Date.now()}`;
       const randomColor = 'bg-slate-100 text-slate-700'; 
       
       const { error } = await supabase
         .from('roles')
         .insert({ 
-          role_key: newRoleKey.trim().toLowerCase(), 
+          role_key: generatedRoleKey, 
           role_label: newRoleLabel.trim(),
           color: randomColor
         });
@@ -275,18 +268,17 @@ export default function AdminDashboardPage() {
       if (error) throw error;
 
       toast.success('نقش جدید با موفقیت تعریف شد');
-      setNewRoleKey('');
       setNewRoleLabel('');
       fetchRoles();
     } catch (err: any) {
-      toast.error('خطا در ثبت نقش: ممکن است کلید نقش تکراری باشد');
+      toast.error('خطا در ثبت نقش');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteRole = async (id: string, roleKey: string) => {
-    if (!confirm(`آیا از حذف نقش "${roleKey}" اطمینان دارید؟`)) return;
+  const handleDeleteRole = async (id: string, roleLabel: string) => {
+    if (!confirm(`آیا از حذف نقش "${roleLabel}" اطمینان دارید؟`)) return;
     const { error } = await supabase.from('roles').delete().eq('id', id);
     if (!error) {
       toast.success('نقش با موفقیت حذف شد');
@@ -328,14 +320,13 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      {/* تب‌های مدیریت ادمین */}
       <div className="max-w-7xl mx-auto px-4 pt-6">
         <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 w-full max-w-2xl gap-1">
           <button onClick={() => setActiveAdminTab('personnel')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeAdminTab === 'personnel' ? 'bg-brand-primary text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
             <Users size={18} /> مدیریت پرسنل
           </button>
           <button onClick={() => setActiveAdminTab('emails')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeAdminTab === 'emails' ? 'bg-brand-primary text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
-            <Mail size={18} /> تعریف گروه‌ها و ایمیل‌ها
+            <Mail size={18} /> گروه‌ها و ایمیل‌ها
           </button>
           <button onClick={() => setActiveAdminTab('roles')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeAdminTab === 'roles' ? 'bg-brand-primary text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
             <Briefcase size={18} /> مدیریت نقش‌ها
@@ -535,11 +526,6 @@ export default function AdminDashboardPage() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">عنوان نقش (نمایشی)</label>
                   <input type="text" value={newRoleLabel} onChange={(e) => setNewRoleLabel(e.target.value)} placeholder="مثال: کارشناس فنی" className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" required />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">کلید سیستمی نقش (انگلیسی)</label>
-                  <input type="text" value={newRoleKey} onChange={(e) => setNewRoleKey(e.target.value)} placeholder="مثال: technical_expert" className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" dir="ltr" required />
-                  <p className="text-xs text-slate-400 mt-1">این کلید در دیتابیس ذخیره می‌شود و نباید تکراری باشد.</p>
-                </div>
 
                 <button type="submit" disabled={isLoading} className="w-full py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors mt-4">
                   {isLoading ? 'در حال ثبت...' : 'ذخیره نقش جدید'}
@@ -557,9 +543,8 @@ export default function AdminDashboardPage() {
                     <div key={r.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex justify-between items-center">
                       <div>
                         <div className="font-bold text-slate-800 mb-1">{r.role_label}</div>
-                        <div className="text-xs font-mono text-slate-500 bg-white px-2 py-0.5 rounded border inline-block" dir="ltr">{r.role_key}</div>
                       </div>
-                      <button onClick={() => handleDeleteRole(r.id, r.role_key)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="حذف نقش">
+                      <button onClick={() => handleDeleteRole(r.id, r.role_label)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="حذف نقش">
                         <Trash2 size={18} />
                       </button>
                     </div>
