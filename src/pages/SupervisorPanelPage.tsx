@@ -16,6 +16,7 @@ export default function SupervisorPanelPage() {
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const [reviewRequest, setReviewRequest] = useState<any | null>(null);
   const [assignRequest, setAssignRequest] = useState<any | null>(null);
@@ -137,7 +138,6 @@ export default function SupervisorPanelPage() {
   const handleApproveTechnicianWork = async () => {
     setIsAssigning(true);
     try {
-      // سرپرست فقط گزارش را تایید می‌کند (تکنسین قبلاً در صورت نیاز دستگاه را غیرقابل تعمیر کرده است)
       const { error } = await supabase
         .from('repair_requests')
         .update({ status: 'estimated' })
@@ -152,6 +152,29 @@ export default function SupervisorPanelPage() {
       toast.error('خطا در ثبت نهایی');
     } finally {
       setIsAssigning(false);
+    }
+  };
+
+  // تابع تغییر رمز عبور که جا افتاده بود
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) return toast.error('رمز عبور باید حداقل ۶ کاراکتر باشد');
+    setIsUpdatingPassword(true);
+    try {
+      if (profile?.username) {
+        const { error } = await supabase
+          .from('personnel_users')
+          .update({ password: newPassword })
+          .eq('username', profile.username);
+        if (error) throw error;
+      }
+      toast.success('رمز عبور شما با موفقیت تغییر کرد');
+      setShowPasswordModal(false);
+      setNewPassword('');
+    } catch (err: any) {
+      toast.error(err.message || 'خطا در تغییر رمز عبور');
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -301,7 +324,7 @@ export default function SupervisorPanelPage() {
 
                               {req.status === 'pending_supervisor_approval' && (
                                 <button onClick={() => setApprovalRequest(req)} className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
-                                  <CheckSquare size={16} /> تایید گزارش تکنسین
+                                  <CheckSquare size={16} /> بررسی گزارش و تایید
                                 </button>
                               )}
 
@@ -325,7 +348,6 @@ export default function SupervisorPanelPage() {
         </div>
       </main>
 
-      {/* مودال بررسی اولیه */}
       {reviewRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -356,7 +378,6 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
-      {/* مودال ارجاع به تکنسین */}
       {assignRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-slide-up">
@@ -387,7 +408,6 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
-      {/* مودال تایید گزارش تکنسین */}
       {approvalRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -412,7 +432,6 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
-      {/* مودال تغییر رمز عبور */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
