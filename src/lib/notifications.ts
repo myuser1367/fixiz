@@ -5,7 +5,8 @@ import { supabase } from './supabase';
 // اگر true باشد: پیامک ارسال نمی‌شود و فقط در کنسول مرورگر نمایش داده می‌شود (حالت تست)
 // اگر false باشد: پیامک‌ها به صورت واقعی به پنل ملی‌پیامک ارسال می‌شوند.
 // ============================================================================
-const IS_SIMULATION_MODE = true; 
+//const IS_SIMULATION_MODE = true; 
+const IS_SIMULATION_MODE = false; 
 
 
 export interface NotificationData {
