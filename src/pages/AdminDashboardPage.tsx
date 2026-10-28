@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Users, UserPlus, Shield, Phone, LogOut, Trash2, Edit, Home, Key, Mail, Plus, FolderPlus } from 'lucide-react';
+import { Users, UserPlus, Shield, Phone, LogOut, Trash2, Edit, Home, Key, Mail, Plus, FolderPlus, Briefcase } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface PersonnelUser {
@@ -20,22 +20,19 @@ interface EmailGroup {
   emails?: string[];
 }
 
-const roleNames: Record<string, { label: string; color: string }> = {
-  admin: { label: 'ادمین', color: 'bg-red-100 text-red-700' },
-  coordinator: { label: 'واحد هماهنگی', color: 'bg-green-100 text-green-700' },
-  supervisor: { label: 'سرپرست تعمیر', color: 'bg-orange-100 text-orange-700' },
-  ceo: { label: 'مدیر مرکز', color: 'bg-purple-100 text-purple-700' },
-  commercial: { label: 'واحد بازرگانی', color: 'bg-blue-100 text-blue-700' },
-  finance: { label: 'واحد مالی', color: 'bg-teal-100 text-teal-700' },
-  monitoring: { label: 'مانیتورینگ', color: 'bg-cyan-100 text-cyan-800' },
-  monitoring_manager: { label: 'مانیتورینگ مدیر', color: 'bg-indigo-100 text-indigo-800' },
-};
+interface Role {
+  id: string;
+  role_key: string;
+  role_label: string;
+  color: string;
+}
 
 export default function AdminDashboardPage() {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
   
-  const [activeAdminTab, setActiveAdminTab] = useState<'personnel' | 'emails'>('personnel');
+  // اضافه شدن 'roles' به استیت تب‌ها
+  const [activeAdminTab, setActiveAdminTab] = useState<'personnel' | 'emails' | 'roles'>('personnel');
 
   const [personnelList, setPersonnelList] = useState<PersonnelUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,7 +40,7 @@ export default function AdminDashboardPage() {
 
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
-  const [role, setRole] = useState('coordinator');
+  const [role, setRole] = useState(''); // مقدار اولیه خالی است تا بعد از فچ شدن نقش‌ها پر شود
   const [phone, setPhone] = useState('');
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -53,6 +50,11 @@ export default function AdminDashboardPage() {
   const [groups, setGroups] = useState<EmailGroup[]>([]);
   const [newGroupName, setNewGroupName] = useState('');
   const [groupEmails, setGroupEmails] = useState<string[]>(['']);
+
+  // استیت‌های مربوط به نقش‌های پویا
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [newRoleKey, setNewRoleKey] = useState('');
+  const [newRoleLabel, setNewRoleLabel] = useState('');
 
   const fetchPersonnel = async () => {
     const { data, error } = await supabase.from('personnel_users').select('*').order('created_at', { ascending: false });
@@ -77,14 +79,25 @@ export default function AdminDashboardPage() {
     setGroups(loadedGroups);
   };
 
+  const fetchRoles = async () => {
+    const { data, error } = await supabase.from('roles').select('*').order('created_at', { ascending: true });
+    if (!error && data) {
+      setRoles(data);
+      if (data.length > 0 && !role) {
+        setRole(data[0].role_key);
+      }
+    }
+  };
+
   useEffect(() => {
     fetchPersonnel();
     fetchGroupsAndEmails();
+    fetchRoles();
   }, []);
 
   const handleAddOrEditPersonnel = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !username || !phone) return toast.error('لطفاً تمام فیلدها را پر کنید');
+    if (!fullName || !username || !phone || !role) return toast.error('لطفاً تمام فیلدها را پر کنید');
     
     setIsLoading(true);
     try {
@@ -120,7 +133,7 @@ export default function AdminDashboardPage() {
       setFullName('');
       setUsername('');
       setPhone('');
-      setRole('coordinator');
+      setRole(roles.length > 0 ? roles[0].role_key : '');
       fetchPersonnel();
     } catch (error: any) {
       toast.error(error.message || 'خطا در ثبت/ویرایش پرسنل');
@@ -159,7 +172,7 @@ export default function AdminDashboardPage() {
     setEditingId(null);
     setFullName('');
     setUsername('');
-    setRole('coordinator');
+    setRole(roles.length > 0 ? roles[0].role_key : '');
     setPhone('');
   };
 
@@ -241,6 +254,53 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // توابع جدید مربوط به مدیریت نقش‌ها
+  const handleSaveRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoleKey.trim() || !newRoleLabel.trim()) return toast.error('کلید و عنوان نقش الزامی است');
+    
+    setIsLoading(true);
+    try {
+      // رنگ پیش‌فرض برای نقش‌های جدید
+      const randomColor = 'bg-slate-100 text-slate-700'; 
+      
+      const { error } = await supabase
+        .from('roles')
+        .insert({ 
+          role_key: newRoleKey.trim().toLowerCase(), 
+          role_label: newRoleLabel.trim(),
+          color: randomColor
+        });
+
+      if (error) throw error;
+
+      toast.success('نقش جدید با موفقیت تعریف شد');
+      setNewRoleKey('');
+      setNewRoleLabel('');
+      fetchRoles();
+    } catch (err: any) {
+      toast.error('خطا در ثبت نقش: ممکن است کلید نقش تکراری باشد');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteRole = async (id: string, roleKey: string) => {
+    if (!confirm(`آیا از حذف نقش "${roleKey}" اطمینان دارید؟`)) return;
+    const { error } = await supabase.from('roles').delete().eq('id', id);
+    if (!error) {
+      toast.success('نقش با موفقیت حذف شد');
+      fetchRoles();
+    } else {
+      toast.error('خطا در حذف نقش');
+    }
+  };
+
+  const getRoleDetails = (roleKey: string) => {
+    const foundRole = roles.find(r => r.role_key === roleKey);
+    return foundRole ? { label: foundRole.role_label, color: foundRole.color } : { label: roleKey, color: 'bg-gray-100 text-gray-700' };
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans" dir="rtl">
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
@@ -270,12 +330,15 @@ export default function AdminDashboardPage() {
 
       {/* تب‌های مدیریت ادمین */}
       <div className="max-w-7xl mx-auto px-4 pt-6">
-        <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 w-full max-w-md gap-1">
+        <div className="flex bg-white rounded-2xl shadow-sm border border-slate-200 p-1.5 w-full max-w-2xl gap-1">
           <button onClick={() => setActiveAdminTab('personnel')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeAdminTab === 'personnel' ? 'bg-brand-primary text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
             <Users size={18} /> مدیریت پرسنل
           </button>
           <button onClick={() => setActiveAdminTab('emails')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeAdminTab === 'emails' ? 'bg-brand-primary text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
             <Mail size={18} /> تعریف گروه‌ها و ایمیل‌ها
+          </button>
+          <button onClick={() => setActiveAdminTab('roles')} className={`flex-1 py-3 flex justify-center items-center gap-2 rounded-xl text-sm font-bold transition-all ${activeAdminTab === 'roles' ? 'bg-brand-primary text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>
+            <Briefcase size={18} /> مدیریت نقش‌ها
           </button>
         </div>
       </div>
@@ -305,14 +368,10 @@ export default function AdminDashboardPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">نقش سازمانی</label>
                   <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary bg-white">
-                    <option value="coordinator">واحد هماهنگی</option>
-                    <option value="finance">واحد مالی</option>
-                    <option value="commercial">واحد بازرگانی</option>
-                    <option value="supervisor">سرپرست تعمیر</option>
-                    <option value="admin">ادمین</option>
-                    <option value="ceo">مدیر مرکز</option>
-                    <option value="monitoring">مانیتورینگ</option>
-                    <option value="monitoring_manager">مانیتورینگ مدیر</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.role_key}>{r.role_label}</option>
+                    ))}
+                    {roles.length === 0 && <option value="">در حال دریافت نقش‌ها...</option>}
                   </select>
                 </div>
 
@@ -360,7 +419,7 @@ export default function AdminDashboardPage() {
                       <tr><td colSpan={5} className="py-8 text-center text-slate-400">هنوز هیچ پرسنلی ثبت نشده است.</td></tr>
                     ) : (
                       personnelList.map((user) => {
-                        const badge = roleNames[user.role] || { label: user.role, color: 'bg-gray-100 text-gray-700' };
+                        const badge = getRoleDetails(user.role);
                         return (
                           <tr key={user.id} className={`hover:bg-slate-50 transition-colors ${editingId === user.id ? 'bg-amber-50/50' : ''}`}>
                             <td className="py-4 px-3 font-bold text-slate-800">{user.full_name}</td>
@@ -390,8 +449,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </div>
-        ) : (
-          /* تب جدید مدیریت گروه‌ها و ایمیل‌ها */
+        ) : activeAdminTab === 'emails' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-white p-6 rounded-2xl shadow-card border border-slate-100 h-fit">
               <div className="flex items-center gap-2 mb-6 text-slate-800 font-bold text-lg">
@@ -457,6 +515,52 @@ export default function AdminDashboardPage() {
                       </div>
                       <button onClick={() => handleDeleteGroup(group.id)} className="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-bold transition-colors flex items-center gap-1">
                         <Trash2 size={14} /> حذف گروه
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white p-6 rounded-2xl shadow-card border border-slate-100 h-fit">
+              <div className="flex items-center gap-2 mb-6 text-slate-800 font-bold text-lg">
+                <Briefcase className="text-brand-primary" size={22} />
+                <span>تعریف نقش سازمانی جدید</span>
+              </div>
+
+              <form onSubmit={handleSaveRole} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">عنوان نقش (نمایشی)</label>
+                  <input type="text" value={newRoleLabel} onChange={(e) => setNewRoleLabel(e.target.value)} placeholder="مثال: کارشناس فنی" className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">کلید سیستمی نقش (انگلیسی)</label>
+                  <input type="text" value={newRoleKey} onChange={(e) => setNewRoleKey(e.target.value)} placeholder="مثال: technical_expert" className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" dir="ltr" required />
+                  <p className="text-xs text-slate-400 mt-1">این کلید در دیتابیس ذخیره می‌شود و نباید تکراری باشد.</p>
+                </div>
+
+                <button type="submit" disabled={isLoading} className="w-full py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors mt-4">
+                  {isLoading ? 'در حال ثبت...' : 'ذخیره نقش جدید'}
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-card border border-slate-100">
+              <h3 className="text-lg font-bold text-slate-800 mb-6">نقش‌های تعریف‌شده در سیستم</h3>
+              {roles.length === 0 ? (
+                <div className="text-center py-10 text-slate-400">هنوز هیچ نقشی تعریف نشده است.</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {roles.map(r => (
+                    <div key={r.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex justify-between items-center">
+                      <div>
+                        <div className="font-bold text-slate-800 mb-1">{r.role_label}</div>
+                        <div className="text-xs font-mono text-slate-500 bg-white px-2 py-0.5 rounded border inline-block" dir="ltr">{r.role_key}</div>
+                      </div>
+                      <button onClick={() => handleDeleteRole(r.id, r.role_key)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="حذف نقش">
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   ))}

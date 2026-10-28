@@ -667,11 +667,11 @@ export default function CustomerPanelPage() {
            <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">نام و نام خانوادگی <span className="text-red-500">*</span></label>
-                <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary" placeholder="مثال: علی احمدی" />
+                <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary"  />
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">نام شرکت (اختیاری)</label>
-                <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary" placeholder="مثال: پتروشیمی زاگرس" />
+                <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary"  />
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">ایمیل <span className="text-red-500">*</span></label>
