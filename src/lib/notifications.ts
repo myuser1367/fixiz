@@ -2,11 +2,8 @@ import { supabase } from './supabase';
 
 // ============================================================================
 // 🎛 کلید تغییر حالت ارسال پیامک (آزمایشی / واقعی)
-// اگر true باشد: پیامک ارسال نمی‌شود و فقط در کنسول مرورگر نمایش داده می‌شود (حالت تست)
-// اگر false باشد: پیامک‌ها به صورت واقعی به پنل ملی‌پیامک ارسال می‌شوند.
 // ============================================================================
-//const IS_SIMULATION_MODE = true; 
-const IS_SIMULATION_MODE = false; 
+export const IS_SIMULATION_MODE = false; 
 
 
 export interface NotificationData {
@@ -174,20 +171,6 @@ export async function sendAdminNotifications(_data?: NotificationData) {
       return;
     }
 
-    // ارسال پیامک برای تک‌تک شماره‌های پیدا شده در واحد هماهنگی (در صورت وجود الگوی تایید شده برای مدیران)
-    // برای استفاده از این بخش باید یک الگوی جدید در پنل پیامک بسازید. فعلاً غیرفعال است.
-    /*
-    for (const person of personnel) {
-      if (person.phone) {
-        await sendRealSMS({
-          mobile: person.phone,
-          bodyId: XXXXXX, // کد الگوی اطلاع به ادمین (در صورت ساخت)
-          args: [data.trackingCode], 
-          logTag: `ADMIN_NEW_REQUEST_TO_${person.role.toUpperCase()}`
-        });
-      }
-    }
-    */
   } catch (err) {
     console.error("خطای غیرمنتظره در ارسال پیامک هماهنگی:", err);
   }

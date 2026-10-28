@@ -4,7 +4,7 @@ import { Header } from '../components/Header';
 import { supabase } from '../lib/supabase';
 import { ShieldCheck, Phone, Activity, User, Lock, ArrowLeft, Loader2, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, Check, FileText, Wrench, Search, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { sendUserNotification, sendOtpSMS } from '../lib/notifications';
+import { sendUserNotification, sendOtpSMS, IS_SIMULATION_MODE } from '../lib/notifications';
 
 interface RepairRequest {
   id: string;
@@ -28,20 +28,17 @@ export default function HomePage() {
   
   const [persUsername, setPersUsername] = useState('');
   const [persPassword, setPersPassword] = useState('');
-  const [persStep, setPersStep] = useState<'login' | 'otp' | 'first_login'>('login');
+  const [persStep, setPersStep] = useState<'login' | 'otp' | 'first_login' | 'first_login_no_otp'>('login');
   const [persOtp, setPersOtp] = useState('');
   const [persNewPassword, setPersNewPassword] = useState('');
   
-  // استیت جدید برای ذخیره کد تایید واقعی پرسنل
   const [generatedPersOtp, setGeneratedPersOtp] = useState('');
+  const [generatedCustOtp, setGeneratedCustOtp] = useState('');
 
   const [trackingModalOpen, setTrackingModalOpen] = useState(false);
   const [searchCode, setSearchCode] = useState('');
   const [trackedRequest, setTrackedRequest] = useState<RepairRequest | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-
-  // استیت جدید برای کد مشتری
-  const [generatedCustOtp, setGeneratedCustOtp] = useState('');
 
   const handleOpenTrackingModal = () => {
     setTrackingModalOpen(true);
@@ -138,26 +135,30 @@ export default function HomePage() {
     );
   };
 
- const handleCustSendOtp = async (e: React.FormEvent) => {
+  const handleCustSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (custPhone.length < 10) return toast.error('شماره موبایل معتبر نیست');
     setIsLoading(true);
     try {
-      // تولید کد ۶ رقمی رندوم واقعی
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      let code = '';
+      if (IS_SIMULATION_MODE) {
+        code = '123456';
+        toast.success('حالت آزمایشی: کد تایید 123456 است', { duration: 6000 });
+      } else {
+        code = Math.floor(100000 + Math.random() * 900000).toString();
+        await sendCustomerOtp(custPhone, code);
+        toast.success('کد تایید پیامک شد', { duration: 6000 });
+      }
       setGeneratedCustOtp(code);
-      
-      await sendCustomerOtp(custPhone, code);
       setCustStep('otp');
-      toast.success('کد تایید پیامک شد', { duration: 6000 });
     } catch (error: any) { 
       toast.error(error.message); 
     } finally { setIsLoading(false); }
   };
 
-const handleCustVerify = async (e: React.FormEvent) => {
+  const handleCustVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (custOtp !== generatedCustOtp && custOtp !== '123456') {
+    if (custOtp !== generatedCustOtp) {
       return toast.error('کد اشتباه است');
     }
 
@@ -166,13 +167,14 @@ const handleCustVerify = async (e: React.FormEvent) => {
       await verifyCustomerOtp(custPhone);
       toast.success('ورود موفقیت‌آمیز');
       
-      await sendUserNotification({
-        trackingCode: 'ورود به سیستم',
-        userMobile: custPhone,
-        status: 'customer_login_success'
-      });
+      if (!IS_SIMULATION_MODE) {
+        await sendUserNotification({
+          trackingCode: 'ورود به سیستم',
+          userMobile: custPhone,
+          status: 'customer_login_success'
+        });
+      }
 
-      // استفاده از navigate یا ریلود کامل برای اعمال نشست (Session) جدید
       setTimeout(() => {
         window.location.href = '/panel';
       }, 500);
@@ -188,29 +190,44 @@ const handleCustVerify = async (e: React.FormEvent) => {
     if (!persUsername || !persPassword) return toast.error('نام کاربری و رمز عبور الزامی است');
     setIsLoading(true);
     try {
-      const { isFirstLogin } = await personnelLogin(persUsername, persPassword);
+      const { isFirstLogin, role } = await personnelLogin(persUsername, persPassword);
       
+      if (role === 'monitoring' || role === 'monitoring_manager' || role === 'admin') {
+         if (isFirstLogin) {
+           setPersStep('first_login_no_otp');
+           toast.success('اولین ورود: لطفاً رمز عبور خود را تغییر دهید', { duration: 6000 });
+         } else {
+           toast.success('ورود موفقیت‌آمیز');
+           window.location.href = '/panel';
+         }
+         setIsLoading(false);
+         return;
+      }
+
       const { data: personnelData, error } = await supabase
         .from('personnel_users')
         .select('phone')
         .eq('username', persUsername)
         .single();
         
-      // تولید یک کد رندوم واقعی ۶ رقمی برای پرسنل
-      const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedPersOtp(randomCode); // ذخیره در استیت
-
-      if (!error && personnelData?.phone) {
-         // ارسال پیامک واقعی به شماره پرسنل
-         await sendOtpSMS(personnelData.phone, randomCode);
+      let code = '';
+      if (IS_SIMULATION_MODE) {
+         code = '123456';
+         toast.success('حالت آزمایشی: کد تایید 123456 است', { duration: 6000 });
+      } else {
+         code = Math.floor(100000 + Math.random() * 900000).toString();
+         if (!error && personnelData?.phone) {
+           await sendOtpSMS(personnelData.phone, code);
+         }
+         toast.success('کد تایید به شماره موبایل شما پیامک شد', { duration: 6000 });
       }
+      
+      setGeneratedPersOtp(code);
 
       if (isFirstLogin) {
         setPersStep('first_login');
-        toast.success('رمز پیش‌فرض تایید شد. لطفاً کد تایید پیامک‌شده و رمز جدید را وارد کنید', { duration: 6000 });
       } else {
         setPersStep('otp');
-        toast.success('کد تایید به شماره موبایل شما پیامک شد', { duration: 6000 });
       }
     } catch (error: any) { 
       toast.error(error.message); 
@@ -219,10 +236,9 @@ const handleCustVerify = async (e: React.FormEvent) => {
     }
   };
 
- const handlePersVerifyOtp = async (e: React.FormEvent) => {
+  const handlePersVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    // بررسی کد وارد شده با کد رندوم تولید شده (کد 123456 را فقط برای مواقع اضطراری نگه داشتیم)
-    if (persOtp !== generatedPersOtp && persOtp !== '123456') {
+    if (persOtp !== generatedPersOtp) {
       return toast.error('کد تایید اشتباه است');
     }
     
@@ -238,7 +254,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
 
   const handlePersFirstLoginComplete = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (persOtp !== generatedPersOtp && persOtp !== '123456') {
+    if (persOtp !== generatedPersOtp) {
       return toast.error('کد تایید اشتباه است');
     }
     if (persNewPassword.length < 6) return toast.error('رمز عبور جدید باید حداقل ۶ کاراکتر باشد');
@@ -248,6 +264,21 @@ const handleCustVerify = async (e: React.FormEvent) => {
     try {
       await completePersonnelFirstLogin(persUsername, persNewPassword);
       toast.success('رمز عبور با موفقیت تغییر کرد و وارد شدید');
+      window.location.href = '/panel';
+    } catch (error: any) { 
+      toast.error(error.message || 'خطا در ثبت اطلاعات'); 
+      setIsLoading(false);
+    } 
+  };
+
+  const handlePersFirstLoginCompleteNoOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (persNewPassword.length < 6) return toast.error('رمز عبور جدید باید حداقل ۶ کاراکتر باشد');
+    if (persNewPassword === 'Aa@123456') return toast.error('رمز عبور جدید نباید مشابه رمز پیش‌فرض باشد');
+    setIsLoading(true);
+    try {
+      await completePersonnelFirstLogin(persUsername, persNewPassword);
+      toast.success('رمز عبور تغییر کرد و وارد شدید');
       window.location.href = '/panel';
     } catch (error: any) { 
       toast.error(error.message || 'خطا در ثبت اطلاعات'); 
@@ -301,7 +332,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
                   {activeTab === 'customer' && custStep === 'otp' && 'کد پیامک شده را وارد کنید'}
                   {activeTab === 'personnel' && persStep === 'login' && 'اطلاعات حساب سازمانی خود را وارد کنید'}
                   {activeTab === 'personnel' && persStep === 'otp' && 'کد پیامک شده را وارد کنید'}
-                  {activeTab === 'personnel' && persStep === 'first_login' && 'اولین ورود! رمز عبور جدید را تعیین کنید'}
+                  {activeTab === 'personnel' && (persStep === 'first_login' || persStep === 'first_login_no_otp') && 'اولین ورود! رمز عبور جدید را تعیین کنید'}
                 </p>
               </div>
 
@@ -317,7 +348,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <Phone className="h-5 w-5 text-slate-400" />
                       </div>
-                      <input type="tel" required value={custPhone} onChange={(e) => setCustPhone(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left font-mono font-bold text-lg transition-all" placeholder="09123456789" dir="ltr" />
+                      <input type="tel" required value={custPhone} onChange={(e) => setCustPhone(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left font-bold tracking-widest text-lg transition-all" placeholder="09123456789" dir="ltr" />
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
                       {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ارسال کد تایید'} {!isLoading && <ArrowLeft size={18} />}
@@ -329,8 +360,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <Activity className="h-5 w-5 text-slate-400" />
                       </div>
-                      {/* متن placeholder اصلاح شد */}
-                      <input type="text" required autoFocus maxLength={6} value={custOtp} onChange={(e) => setCustOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="کد ۶ رقمی" dir="ltr" />
+                      <input type="text" required autoFocus maxLength={6} value={custOtp} onChange={(e) => setCustOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-bold transition-all" placeholder="کد ۶ رقمی" dir="ltr" />
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
                       {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
@@ -361,7 +391,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
                       </button>
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 mt-2">
-                      {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'بررسی و دریافت پیامک'} {!isLoading && <ArrowLeft size={18} />}
+                      {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود / دریافت پیامک'} {!isLoading && <ArrowLeft size={18} />}
                     </button>
                   </form>
                 ) : persStep === 'otp' ? (
@@ -370,7 +400,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <Activity className="h-5 w-5 text-slate-400" />
                       </div>
-                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-mono font-bold transition-all" placeholder="کد پیامک‌شده" dir="ltr" />
+                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-3xl font-bold transition-all" placeholder="کد پیامک‌شده" dir="ltr" />
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
                       {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'ورود به سامانه'} {!isLoading && <ArrowLeft size={18} />}
@@ -379,7 +409,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
                       اصلاح نام کاربری و رمز عبور
                     </button>
                   </form>
-                ) : (
+                ) : persStep === 'first_login' ? (
                   <form onSubmit={handlePersFirstLoginComplete} className="space-y-6">
                     <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-2 flex">
                       <ShieldCheck className="h-6 w-6 text-amber-500 shrink-0" />
@@ -389,7 +419,7 @@ const handleCustVerify = async (e: React.FormEvent) => {
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <Activity className="h-5 w-5 text-slate-400" />
                       </div>
-                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-mono font-bold" placeholder="کد پیامک‌شده" dir="ltr" />
+                      <input type="text" required autoFocus maxLength={6} value={persOtp} onChange={(e) => setPersOtp(e.target.value)} className="w-full pr-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-center tracking-widest text-2xl font-bold" placeholder="کد پیامک‌شده" dir="ltr" />
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
@@ -405,6 +435,28 @@ const handleCustVerify = async (e: React.FormEvent) => {
                     </button>
                     <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
                       اصلاح نام کاربری و رمز عبور
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handlePersFirstLoginCompleteNoOtp} className="space-y-6">
+                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-2 flex">
+                      <ShieldCheck className="h-6 w-6 text-amber-500 shrink-0" />
+                      <p className="mr-3 text-xs leading-relaxed text-amber-800 font-medium">اولین ورود! جهت امنیت بیشتر، رمز عبور جدید تعیین کنید.</p>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input type={showPassword ? "text" : "password"} required autoFocus value={persNewPassword} onChange={(e) => setPersNewPassword(e.target.value)} placeholder="رمز عبور جدید (حداقل ۶ حرف)" className="w-full pr-12 pl-12 py-3.5 border-2 border-slate-200 rounded-xl outline-none focus:border-brand-primary text-left" dir="ltr" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 hover:text-slate-700">
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    <button type="submit" disabled={isLoading} className="w-full py-4 bg-brand-primary hover:bg-brand-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center">
+                      {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'تایید و تغییر رمز'}
+                    </button>
+                    <button type="button" onClick={handleCancelPersonnelOtp} className="w-full text-center text-xs text-slate-500 hover:text-brand-primary mt-2 font-bold transition-colors">
+                      بازگشت
                     </button>
                   </form>
                 )

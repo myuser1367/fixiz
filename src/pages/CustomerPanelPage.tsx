@@ -22,7 +22,6 @@ interface RepairRequest {
 export default function CustomerPanelPage() {
   const { profile, logout } = useAuth();
   
-  // تعریف یکپارچه تمام استیت‌ها (فقط یک بار در کل فایل)
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [companyName, setCompanyName] = useState(profile?.company_name || '');
   const [email, setEmail] = useState((profile as any)?.email || '');
@@ -45,7 +44,6 @@ export default function CustomerPanelPage() {
 
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // فرم ثبت درخواست جدید
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
@@ -81,7 +79,6 @@ export default function CustomerPanelPage() {
       setRequests(data || []);
     } catch (error: any) {
       toast.error('خطا در دریافت لیست درخواست‌ها');
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +87,14 @@ export default function CustomerPanelPage() {
  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile?.id) return;
-    if (!fullName) return toast.error('نام و نام خانوادگی الزامی است');
+    if (!fullName.trim()) return toast.error('نام و نام خانوادگی الزامی است');
+    if (!email.trim()) return toast.error('ایمیل الزامی است');
+    
+    // بررسی فرمت ایمیل
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return toast.error('فرمت ایمیل نامعتبر است');
+    }
     
     try {
       setIsLoading(true);
@@ -99,7 +103,7 @@ export default function CustomerPanelPage() {
         .update({ 
           full_name: fullName, 
           company_name: companyName,
-          email: email.trim() // ذخیره ایمیل در دیتابیس
+          email: email.trim() 
         })
         .eq('id', profile.id);
         
@@ -110,7 +114,6 @@ export default function CustomerPanelPage() {
       window.location.reload();
     } catch (error) {
       toast.error('خطا در ثبت اطلاعات');
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -153,28 +156,23 @@ export default function CustomerPanelPage() {
       
       toast.success(`درخواست شما با کد پیگیری ${trackingCode} ثبت شد`);
       
-      // --- کدهای اضافه شده برای ارسال پیامک ثبت درخواست ---
       if (profile?.phone) {
-        // پیامک به مشتری
         await sendUserNotification({
           trackingCode: trackingCode,
           userMobile: profile.phone,
           status: 'pending_coordinator'
         });
         
-        // پیامک به مدیر/هماهنگی
         await sendAdminNotifications({
           trackingCode: trackingCode,
           userMobile: profile.phone
         });
       }
-      // ----------------------------------------------------
 
       setFormData({ device_info: '', brand: '', serial_number: '', part_number: '', project_name: '', fault_description: '', needs_price_estimate: false });
       setActiveTab('list');
       fetchRequests();
     } catch (error: any) {
-      console.error("Supabase Insert Error:", error);
       toast.error(error.message || 'خطا در ثبت درخواست');
     } finally {
       setIsLoading(false);
@@ -232,7 +230,6 @@ export default function CustomerPanelPage() {
       fetchRequests();
     } catch (error) {
       toast.error('خطا در حذف درخواست');
-      console.error(error);
     }
   };
 
@@ -538,7 +535,7 @@ export default function CustomerPanelPage() {
       {/* مدال ویرایش درخواست */}
       {editingReq && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
             <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-3">ویرایش درخواست تعمیر</h3>
             <form onSubmit={handleUpdateEditRequest} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -567,11 +564,11 @@ export default function CustomerPanelPage() {
                     type="text" 
                     value={editFormData.part_number} 
                     onChange={e => setEditFormData({...editFormData, part_number: e.target.value})} 
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary" dir="ltr"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary font-mono" dir="ltr"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-1">نام پروژه/ارجاع کار</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">نام پروژه / ارجاع کار</label>
                   <input 
                     type="text" 
                     value={editFormData.project_name} 
@@ -580,7 +577,7 @@ export default function CustomerPanelPage() {
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-1">شرح مشکل</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">شرح کامل مشکل</label>
                   <textarea 
                     rows={3} 
                     required 
@@ -589,16 +586,6 @@ export default function CustomerPanelPage() {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-brand-primary resize-none" 
                   />
                 </div>
-              </div>
-              <div className="flex items-center gap-2 pt-2">
-                <input 
-                  type="checkbox" 
-                  id="edit_estimate" 
-                  checked={editFormData.needs_price_estimate} 
-                  onChange={e => setEditFormData({...editFormData, needs_price_estimate: e.target.checked})} 
-                  className="w-4 h-4 rounded text-brand-primary" 
-                />
-                <label htmlFor="edit_estimate" className="text-sm font-bold text-slate-700 cursor-pointer">نیاز به برآورد قیمت پیش از تعمیر دارم</label>
               </div>
 
               <div className="flex gap-2 pt-4">
@@ -614,10 +601,10 @@ export default function CustomerPanelPage() {
         </div>
       )}
 
-      {/* مدال جزئیات و مراحل پیگیری */}
+      {/* مدال پیگیری مراحل */}
       {selectedTrackingReq && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-800">{selectedTrackingReq.device_info}</h3>
@@ -686,10 +673,9 @@ export default function CustomerPanelPage() {
                 <label className="block text-sm font-bold text-slate-700 mb-2">نام شرکت (اختیاری)</label>
                 <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary" placeholder="مثال: پتروشیمی زاگرس" />
               </div>
-              {/* فیلد جدید ایمیل */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">ایمیل (اختیاری)</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary text-left" placeholder="example@email.com" dir="ltr" />
+                <label className="block text-sm font-bold text-slate-700 mb-2">ایمیل <span className="text-red-500">*</span></label>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary text-left" placeholder="example@email.com" dir="ltr" />
               </div>
               <button type="submit" disabled={isLoading} className="w-full py-4 mt-4 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors flex justify-center items-center gap-2">
                 {isLoading ? <Loader2 className="animate-spin" /> : 'ثبت اطلاعات و ورود به پنل'}

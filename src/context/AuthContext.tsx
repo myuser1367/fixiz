@@ -2,13 +2,14 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from '../lib/supabase';
 import { sendOtpSMS } from '../lib/notifications';
 
-export type Role = 'customer' | 'coordinator' | 'supervisor' | 'ceo' | 'commercial' | 'finance' | 'admin' | null;
+export type Role = 'customer' | 'coordinator' | 'supervisor' | 'ceo' | 'commercial' | 'finance' | 'admin' | 'monitoring' | 'monitoring_manager' | null;
 
 export interface UserProfile {
   id: string;
   phone: string;
   full_name?: string;
   company_name?: string;
+  email?: string;
   role: Role;
   is_first_login: boolean;
   username?: string;
@@ -21,7 +22,7 @@ interface AuthContextType {
   role: Role;
   sendCustomerOtp: (mobile: string, code: string) => Promise<string>;
   verifyCustomerOtp: (mobile: string) => Promise<void>;
-  personnelLogin: (username: string, password: string) => Promise<{ isFirstLogin: boolean }>;
+  personnelLogin: (username: string, password: string) => Promise<{ isFirstLogin: boolean, role: string }>;
   completePersonnelFirstLogin: (username: string, newPassword: string) => Promise<void>;
   logout: () => void;
 }
@@ -90,16 +91,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // -------------------------------------------------------------
-  // توابع اختصاصی شده ورود مشتریان (متصل به ملی پیامک)
-  // -------------------------------------------------------------
   const sendCustomerOtp = useCallback(async (mobile: string, code: string) => {
     await sendOtpSMS(mobile, code);
     return "SENT"; 
   }, []);
   
   const verifyCustomerOtp = useCallback(async (mobile: string) => {
-    // استفاده از ترفند ورود با ایمیل مجازی برای دور زدن محدودیت‌های پیامکی سوپابیس
     const dummyEmail = `${mobile}@fixiz.ir`;
     const dummyPassword = `FixizUser#${mobile}`;
 
@@ -126,9 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // -------------------------------------------------------------
-  // توابع ورود پرسنل
-  // -------------------------------------------------------------
   const personnelLogin = async (username: string, password: string) => {
     const cleanUsername = username.toLowerCase().trim();
     
@@ -139,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (pData) {
         setProfile(pData as UserProfile);
       }
-      return { isFirstLogin: false };
+      return { isFirstLogin: false, role: 'admin' };
     }
 
     const { data: pUser, error } = await supabase
@@ -158,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession({ user: { id: pUser.id } });
     }
 
-    return { isFirstLogin: pUser.is_first_login };
+    return { isFirstLogin: pUser.is_first_login, role: pUser.role };
   };
 
   const completePersonnelFirstLogin = async (username: string, newPassword: string) => {
