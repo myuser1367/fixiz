@@ -2,7 +2,8 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from '../lib/supabase';
 import { sendOtpSMS } from '../lib/notifications';
 
-export type Role = 'customer' | 'coordinator' | 'supervisor' | 'ceo' | 'commercial' | 'finance' | 'admin' | 'monitoring' | 'monitoring_manager' | null;
+// تغییر تایپ Role به string برای پشتیبانی کامل از هر نقش پویایی که از دیتابیس می‌آید (مثل تکنسین‌ها)
+export type Role = string | null;
 
 export interface UserProfile {
   id: string;
@@ -123,10 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
- const personnelLogin = async (username: string, password: string) => {
+  const personnelLogin = async (username: string, password: string) => {
     const cleanUsername = username.toLowerCase().trim();
     
-    // جستجوی یکپارچه تمام پرسنل (از جمله ادمین) در جدول personnel_users
     const { data: pUser, error } = await supabase
       .from('personnel_users')
       .select('*')
@@ -136,12 +136,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error || !pUser) throw new Error('نام کاربری یا رمز عبور اشتباه است');
     if (pUser.password !== password) throw new Error('نام کاربری یا رمز عبور اشتباه است');
 
-    if (!pUser.is_first_login) {
-      const userData = { ...pUser, id: pUser.id };
-      localStorage.setItem('fixiz_personnel_session', JSON.stringify(userData));
-      setProfile(userData);
-      setSession({ user: { id: pUser.id } });
-    }
+    const userData = { ...pUser, id: pUser.id };
+    localStorage.setItem('fixiz_personnel_session', JSON.stringify(userData));
+    setProfile(userData);
+    setSession({ user: { id: pUser.id } });
 
     return { isFirstLogin: pUser.is_first_login, role: pUser.role, phone: pUser.phone };
   };

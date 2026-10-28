@@ -34,9 +34,8 @@ export default function SupervisorPanelPage() {
     let statusFilter = [];
     
     if (activeTab === 'pending') {
-      // در کارتابل بررسی و ارجاع: فقط نیازمند بررسی سرپرست، منتظر دستگاه، یا منتظر تایید گزارش تکنسین
-      // نکته: دستگاه‌هایی که واحد هماهنگی ورودشان را زده باید وضعیت خاص خود را داشته باشند (مثلا ready_for_repair یا اگر هماهنگی تغییر وضعیت می‌دهد)
-      statusFilter = ['pending_supervisor', 'waiting_for_device', 'ready_for_repair', 'pending_supervisor_approval'];
+      // در کارتابل بررسی و ارجاع: نیازمند بررسی، منتظر دستگاه، یا منتظر تایید گزارش تکنسین
+      statusFilter = ['pending_supervisor', 'waiting_for_device', 'pending_supervisor_approval'];
     } else {
       // در تب در حال تعمیر: فقط دستگاه‌هایی که به تکنسین ارجاع شده‌اند
       statusFilter = ['repairing'];
@@ -57,13 +56,27 @@ export default function SupervisorPanelPage() {
   };
 
   const fetchTechnicians = async () => {
-    const { data, error } = await supabase
-      .from('personnel_users')
-      .select('id, full_name, role, roles!inner(role_label)')
-      .ilike('roles.role_label', '%تکنسین%');
+    try {
+      // دریافت کل پرسنل و نقش‌ها به صورت ایمن برای جلوگیری از خطای 400
+      const { data: rolesData } = await supabase
+        .from('roles')
+        .select('role_key')
+        .ilike('role_label', '%تکنسین%');
 
-    if (!error && data) {
-      setTechnicians(data);
+      const techRoleKeys = rolesData ? rolesData.map((r: any) => r.role_key) : [];
+
+      const { data, error } = await supabase
+        .from('personnel_users')
+        .select('id, full_name, role');
+
+      if (!error && data) {
+        const filteredTechs = data.filter((u: any) => 
+          techRoleKeys.includes(u.role) || u.role?.toLowerCase().includes('tec') || u.role?.toLowerCase().includes('تکنسین')
+        );
+        setTechnicians(filteredTechs.length > 0 ? filteredTechs : data);
+      }
+    } catch (err) {
+      console.error("Error fetching technicians:", err);
     }
   };
 
@@ -101,13 +114,13 @@ export default function SupervisorPanelPage() {
         .from('repair_requests')
         .update({ 
           technician_id: selectedTechnicianId,
-          status: 'repairing' // انتقال مستقیم به وضعیت در حال تعمیر پس از ارجاع
+          status: 'repairing' // انتقال به تب در حال تعمیر پس از ارجاع
         })
         .eq('id', assignRequest.id);
 
       if (error) throw error;
       
-      toast.success('دستگاه با موفقیت به تکنسین ارجاع داده شد و به تب در حال تعمیر منتقل شد');
+      toast.success('دستگاه با موفقیت به تکنسین ارجاع داده شد');
       setAssignRequest(null);
       setSelectedTechnicianId('');
       fetchRequests();
@@ -142,8 +155,7 @@ export default function SupervisorPanelPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بررسی شما</span>;
-      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-lg text-xs font-bold">منتظر دریافت دستگاه از مشتری</span>;
-      case 'ready_for_repair': return <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-lg text-xs font-bold">دستگاه رسیده - آماده ارجاع</span>;
+      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-lg text-xs font-bold">پذیرش شده / منتظر ورود دستگاه</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg text-xs font-bold">در حال تعمیر</span>;
       case 'pending_supervisor_approval': return <span className="bg-orange-100 text-orange-800 px-2.5 py-1 rounded-lg text-xs font-bold">منتظر تایید گزارش تکنسین</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold">{status}</span>;
@@ -222,7 +234,7 @@ export default function SupervisorPanelPage() {
                   <th className="pb-3 px-3">مشتری و اطلاعات تماس</th>
                   <th className="pb-3 px-3">دستگاه و برند</th>
                   <th className="pb-3 px-3">وضعیت فعلی</th>
-                  <th className="pb-3 px-3 text-center">عملیات فنی</th>
+                  <th className="pb-3 px-3 text-center">{activeTab === 'pending' ? 'عملیات فنی' : 'تکنسین مسئول تعمیر'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -246,34 +258,31 @@ export default function SupervisorPanelPage() {
                         </td>
                         <td className="py-4 px-3">
                           {getStatusBadge(req.status)}
-                          {req.technician_id && <div className="text-xs text-indigo-600 mt-1">تکنسین: {req.personnel_users?.full_name}</div>}
                         </td>
                         <td className="py-4 px-3 text-center">
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            
-                            {req.status === 'pending_supervisor' && (
-                              <button onClick={() => setReviewRequest(req)} className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
-                                <Search size={16} /> بررسی اولیه و پذیرش
-                              </button>
-                            )}
-
-                            {req.status === 'waiting_for_device' && (
-                              <span className="text-xs text-slate-400 font-medium bg-slate-100 px-3 py-1.5 rounded-lg">منتظر دریافت دستگاه</span>
-                            )}
-
-                            {req.status === 'ready_for_repair' && (
-                              <button onClick={() => {setAssignRequest(req); setSelectedTechnicianId('');}} className="px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
-                                <UserPlus size={16} /> ارجاع به تکنسین
-                              </button>
-                            )}
-
-                            {req.status === 'pending_supervisor_approval' && (
-                              <button onClick={() => setApprovalRequest(req)} className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
-                                <CheckSquare size={16} /> بررسی گزارش و تایید
-                              </button>
-                            )}
-
-                          </div>
+                          {activeTab === 'pending' ? (
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              {req.status === 'pending_supervisor' && (
+                                <button onClick={() => setReviewRequest(req)} className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
+                                  <Search size={16} /> بررسی اولیه و پذیرش
+                                </button>
+                              )}
+                              {req.status === 'waiting_for_device' && (
+                                <button onClick={() => {setAssignRequest(req); setSelectedTechnicianId('');}} className="px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
+                                  <UserPlus size={16} /> ارجاع به تکنسین
+                                </button>
+                              )}
+                              {req.status === 'pending_supervisor_approval' && (
+                                <button onClick={() => setApprovalRequest(req)} className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
+                                  <CheckSquare size={16} /> بررسی گزارش و تایید
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-block bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-xs border border-indigo-100">
+                              👨‍🔧 {req.personnel_users?.full_name || 'تکنسین تعیین‌شده'}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -285,7 +294,7 @@ export default function SupervisorPanelPage() {
         </div>
       </main>
 
-      {/* مودال‌ها دقیقاً سر جای خود و دست‌نخورده */}
+      {/* مودال‌های صفحه */}
       {reviewRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -327,20 +336,20 @@ export default function SupervisorPanelPage() {
               <select 
                 value={selectedTechnicianId} 
                 onChange={(e) => setSelectedTechnicianId(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary bg-slate-50"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary bg-slate-50 text-sm"
               >
                 <option value="">-- یک تکنسین انتخاب کنید --</option>
                 {technicians.map(t => (
-                  <option key={t.id} value={t.id}>{t.full_name} ({t.roles?.role_label})</option>
+                  <option key={t.id} value={t.id}>{t.full_name}</option>
                 ))}
               </select>
             </div>
 
             <div className="flex gap-2">
-              <button onClick={handleAssignToTechnician} disabled={isAssigning || !selectedTechnicianId} className="flex-1 py-3 bg-brand-primary hover:bg-brand-600 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2">
+              <button onClick={handleAssignToTechnician} disabled={isAssigning || !selectedTechnicianId} className="flex-1 py-3 bg-brand-primary hover:bg-brand-600 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2 text-sm">
                 {isAssigning ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />} ارجاع و شروع تعمیر
               </button>
-              <button onClick={() => setAssignRequest(null)} className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">انصراف</button>
+              <button onClick={() => setAssignRequest(null)} className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors text-sm">انصراف</button>
             </div>
           </div>
         </div>
