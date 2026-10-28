@@ -1,0 +1,347 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+import { LogOut, Home, Wrench, Loader2, Save, Key, FileText, Plus, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+
+export default function TechnicianPanelPage() {
+  const { profile, logout } = useAuth();
+  const navigate = useNavigate();
+  const [requests, setRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // استیت‌های مودال تغییر رمز
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // استیت‌های مودال گزارش کار و ثبت قطعات
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [technicianReport, setTechnicianReport] = useState('');
+  const [parts, setParts] = useState<{ part_name: string; quantity: number }[]>([]);
+  const [newPartName, setNewPartName] = useState('');
+  const [newPartQty, setNewPartQty] = useState(1);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  useEffect(() => {
+    if (profile?.id) {
+      fetchRequests();
+    }
+  }, [profile?.id]);
+
+  const fetchRequests = async () => {
+    setIsLoading(true);
+    // تکنسین فقط دستگاه‌هایی را می‌بیند که به او ارجاع شده و در حال تعمیر هستند
+    const { data, error } = await supabase
+      .from('repair_requests')
+      .select(`*, profiles!customer_id(full_name, phone)`)
+      .eq('technician_id', profile?.id)
+      .eq('status', 'repairing')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      toast.error('خطا در دریافت اطلاعات درخواست‌ها');
+    } else {
+      setRequests(data || []);
+    }
+    setIsLoading(false);
+  };
+
+  const openReportModal = (req: any) => {
+    setSelectedRequest(req);
+    // استفاده از فیلد supervisor_report برای ذخیره متن تکنسین تا سرپرست آن را ببیند
+    setTechnicianReport(req.supervisor_report || '');
+    setParts([]);
+  };
+
+  const handleAddPart = () => {
+    if (!newPartName.trim()) return toast.error('نام قطعه را وارد کنید');
+    if (newPartQty < 1) return toast.error('تعداد نامعتبر است');
+    setParts([...parts, { part_name: newPartName, quantity: newPartQty }]);
+    setNewPartName('');
+    setNewPartQty(1);
+  };
+
+  const handleRemovePart = (index: number) => {
+    const newParts = [...parts];
+    newParts.splice(index, 1);
+    setParts(newParts);
+  };
+
+  const submitReportAndParts = async () => {
+    if (!selectedRequest) return;
+    if (!technicianReport.trim()) return toast.error('لطفاً گزارش کار را بنویسید');
+
+    setIsSubmittingReport(true);
+    try {
+      // ثبت گزارش کار در دیتابیس (استفاده از همان فیلدی که برای سرپرست در نظر گرفته شده بود)
+      const { error: reqError } = await supabase
+        .from('repair_requests')
+        .update({ 
+          supervisor_report: technicianReport,
+          status: 'pending_supervisor_approval' // تغییر وضعیت به "منتظر تایید سرپرست"
+        })
+        .eq('id', selectedRequest.id);
+      
+      if (reqError) throw reqError;
+
+      // ثبت قطعات مصرفی (در صورت وجود)
+      if (parts.length > 0) {
+        const partsToInsert = parts.map(p => ({
+          request_id: selectedRequest.id,
+          part_name: p.part_name,
+          quantity: p.quantity,
+        }));
+
+        const { error: partsError } = await supabase
+          .from('repair_parts')
+          .insert(partsToInsert);
+
+        if (partsError) throw partsError;
+      }
+
+      toast.success('گزارش شما ثبت شد و برای تایید به کارتابل سرپرست ارسال گردید');
+      setSelectedRequest(null);
+      fetchRequests(); // به‌روزرسانی لیست (دستگاه از کارتابل تکنسین خارج می‌شود)
+    } catch (error: any) {
+      toast.error('خطا در ثبت اطلاعات: ' + error.message);
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) return toast.error('رمز عبور باید حداقل ۶ کاراکتر باشد');
+    setIsUpdatingPassword(true);
+    try {
+      if (profile?.username) {
+        const { error } = await supabase
+          .from('personnel_users')
+          .update({ password: newPassword })
+          .eq('username', profile.username);
+        if (error) throw error;
+      }
+      toast.success('رمز عبور شما با موفقیت تغییر کرد');
+      setShowPasswordModal(false);
+      setNewPassword('');
+    } catch (err: any) {
+      toast.error(err.message || 'خطا در تغییر رمز عبور');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const FullRequestDetails = ({ req }: { req: any }) => (
+    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 mb-6" dir="rtl">
+      <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات تجهیز ارجاع شده</h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div><span className="text-slate-400">نام تجهیز:</span> <strong className="text-slate-800">{req.device_info}</strong></div>
+        <div><span className="text-slate-400">کارخانه سازنده:</span> <strong className="text-slate-800">{req.brand || 'ثبت نشده'}</strong></div>
+        <div><span className="text-slate-400">پارت نامبر:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.part_number || 'ثبت نشده'}</strong></div>
+        <div><span className="text-slate-400">شماره سریال:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.serial_number || 'ثبت نشده'}</strong></div>
+        <div className="sm:col-span-2"><span className="text-slate-400">نام پروژه / ارجاع کار:</span> <strong className="text-slate-800">{req.project_name || 'ثبت نشده'}</strong></div>
+      </div>
+      <div className="pt-2 border-t border-slate-200">
+        <span className="text-slate-400 text-xs block mb-1">شرح کامل مشکل (اظهار مشتری):</span>
+        <p className="text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 leading-relaxed">{req.fault_description}</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
+      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 p-2.5 rounded-xl text-blue-700">
+              <Wrench size={26} />
+            </div>
+            <div>
+              <h1 className="text-xl font-extrabold text-slate-800">سامانه تعمیرات فرافن </h1>
+              <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md">پنل تکنسین تعمیرات</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-xs font-medium text-slate-500 hidden md:inline ml-2">خوش آمدید، {profile?.full_name || 'همکار گرامی'}</span>
+            
+            <button onClick={() => setShowPasswordModal(true)} className="flex items-center gap-1.5 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl font-bold transition-colors">
+              <Key size={16} /> <span className="hidden sm:inline">تغییر رمز</span>
+            </button>
+            <button onClick={() => { window.location.href = '/'; }} className="flex items-center gap-1.5 text-sm sm:text-sm bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-2.5 rounded-xl font-bold transition-colors">
+              <Home size={16} /> <span className="hidden sm:inline">صفحه اصلی</span>
+            </button>
+            <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-1.5 text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2.5 rounded-xl font-bold transition-colors">
+              <LogOut size={16} /> خروج
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-slate-800">کارتابل دستگاه‌های در حال تعمیر شما</h2>
+            <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">{requests.length} دستگاه</span>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-right border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-400 text-xs uppercase">
+                  <th className="pb-3 px-3">کد پیگیری</th>
+                  <th className="pb-3 px-3">مشتری</th>
+                  <th className="pb-3 px-3">دستگاه و برند</th>
+                  <th className="pb-3 px-3 text-center">عملیات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {isLoading ? (
+                  <tr><td colSpan={4} className="py-8 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>
+                ) : requests.length === 0 ? (
+                  <tr><td colSpan={4} className="py-8 text-center text-slate-400">دستگاهی برای تعمیر به شما ارجاع نشده است.</td></tr>
+                ) : (
+                  requests.map(req => {
+                    const isCommercial = req.project_name?.includes('[بازرگانی]') || req.fault_description?.includes('واحد بازرگانی');
+                    return (
+                      <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-4 px-3 font-mono font-bold text-slate-700" dir="ltr">{req.tracking_code}</td>
+                        <td className="py-4 px-3">
+                          <div className="font-bold text-slate-800">
+                            {isCommercial ? 'واحد بازرگانی' : (req.profiles?.full_name || 'بدون نام')}
+                          </div>
+                        </td>
+                        <td className="py-4 px-3">
+                          <div className="font-bold text-slate-800">{req.device_info}</div>
+                          <div className="text-xs text-slate-500">{req.brand || 'بدون برند'}</div>
+                        </td>
+                        <td className="py-4 px-3 text-center">
+                          <button onClick={() => openReportModal(req)} className="px-4 py-2 bg-brand-primary hover:bg-brand-600 text-white rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5 shadow-sm">
+                            <FileText size={16} /> ثبت گزارش و پایان تعمیر
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      {/* مودال ثبت گزارش کار و قطعات مصرفی */}
+      {selectedRequest && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">ثبت گزارش کار و قطعات مصرفی</h3>
+                <p className="text-sm text-slate-500 font-mono mt-1">کد: {selectedRequest.tracking_code}</p>
+              </div>
+              <button onClick={() => setSelectedRequest(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
+            </div>
+
+            <FullRequestDetails req={selectedRequest} />
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">گزارش فنی شما (تکنسین) <span className="text-red-500">*</span></label>
+                <textarea 
+                  rows={4} 
+                  value={technicianReport} 
+                  onChange={(e) => setTechnicianReport(e.target.value)} 
+                  placeholder="شرح عملیات انجام شده روی دستگاه را بنویسید... (این گزارش برای سرپرست ارسال می‌شود)" 
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary resize-none text-sm leading-relaxed" 
+                />
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <label className="block text-sm font-bold text-slate-700 mb-4">لیست قطعات مصرفی یا تعویضی (در صورت نیاز)</label>
+                
+                <div className="flex gap-2 mb-4">
+                  <input 
+                    type="text" 
+                    value={newPartName} 
+                    onChange={e => setNewPartName(e.target.value)} 
+                    placeholder="نام قطعه (مثلا: خازن ۱۰۰ میکرو)" 
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-brand-primary text-sm" 
+                  />
+                  <input 
+                    type="number" 
+                    min="1" 
+                    value={newPartQty} 
+                    onChange={e => setNewPartQty(parseInt(e.target.value) || 1)} 
+                    className="w-20 px-3 py-2 rounded-lg border border-slate-200 outline-none focus:border-brand-primary text-sm text-center" 
+                    dir="ltr"
+                  />
+                  <button onClick={handleAddPart} className="px-3 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center justify-center">
+                    <Plus size={18} />
+                  </button>
+                </div>
+
+                {parts.length > 0 && (
+                  <ul className="space-y-2">
+                    {parts.map((p, idx) => (
+                      <li key={idx} className="flex justify-between items-center bg-white px-3 py-2 rounded-lg border border-slate-100 text-sm">
+                        <span className="font-bold text-slate-700">{p.part_name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono">{p.quantity} عدد</span>
+                          <button onClick={() => handleRemovePart(idx)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={submitReportAndParts} 
+                  disabled={isSubmittingReport} 
+                  className="flex-1 py-3.5 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors flex justify-center items-center gap-2 shadow-md"
+                >
+                  {isSubmittingReport ? <Loader2 className="animate-spin" /> : <Save size={18} />} 
+                  ثبت نهایی و ارجاع به سرپرست
+                </button>
+                <button 
+                  onClick={() => setSelectedRequest(null)} 
+                  className="px-6 py-3.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl font-bold transition-colors"
+                >
+                  انصراف
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* مودال تغییر رمز عبور */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
+            <h3 className="text-xl font-bold text-slate-800 mb-2">تغییر رمز عبور</h3>
+            <form onSubmit={handleChangePassword}>
+              <div className="mb-5">
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="حداقل ۶ کاراکتر"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-brand-primary text-left font-mono"
+                  dir="ltr"
+                  required
+                />
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={isUpdatingPassword} className="flex-1 py-3 bg-brand-primary hover:bg-brand-600 text-white rounded-xl font-bold transition-colors text-sm">ثبت رمز جدید</button>
+                <button type="button" onClick={() => setShowPasswordModal(false)} className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors text-sm">انصراف</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
