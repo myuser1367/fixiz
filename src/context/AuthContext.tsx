@@ -126,17 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
  const personnelLogin = async (username: string, password: string) => {
     const cleanUsername = username.toLowerCase().trim();
     
-    if (cleanUsername === 'admin') {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: 'admin@fixiz.ir', password });
-      if (error) throw new Error('نام کاربری یا رمز عبور اشتباه است');
-      const { data: pData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
-      if (pData) {
-        setProfile(pData as UserProfile);
-      }
-      // شماره موبایل ادمین هم برگردانده می‌شود
-      return { isFirstLogin: false, role: 'admin', phone: pData?.phone };
-    }
-
+    // جستجوی یکپارچه تمام پرسنل (از جمله ادمین) در جدول personnel_users
     const { data: pUser, error } = await supabase
       .from('personnel_users')
       .select('*')
@@ -153,7 +143,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession({ user: { id: pUser.id } });
     }
 
-    // شماره موبایل پرسنل برگردانده می‌شود
     return { isFirstLogin: pUser.is_first_login, role: pUser.role, phone: pUser.phone };
   };
 
