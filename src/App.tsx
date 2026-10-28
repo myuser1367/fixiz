@@ -14,8 +14,8 @@ import CommercialPanelPage from './pages/CommercialPanelPage';
 import FinancePanelPage from './pages/FinancePanelPage';
 import MonitoringPanelPage from './pages/MonitoringPanelPage';
 import MonitoringManagerPanelPage from './pages/MonitoringManagerPanelPage';
+import TechnicianPanelPage from './pages/TechnicianPanelPage'; // <--- ایمپورت پنل تکنسین
 
-// اضافه کردن متادیتای نقش‌های جدید برای سازگاری کامل
 export const roleMeta: Record<string, { title: string; color: string; badge: string; icon: any; desc: string }> = {
   coordinator: { 
     title: 'واحد هماهنگی', 
@@ -65,6 +65,13 @@ export const roleMeta: Record<string, { title: string; color: string; badge: str
     badge: 'bg-indigo-100 text-indigo-800',
     icon: BarChart3,
     desc: 'گزارش‌گیری پیشرفته، فیلترینگ بازه‌های زمانی و خروجی اکسل'
+  },
+  technician: { 
+    title: 'تکنسین تعمیرات', 
+    color: 'text-blue-700 bg-blue-50 border-blue-200', 
+    badge: 'bg-blue-100 text-blue-800',
+    icon: Wrench,
+    desc: 'بررسی دستگاه‌های ارجاع‌شده، انجام تعمیرات و ثبت گزارش کار'
   },
 };
 
@@ -212,8 +219,12 @@ const DashboardRouter = () => {
   if (isLoading) return <div className="min-h-screen flex items-center justify-center font-vazir text-slate-600">در حال بارگذاری پنل...</div>;
   if (!role && !profile) return <Navigate to="/" replace />;
 
-  // اطمینان از خواندن دقیق نقش حتی اگر از پروفایل کش شده بیاید
   const currentRole = role || profile?.role;
+
+  // بررسی نقش برای هدایت به صفحه مربوطه (پشتیبانی از نقش‌های پویا یا کلیدهای شامل تکنسین)
+  if (currentRole?.includes('technician') || currentRole?.includes('تکنسین')) {
+    return <TechnicianPanelPage />;
+  }
 
   switch (currentRole) { 
     case 'admin': return <AdminDashboardPage />;

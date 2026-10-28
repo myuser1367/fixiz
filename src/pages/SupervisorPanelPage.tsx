@@ -14,11 +14,9 @@ export default function SupervisorPanelPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'repairing'>('pending');
 
-  // استیت‌های مربوط به مودال تغییر رمز
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
 
-  // استیت مودال‌های مختلف
   const [reviewRequest, setReviewRequest] = useState<any | null>(null);
   const [assignRequest, setAssignRequest] = useState<any | null>(null);
   const [approvalRequest, setApprovalRequest] = useState<any | null>(null);
@@ -36,8 +34,11 @@ export default function SupervisorPanelPage() {
     let statusFilter = [];
     
     if (activeTab === 'pending') {
-      statusFilter = ['pending_supervisor', 'accepted', 'waiting_for_device', 'pending_supervisor_approval'];
+      // در کارتابل بررسی و ارجاع: فقط نیازمند بررسی سرپرست، منتظر دستگاه، یا منتظر تایید گزارش تکنسین
+      // نکته: دستگاه‌هایی که واحد هماهنگی ورودشان را زده باید وضعیت خاص خود را داشته باشند (مثلا ready_for_repair یا اگر هماهنگی تغییر وضعیت می‌دهد)
+      statusFilter = ['pending_supervisor', 'waiting_for_device', 'ready_for_repair', 'pending_supervisor_approval'];
     } else {
+      // در تب در حال تعمیر: فقط دستگاه‌هایی که به تکنسین ارجاع شده‌اند
       statusFilter = ['repairing'];
     }
 
@@ -100,13 +101,13 @@ export default function SupervisorPanelPage() {
         .from('repair_requests')
         .update({ 
           technician_id: selectedTechnicianId,
-          status: 'repairing'
+          status: 'repairing' // انتقال مستقیم به وضعیت در حال تعمیر پس از ارجاع
         })
         .eq('id', assignRequest.id);
 
       if (error) throw error;
       
-      toast.success('دستگاه با موفقیت به تکنسین ارجاع داده شد');
+      toast.success('دستگاه با موفقیت به تکنسین ارجاع داده شد و به تب در حال تعمیر منتقل شد');
       setAssignRequest(null);
       setSelectedTechnicianId('');
       fetchRequests();
@@ -141,9 +142,10 @@ export default function SupervisorPanelPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending_supervisor': return <span className="bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg text-xs font-bold">در انتظار بررسی شما</span>;
-      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-lg text-xs font-bold">پذیرش شده / ارجاع نشده</span>;
+      case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-lg text-xs font-bold">منتظر دریافت دستگاه از مشتری</span>;
+      case 'ready_for_repair': return <span className="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-lg text-xs font-bold">دستگاه رسیده - آماده ارجاع</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg text-xs font-bold">در حال تعمیر</span>;
-      case 'pending_supervisor_approval': return <span className="bg-orange-100 text-orange-800 px-2.5 py-1 rounded-lg text-xs font-bold">منتظر تایید گزارش شما</span>;
+      case 'pending_supervisor_approval': return <span className="bg-orange-100 text-orange-800 px-2.5 py-1 rounded-lg text-xs font-bold">منتظر تایید گزارش تکنسین</span>;
       default: return <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold">{status}</span>;
     }
   };
@@ -152,14 +154,14 @@ export default function SupervisorPanelPage() {
     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 mb-6" dir="rtl">
       <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات کامل تجهیز ارسالی</h4>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <div><span className="text-slate-400">نام تجهیز (Unit Name):</span> <strong className="text-slate-800">{req.device_info}</strong></div>
-        <div><span className="text-slate-400">کارخانه سازنده (Brand):</span> <strong className="text-slate-800">{req.brand || 'ثبت نشده'}</strong></div>
-        <div><span className="text-slate-400">پارت نامبر (Part Number):</span> <strong className="font-mono text-slate-800" dir="ltr">{req.part_number || 'ثبت نشده'}</strong></div>
-        <div><span className="text-slate-400">شماره سریال (S/N):</span> <strong className="font-mono text-slate-800" dir="ltr">{req.serial_number || 'ثبت نشده'}</strong></div>
+        <div><span className="text-slate-400">نام تجهیز:</span> <strong className="text-slate-800">{req.device_info}</strong></div>
+        <div><span className="text-slate-400">کارخانه سازنده:</span> <strong className="text-slate-800">{req.brand || 'ثبت نشده'}</strong></div>
+        <div><span className="text-slate-400">پارت نامبر:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.part_number || 'ثبت نشده'}</strong></div>
+        <div><span className="text-slate-400">شماره سریال:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.serial_number || 'ثبت نشده'}</strong></div>
         <div className="sm:col-span-2"><span className="text-slate-400">نام پروژه / ارجاع کار:</span> <strong className="text-slate-800">{req.project_name || 'ثبت نشده'}</strong></div>
       </div>
       <div className="pt-2 border-t border-slate-200">
-        <span className="text-slate-400 text-xs block mb-1">شرح کامل مشکل (اظهار مشتری):</span>
+        <span className="text-slate-400 text-xs block mb-1">شرح کامل مشکل:</span>
         <p className="text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 leading-relaxed">{req.fault_description}</p>
       </div>
     </div>
@@ -248,24 +250,29 @@ export default function SupervisorPanelPage() {
                         </td>
                         <td className="py-4 px-3 text-center">
                           <div className="flex flex-col items-center justify-center gap-2">
+                            
                             {req.status === 'pending_supervisor' && (
                               <button onClick={() => setReviewRequest(req)} className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
                                 <Search size={16} /> بررسی اولیه و پذیرش
                               </button>
                             )}
+
                             {req.status === 'waiting_for_device' && (
+                              <span className="text-xs text-slate-400 font-medium bg-slate-100 px-3 py-1.5 rounded-lg">منتظر دریافت دستگاه</span>
+                            )}
+
+                            {req.status === 'ready_for_repair' && (
                               <button onClick={() => {setAssignRequest(req); setSelectedTechnicianId('');}} className="px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
                                 <UserPlus size={16} /> ارجاع به تکنسین
                               </button>
                             )}
+
                             {req.status === 'pending_supervisor_approval' && (
                               <button onClick={() => setApprovalRequest(req)} className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
                                 <CheckSquare size={16} /> بررسی گزارش و تایید
                               </button>
                             )}
-                            {req.status === 'repairing' && (
-                              <span className="text-xs text-slate-400">در دست تکنسین</span>
-                            )}
+
                           </div>
                         </td>
                       </tr>
@@ -278,7 +285,7 @@ export default function SupervisorPanelPage() {
         </div>
       </main>
 
-      {/* مودال بررسی اولیه */}
+      {/* مودال‌ها دقیقاً سر جای خود و دست‌نخورده */}
       {reviewRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -298,7 +305,7 @@ export default function SupervisorPanelPage() {
                 <CheckCircle size={18} /> پذیرش (ارسال پیامک به مشتری)
               </button>
               <button onClick={() => {
-                if (confirm('آیا از عدم پذیرش این دستگاه اطمینان دارید؟ با این کار درخواست لغو خواهد شد.')) {
+                if (confirm('آیا از عدم پذیرش این دستگاه اطمینان دارید؟')) {
                   handleStatusChange(reviewRequest.id, 'rejected');
                 }
               }} className="px-6 py-3.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl font-bold transition-colors flex justify-center items-center gap-2">
@@ -309,7 +316,6 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
-      {/* مودال ارجاع به تکنسین */}
       {assignRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-slide-up">
@@ -340,7 +346,6 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
-      {/* مودال بررسی گزارش تکنسین و تایید نهایی */}
       {approvalRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
@@ -366,7 +371,6 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
-      {/* مودال تغییر رمز */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-slide-up">
