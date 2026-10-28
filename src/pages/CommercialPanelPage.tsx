@@ -19,6 +19,9 @@ interface RepairRequest {
   part_number?: string;
   project_name?: string;
   customer_id?: string;
+  tr_code?: string;
+  delivery_list_number?: string;
+  email_group?: string;
 }
 
 export default function CommercialPanelPage() {
@@ -32,9 +35,12 @@ export default function CommercialPanelPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // آیدی صحیح و منطبق با دیتابیس شما برای واحد بازرگانی
+  // لیست گروه‌ها برای نمایش در کشویی
+  const [groupOptions, setGroupOptions] = useState<string[]>([]);
+
   const COMMERCIAL_CUSTOMER_ID = 'c78297a5-bb21-4701-b289-203d5ea50acb';
 
+  // به‌روزرسانی شده با ۳ فیلد جدید: tr_code, delivery_list_number, email_group
   const [formData, setFormData] = useState({
     device_info: '',
     brand: '',
@@ -43,6 +49,9 @@ export default function CommercialPanelPage() {
     project_name: '',
     fault_description: '',
     needs_price_estimate: false,
+    tr_code: '',
+    delivery_list_number: '',
+    email_group: '',
   });
 
   const [selectedTrackingReq, setSelectedTrackingReq] = useState<RepairRequest | null>(null);
@@ -63,13 +72,20 @@ export default function CommercialPanelPage() {
   useEffect(() => {
     if (profile?.id) {
       fetchData();
+      fetchGroups();
     }
   }, [profile]);
+
+  const fetchGroups = async () => {
+    const { data, error } = await supabase.from('email_groups').select('name');
+    if (!error && data) {
+      setGroupOptions(data.map(g => g.name));
+    }
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
     
-    // ۱. دریافت کارتابل بازرگانی (در انتظار تایید قیمت اولیه + در انتظار تایید خروج پس از پرداخت مالی)
     const { data: queueData, error: queueError } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone)`)
@@ -79,7 +95,6 @@ export default function CommercialPanelPage() {
     if (queueError) toast.error('خطا در دریافت کارتابل');
     else setQueueRequests(queueData || []);
 
-    // ۲. دریافت درخواست‌های ثبت شده توسط واحد بازرگانی (بر اساس آیدی دقیق دیتابیس)
     const { data: myData, error: myError } = await supabase
       .from('repair_requests')
       .select('*')
@@ -139,7 +154,6 @@ export default function CommercialPanelPage() {
     setIsSubmitting(true);
     const trackingCode = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
     
-    // اصلاح: حذف عبارت "ثبت شده توسط واحد بازرگانی" از متن شرح مشکل
     const finalDescription = (formData.serial_number ? `[شماره سریال: ${formData.serial_number}]\n` : '') + formData.fault_description;
 
     try {
@@ -153,14 +167,28 @@ export default function CommercialPanelPage() {
           needs_price_estimate: formData.needs_price_estimate,
           status: 'pending_coordinator',
           part_number: formData.part_number,
-          project_name: formData.project_name ? `[بازرگانی] ${formData.project_name}` : '[بازرگانی] ثبت سازمانی'
+          project_name: formData.project_name ? `[بازرگانی] ${formData.project_name}` : '[بازرگانی] ثبت سازمانی',
+          tr_code: formData.tr_code,
+          delivery_list_number: formData.delivery_list_number,
+          email_group: formData.email_group
         }
       ]);
 
       if (error) throw error;
       
       toast.success(`درخواست سازمانی شما با کد پیگیری ${trackingCode} ثبت شد`);
-      setFormData({ device_info: '', brand: '', serial_number: '', part_number: '', project_name: '', fault_description: '', needs_price_estimate: false });
+      setFormData({
+        device_info: '',
+        brand: '',
+        serial_number: '',
+        part_number: '',
+        project_name: '',
+        fault_description: '',
+        needs_price_estimate: false,
+        tr_code: '',
+        delivery_list_number: '',
+        email_group: '',
+      });
       setActiveTab('my_requests');
       fetchData();
     } catch (error: any) {
@@ -440,6 +468,26 @@ export default function CommercialPanelPage() {
                   <label className="block text-sm font-bold text-slate-700 mb-2">شماره سریال (S/N) (اختیاری)</label>
                   <input type="text" value={formData.serial_number} onChange={e => setFormData({...formData, serial_number: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors text-left" dir="ltr" placeholder="S/N: " />
                 </div>
+                
+                {/* ۳ فیلد جدید درخواستی */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">TR (اختیاری)</label>
+                  <input type="text" value={formData.tr_code} onChange={e => setFormData({...formData, tr_code: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="TR کد" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">شماره لیست تحویل به مرکز بومی‌سازی (اختیاری)</label>
+                  <input type="text" value={formData.delivery_list_number} onChange={e => setFormData({...formData, delivery_list_number: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors" placeholder="شماره لیست..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">گروه (اختیاری)</label>
+                  <select value={formData.email_group} onChange={e => setFormData({...formData, email_group: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary bg-white">
+                    <option value="">انتخاب گروه...</option>
+                    {groupOptions.map((opt, i) => (
+                      <option key={i} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-2">نام پروژه / ارجاع کار (اختیاری)</label>
                   <input type="text" value={formData.project_name} onChange={e => setFormData({...formData, project_name: e.target.value})} className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary transition-colors"  />
@@ -477,13 +525,15 @@ export default function CommercialPanelPage() {
                         <h4 className="text-lg font-bold text-slate-800">{req.device_info}</h4>
                         {getStatusBadge(req.status)}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-500">
+                      <div className="flex items-center gap-4 text-sm text-slate-500 flex-wrap">
                         <span className="font-mono bg-slate-100 px-2.5 py-1 rounded text-slate-700 font-bold" dir="ltr">{req.tracking_code}</span>
                         <span>{req.brand || 'بدون برند'}</span>
+                        {req.tr_code && <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded">TR: {req.tr_code}</span>}
+                        {req.email_group && <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded">گروه: {req.email_group}</span>}
                         <span className="bg-slate-50 px-2.5 py-1 rounded border border-slate-100">{req.project_name || 'بدون پروژه'}</span>
                         <span dir="ltr">{new Date(req.created_at).toLocaleDateString('fa-IR')}</span>
                       </div>
-<p className="text-sm text-slate-600 line-clamp-2 mt-2"><span className="font-bold text-slate-500">شرح مشکل:</span> {req.fault_description?.replace('ثبت شده توسط واحد بازرگانی', '').trim()}</p>
+                      <p className="text-sm text-slate-600 line-clamp-2 mt-2"><span className="font-bold text-slate-500">شرح مشکل:</span> {req.fault_description?.replace('ثبت شده توسط واحد بازرگانی', '').trim()}</p>
                     </div>
                     
                     <div className="flex items-center gap-2 md:flex-col shrink-0">
