@@ -16,8 +16,6 @@ export default function TechnicianPanelPage() {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
-  
-  // استیت جدید برای مدال مشاهده جزئیات
   const [viewRequest, setViewRequest] = useState<any | null>(null);
 
   const [technicianReport, setTechnicianReport] = useState('');
@@ -26,7 +24,6 @@ export default function TechnicianPanelPage() {
   const [newPartQty, setNewPartQty] = useState(1);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   
-  // استیت چک‌باکس غیرقابل تعمیر (صرفا جهت افزودن متن به گزارش)
   const [isUnrepairable, setIsUnrepairable] = useState(false);
 
   useEffect(() => {
@@ -79,18 +76,18 @@ export default function TechnicianPanelPage() {
 
     setIsSubmittingReport(true);
     try {
-      // فقط یک برچسب متنی به گزارش اضافه میکند و روال عادی (ثبت وضعیت بررسی سرپرست) طی میشود
       const finalReport = isUnrepairable 
         ? `[دستگاه غیرقابل تعمیر اعلام شد]\n${technicianReport}`
         : technicianReport;
 
+      // تغییر وضعیت به pending_qc برای ارسال به واحد کنترل کیفیت
       const { error: reqError } = await supabase
-    .from('repair_requests')
-    .update({ 
-      supervisor_report: finalReport,
-      status: 'pending_qc' // تغییر از pending_supervisor_approval به pending_qc
-    })
-    .eq('id', selectedRequest.id);
+        .from('repair_requests')
+        .update({ 
+          supervisor_report: finalReport,
+          status: 'pending_qc' 
+        })
+        .eq('id', selectedRequest.id);
       
       if (reqError) throw reqError;
 
@@ -108,7 +105,7 @@ export default function TechnicianPanelPage() {
         if (partsError) throw partsError;
       }
 
-      toast.success('گزارش شما ثبت شد و برای تایید به کارتابل سرپرست ارسال گردید');
+      toast.success('گزارش شما ثبت شد و برای تست و بررسی به واحد کنترل کیفیت (QC) ارسال گردید');
       setSelectedRequest(null);
       fetchRequests();
     } catch (error: any) {
@@ -237,7 +234,6 @@ export default function TechnicianPanelPage() {
                         </td>
                         <td className="py-4 px-3 text-center">
                           <div className="flex flex-col gap-2">
-                            {/* دکمه مشاهده جزئیات در کارتابل تکنسین */}
                             <button onClick={() => setViewRequest(req)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5 shadow-sm">
                               <Search size={16} /> مشاهده جزئیات
                             </button>
@@ -294,12 +290,11 @@ export default function TechnicianPanelPage() {
                   rows={4} 
                   value={technicianReport} 
                   onChange={(e) => setTechnicianReport(e.target.value)} 
-                  placeholder="شرح عملیات انجام شده روی دستگاه را بنویسید... (این گزارش برای سرپرست ارسال می‌شود)" 
+                  placeholder="شرح عملیات انجام شده روی دستگاه را بنویسید..." 
                   className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-brand-primary resize-none text-sm leading-relaxed" 
                 />
               </div>
 
-              {/* گزینه اعلام غیرقابل تعمیر بودن دستگاه */}
               <div className="flex items-center gap-2">
                 <input 
                   type="checkbox" 
@@ -359,7 +354,7 @@ export default function TechnicianPanelPage() {
                   className="flex-1 py-3.5 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-600 transition-colors flex justify-center items-center gap-2 shadow-md"
                 >
                   {isSubmittingReport ? <Loader2 className="animate-spin" /> : <Save size={18} />} 
-                  ثبت نهایی و ارجاع به سرپرست
+                  ثبت نهایی و ارجاع به کنترل کیفیت (QC)
                 </button>
                 <button 
                   onClick={() => setSelectedRequest(null)} 
