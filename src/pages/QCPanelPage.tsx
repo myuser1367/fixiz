@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Key, CheckCircle, XCircle, Loader2, Wrench, FileText } from 'lucide-react';
+import { LogOut, Home, Key, CheckCircle, XCircle, Loader2, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
