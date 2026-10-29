@@ -15,8 +15,16 @@ import FinancePanelPage from './pages/FinancePanelPage';
 import MonitoringPanelPage from './pages/MonitoringPanelPage';
 import MonitoringManagerPanelPage from './pages/MonitoringManagerPanelPage';
 import TechnicianPanelPage from './pages/TechnicianPanelPage'; // <--- ایمپورت پنل تکنسین
+import QCPanelPage from './pages/QCPanelPage';
 
 export const roleMeta: Record<string, { title: string; color: string; badge: string; icon: any; desc: string }> = {
+  qc: { 
+  title: 'کنترل کیفیت', 
+  color: 'text-purple-700 bg-purple-50 border-purple-200', 
+  badge: 'bg-purple-100 text-purple-800',
+  icon: UserCheck,
+  desc: 'بررسی تست‌های عملکردی، تایید مستندات و کنترل کیفیت نهایی تجهیزات تعمیرشده'
+},
   coordinator: { 
     title: 'واحد هماهنگی', 
     color: 'text-emerald-700 bg-emerald-50 border-emerald-200', 
@@ -241,6 +249,7 @@ const DashboardRouter = () => {
     case 'finance': return <FinancePanelPage />;
     case 'monitoring': return <MonitoringPanelPage />;
     case 'monitoring_manager': return <MonitoringManagerPanelPage />;
+    case 'qc': return <QCPanelPage />;
     default: return <Navigate to="/" replace />;
   }
 };

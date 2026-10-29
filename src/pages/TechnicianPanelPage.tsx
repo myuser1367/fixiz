@@ -85,12 +85,12 @@ export default function TechnicianPanelPage() {
         : technicianReport;
 
       const { error: reqError } = await supabase
-        .from('repair_requests')
-        .update({ 
-          supervisor_report: finalReport,
-          status: 'pending_supervisor_approval' 
-        })
-        .eq('id', selectedRequest.id);
+    .from('repair_requests')
+    .update({ 
+      supervisor_report: finalReport,
+      status: 'pending_qc' // تغییر از pending_supervisor_approval به pending_qc
+    })
+    .eq('id', selectedRequest.id);
       
       if (reqError) throw reqError;
 

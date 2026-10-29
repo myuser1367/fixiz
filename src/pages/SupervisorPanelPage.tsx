@@ -443,47 +443,42 @@ export default function SupervisorPanelPage() {
         </div>
       )}
 
-      {/* مدال تایید گزارش تکنسین */}
+      {/* مدال تایید گزارش تکنسین و مشاهده بررسی QC */}
       {approvalRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-slate-800 mb-6">بررسی نهایی گزارش تکنسین</h3>
+            <h3 className="text-xl font-bold text-slate-800 mb-6">بررسی نهایی گزارش تکنسین و تست QC</h3>
             
             <FullRequestDetails req={approvalRequest} />
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 text-sm mt-4">
-              <div className="mb-4">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 text-sm space-y-4">
+              <div>
                 <span className="text-slate-400 block mb-1">گزارش کار تکنسین ({approvalRequest.personnel_users?.full_name}):</span>
                 <p className="font-bold text-slate-800 leading-relaxed whitespace-pre-wrap">{approvalRequest.supervisor_report}</p>
               </div>
-              
-              {/* بخش نمایش قطعات اضافه شده */}
-              <div className="mt-4 pt-4 border-t border-slate-200">
-                <span className="text-slate-400 block mb-2">قطعات مصرفی ثبت شده توسط تکنسین:</span>
-                {isFetchingParts ? (
-                  <div className="text-slate-500 text-xs flex items-center gap-2">
-                    <Loader2 className="animate-spin" size={14}/> در حال دریافت قطعات...
-                  </div>
-                ) : approvalParts.length === 0 ? (
-                  <div className="text-slate-500 text-xs bg-white p-2 rounded border border-slate-100">
-                    هیچ قطعه‌ای برای این درخواست ثبت نشده است.
-                  </div>
-                ) : (
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {approvalParts.map((part, idx) => (
-                      <li key={idx} className="flex justify-between items-center bg-white px-3 py-2 rounded-lg border border-slate-100 text-xs">
-                        <span className="font-bold text-slate-700">{part.part_name}</span>
-                        <span className="bg-slate-100 px-2 py-0.5 rounded font-mono">{part.quantity} عدد</span>
-                      </li>
-                    ))}
-                  </ul>
+
+              {/* نمایش اطلاعات و گزارش QC */}
+              <div className="pt-4 border-t border-slate-200">
+                <span className="text-purple-700 font-bold block mb-1">گزارش کنترل کیفیت (QC):</span>
+                <p className="text-slate-800 bg-purple-50 p-3 rounded-xl border border-purple-100 leading-relaxed mb-2">
+                  {approvalRequest.qc_report || 'ثبت نشده'}
+                </p>
+                {approvalRequest.qc_file_url && (
+                  <a 
+                    href={approvalRequest.qc_file_url} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="inline-flex items-center gap-1.5 text-xs bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-2 rounded-xl font-bold transition-colors"
+                  >
+                    <FileText size={16} /> مشاهده فایل تست / عکس QC
+                  </a>
                 )}
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button onClick={() => handleApproveTechnicianWork()} disabled={isAssigning} className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2">
-                تایید گزارش تکنسین و ارجاع جهت اعلام هزینه
+                تایید نهایی گزارش و ارجاع جهت اعلام هزینه
               </button>
             </div>
             <button onClick={() => setApprovalRequest(null)} className="w-full mt-3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">بستن پنجره</button>
