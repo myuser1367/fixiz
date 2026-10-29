@@ -15,7 +15,7 @@ export default function CeoPanelPage() {
   
   const [activeTab, setActiveTab] = useState<'queue' | 'reports'>('queue');
   const [requests, setRequests] = useState<any[]>([]);
-  const [technicians, setTechnicians] = useState<any[]>([]); // برای لیست تکنسین‌ها
+  const [technicians, setTechnicians] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
 
   // استیت‌های مودال قیمت‌گذاری و نمایش جزئیات
@@ -52,7 +52,6 @@ export default function CeoPanelPage() {
 
   const fetchRequests = async () => {
     setIsLoading(true);
-    // اضافه شدن personnel_users برای دریافت نام تکنسین
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone), personnel_users!technician_id(full_name)`)
@@ -67,10 +66,18 @@ export default function CeoPanelPage() {
     const { data, error } = await supabase
       .from('personnel_users')
       .select('id, full_name, role');
+    
     if (!error && data) {
-      // فیلتر کردن کاربرانی که تکنسین هستند (بر اساس نقش)
-      const techs = data.filter(u => u.role?.toLowerCase().includes('tec') || u.role?.includes('تکنسین'));
-      setTechnicians(techs.length > 0 ? techs : data);
+      // فیلتر کردن دقیق نام‌های تعیین شده و نقش‌های تکنسین
+      const targetNames = ['مجید احمدی', 'رضا قهرمانی', 'وحید ذوالفقاریان'];
+      
+      const techs = data.filter(u => 
+        targetNames.includes(u.full_name) || 
+        u.role?.toLowerCase().includes('tec') || 
+        u.role?.includes('تکنسین')
+      );
+      
+      setTechnicians(techs);
     }
   };
 
@@ -211,7 +218,6 @@ export default function CeoPanelPage() {
     });
   };
 
-  // داده‌های کارتابل بررسی (بدون تغییر)
   const queueRequests = requests.filter(r => 
     r.status === 'estimated' || 
     r.status === 'pending_ceo_initial' || 
@@ -300,7 +306,6 @@ export default function CeoPanelPage() {
     
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     worksheet['!views'] = [{ RTL: true, rightToLeft: true }];
-    // اضافه شدن عرض ستون برای تکنسین
     worksheet['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }];
     const workbook = XLSX.utils.book_new();
     workbook.Workbook = { Views: [{ RTL: true }] };
