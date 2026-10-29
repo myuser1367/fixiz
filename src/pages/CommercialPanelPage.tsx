@@ -111,16 +111,26 @@ export default function CommercialPanelPage() {
     setIsLoading(false);
   };
 
-  const handleApprovePrice = async (id: string) => {
+  const handleApprovePrice = async (req: any) => {
     setIsLoading(true);
     try {
+      // بررسی مبلغ: اگر صفر بود یا مبلغی ثبت نشده بود، مستقیم برود به پنل هماهنگی در غیر اینصورت پنل مالی
+      const isFree = !req.final_price || req.final_price === 0;
+      const nextStatus = isFree ? 'ready_for_delivery' : 'pending_finance';
+
       const { error } = await supabase
         .from('repair_requests')
-        .update({ status: 'pending_finance' })
-        .eq('id', id);
+        .update({ status: nextStatus })
+        .eq('id', req.id);
 
       if (error) throw error;
-      toast.success('قیمت تایید شد و درخواست به واحد مالی ارجاع یافت');
+      
+      if (isFree) {
+        toast.success('به دلیل عدم وجود هزینه، درخواست مستقیماً به واحد هماهنگی ارجاع یافت');
+      } else {
+        toast.success('قیمت تایید شد و درخواست به واحد مالی ارجاع یافت');
+      }
+      
       fetchData();
     } catch (err: any) {
       toast.error('خطا در تایید درخواست: ' + err.message);
@@ -424,10 +434,10 @@ export default function CommercialPanelPage() {
                         <td className="py-4 px-3 text-center">
                           {req.status === 'pending_commercial' ? (
                             <button 
-                              onClick={() => handleApprovePrice(req.id)} 
+                              onClick={() => handleApprovePrice(req)} 
                               className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5"
                             >
-                              <CheckCircle size={16} /> تایید قیمت و ارسال به مالی
+                              <CheckCircle size={16} /> {(!req.final_price || req.final_price === 0) ? 'تایید و ارجاع به هماهنگی (بدون هزینه)' : 'تایید قیمت و ارسال به مالی'}
                             </button>
                           ) : (
                             <button 
