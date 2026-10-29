@@ -6,7 +6,7 @@ import HomePage from './pages/HomePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import CustomerPanelPage from './pages/CustomerPanelPage';
 import { supabase } from './lib/supabase';
-import { Home, LogOut, Key, Wrench, FileText, ShoppingCart, UserCheck, BarChart3, Settings, Activity } from 'lucide-react';
+import { Home, LogOut, Key, Wrench, FileText, ShoppingCart, UserCheck, BarChart3, Settings, Activity, CheckCircle } from 'lucide-react';
 import CoordinatorPanelPage from './pages/CoordinatorPanelPage';
 import SupervisorPanelPage from './pages/SupervisorPanelPage';
 import CeoPanelPage from './pages/CeoPanelPage';
@@ -14,17 +14,10 @@ import CommercialPanelPage from './pages/CommercialPanelPage';
 import FinancePanelPage from './pages/FinancePanelPage';
 import MonitoringPanelPage from './pages/MonitoringPanelPage';
 import MonitoringManagerPanelPage from './pages/MonitoringManagerPanelPage';
-import TechnicianPanelPage from './pages/TechnicianPanelPage'; // <--- ایمپورت پنل تکنسین
-import QCPanelPage from './pages/QCPanelPage';
+import TechnicianPanelPage from './pages/TechnicianPanelPage';
+import QCPanelPage from './pages/QCPanelPage'; // <--- ایمپورت پنل QC
 
 export const roleMeta: Record<string, { title: string; color: string; badge: string; icon: any; desc: string }> = {
-  qc: { 
-  title: 'کنترل کیفیت', 
-  color: 'text-purple-700 bg-purple-50 border-purple-200', 
-  badge: 'bg-purple-100 text-purple-800',
-  icon: UserCheck,
-  desc: 'بررسی تست‌های عملکردی، تایید مستندات و کنترل کیفیت نهایی تجهیزات تعمیرشده'
-},
   coordinator: { 
     title: 'واحد هماهنگی', 
     color: 'text-emerald-700 bg-emerald-50 border-emerald-200', 
@@ -80,6 +73,13 @@ export const roleMeta: Record<string, { title: string; color: string; badge: str
     badge: 'bg-blue-100 text-blue-800',
     icon: Wrench,
     desc: 'بررسی دستگاه‌های ارجاع‌شده، انجام تعمیرات و ثبت گزارش کار'
+  },
+  qc: { 
+    title: 'پنل QC', 
+    color: 'text-purple-700 bg-purple-50 border-purple-200', 
+    badge: 'bg-purple-100 text-purple-800',
+    icon: CheckCircle,
+    desc: 'بررسی تست‌های عملکردی، تایید مستندات و کنترل کیفیت تجهیزات'
   },
 };
 
@@ -229,12 +229,17 @@ const DashboardRouter = () => {
 
   const currentRole = role || profile?.role;
 
-  // اگر نقش کاربر مربوط به تکنسین بود (با هر نام کلیدی در دیتابیس)
+  // اول بررسی می‌کنیم که اگر نقش کاربر qc بود، مستقیماً به پنل QC برود
+  if (currentRole === 'qc' || currentRole?.includes('qc')) {
+    return <QCPanelPage />;
+  }
+
+  // اگر نقش کاربر مربوط به تکنسین بود
   if (
     currentRole?.includes('technician') || 
     currentRole?.includes('تکنسین') || 
     currentRole?.includes('tec') ||
-    currentRole?.startsWith('role_') // برای نقش‌های پویایی که با کلید رندوم ساخته شده‌اند
+    currentRole?.startsWith('role_')
   ) {
     return <TechnicianPanelPage />;
   }
@@ -249,7 +254,6 @@ const DashboardRouter = () => {
     case 'finance': return <FinancePanelPage />;
     case 'monitoring': return <MonitoringPanelPage />;
     case 'monitoring_manager': return <MonitoringManagerPanelPage />;
-    case 'qc': return <QCPanelPage />;
     default: return <Navigate to="/" replace />;
   }
 };
