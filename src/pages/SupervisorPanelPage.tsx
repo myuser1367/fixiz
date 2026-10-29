@@ -140,10 +140,6 @@ export default function SupervisorPanelPage() {
   // تابعی برای باز کردن مدال تایید و دریافت همزمان قطعات
   const handleOpenApproval = async (req: any) => {
     setApprovalRequest(req);
-    setIsFetchingParts(true);
-    const { data } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
-    setApprovalParts(data || []);
-    setIsFetchingParts(false);
   };
 
   const handleApproveTechnicianWork = async () => {
