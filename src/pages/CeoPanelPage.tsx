@@ -8,6 +8,8 @@ import * as XLSX from 'xlsx';
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
+// تابع ارسال پیامک اضافه شد
+import { sendUserNotification } from '../lib/notifications';
 
 export default function CeoPanelPage() {
   const { profile, logout } = useAuth();
@@ -111,8 +113,19 @@ export default function CeoPanelPage() {
             status: 'pending_customer_approval'
           })
           .eq('id', selectedRequest.id);
+        
         if (error) throw error;
-        toast.success('برآورد اولیه (ریال) ثبت شد و در انتظار تایید مشتری می‌باشد.');
+        
+        // ارسال پیامک به مشتری پس از ثبت موفق برآورد اولیه
+        if (selectedRequest.profiles?.phone && selectedRequest.customer_id !== COMMERCIAL_CUSTOMER_ID) {
+          await sendUserNotification({
+            trackingCode: selectedRequest.tracking_code,
+            userMobile: selectedRequest.profiles.phone,
+            status: 'pending_customer_approval'
+          });
+        }
+        
+        toast.success('برآورد اولیه ثبت شد و پیامک برای مشتری ارسال گردید.');
       } else {
         const { error } = await supabase
           .from('repair_requests')
