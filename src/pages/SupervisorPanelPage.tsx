@@ -24,8 +24,8 @@ export default function SupervisorPanelPage() {
   
   // استیت‌های جدید برای نمایش جزئیات و قطعات در مدال سرپرست
   const [viewRequest, setViewRequest] = useState<any | null>(null);
-  const [approvalParts, setApprovalParts] = useState<any[]>([]);
-  const [isFetchingParts, setIsFetchingParts] = useState(false);
+  //const [approvalParts, setApprovalParts] = useState<any[]>([]);
+  //const [isFetchingParts, setIsFetchingParts] = useState(false);
 
   const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
