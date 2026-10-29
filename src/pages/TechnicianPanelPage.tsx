@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Wrench, Loader2, Save, Key, FileText, Plus, Trash2 } from 'lucide-react';
+import { LogOut, Home, Wrench, Loader2, Save, Key, FileText, Plus, Trash2, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -16,13 +16,17 @@ export default function TechnicianPanelPage() {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  
+  // استیت جدید برای مدال مشاهده جزئیات
+  const [viewRequest, setViewRequest] = useState<any | null>(null);
+
   const [technicianReport, setTechnicianReport] = useState('');
   const [parts, setParts] = useState<{ part_name: string; quantity: number }[]>([]);
   const [newPartName, setNewPartName] = useState('');
   const [newPartQty, setNewPartQty] = useState(1);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   
-  // استیت چک‌باکس غیرقابل تعمیر
+  // استیت چک‌باکس غیرقابل تعمیر (صرفا جهت افزودن متن به گزارش)
   const [isUnrepairable, setIsUnrepairable] = useState(false);
 
   useEffect(() => {
@@ -75,12 +79,11 @@ export default function TechnicianPanelPage() {
 
     setIsSubmittingReport(true);
     try {
-      // اگر تیک غیرقابل تعمیر زده شده باشد، فقط یک برچسب به ابتدای گزارش اضافه می‌کنیم تا سرپرست ببیند
+      // فقط یک برچسب متنی به گزارش اضافه میکند و روال عادی (ثبت وضعیت بررسی سرپرست) طی میشود
       const finalReport = isUnrepairable 
         ? `[دستگاه غیرقابل تعمیر اعلام شد]\n${technicianReport}`
         : technicianReport;
 
-      // در هر حالت درخواست به کارتابل سرپرست برای تایید می‌رود
       const { error: reqError } = await supabase
         .from('repair_requests')
         .update({ 
@@ -91,7 +94,6 @@ export default function TechnicianPanelPage() {
       
       if (reqError) throw reqError;
 
-      // ثبت قطعات در صورت وجود (بدون توجه به تیک غیرقابل تعمیر)
       if (parts.length > 0) {
         const partsToInsert = parts.map(p => ({
           request_id: selectedRequest.id,
@@ -234,9 +236,15 @@ export default function TechnicianPanelPage() {
                           <div className="text-xs text-slate-500">{req.brand || 'بدون برند'}</div>
                         </td>
                         <td className="py-4 px-3 text-center">
-                          <button onClick={() => openReportModal(req)} className="px-4 py-2 bg-brand-primary hover:bg-brand-600 text-white rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5 shadow-sm">
-                            <FileText size={16} /> ثبت گزارش کار
-                          </button>
+                          <div className="flex flex-col gap-2">
+                            {/* دکمه مشاهده جزئیات در کارتابل تکنسین */}
+                            <button onClick={() => setViewRequest(req)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5 shadow-sm">
+                              <Search size={16} /> مشاهده جزئیات
+                            </button>
+                            <button onClick={() => openReportModal(req)} className="px-4 py-2 bg-brand-primary hover:bg-brand-600 text-white rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5 shadow-sm">
+                              <FileText size={16} /> ثبت گزارش کار
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -247,6 +255,23 @@ export default function TechnicianPanelPage() {
           </div>
         </div>
       </main>
+
+      {/* مدال مشاهده جزئیات تکنسین */}
+      {viewRequest && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">جزئیات کامل درخواست</h3>
+                <p className="text-sm text-slate-500 font-mono mt-1">کد پیگیری: {viewRequest.tracking_code}</p>
+              </div>
+              <button onClick={() => setViewRequest(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
+            </div>
+            <FullRequestDetails req={viewRequest} />
+            <button onClick={() => setViewRequest(null)} className="w-full mt-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">بستن پنجره</button>
+          </div>
+        </div>
+      )}
 
       {/* مودال ثبت گزارش کار و قطعات مصرفی */}
       {selectedRequest && (

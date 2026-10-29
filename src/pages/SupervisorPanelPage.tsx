@@ -21,6 +21,11 @@ export default function SupervisorPanelPage() {
   const [reviewRequest, setReviewRequest] = useState<any | null>(null);
   const [assignRequest, setAssignRequest] = useState<any | null>(null);
   const [approvalRequest, setApprovalRequest] = useState<any | null>(null);
+  
+  // استیت‌های جدید برای نمایش جزئیات و قطعات در مدال سرپرست
+  const [viewRequest, setViewRequest] = useState<any | null>(null);
+  const [approvalParts, setApprovalParts] = useState<any[]>([]);
+  const [isFetchingParts, setIsFetchingParts] = useState(false);
 
   const [selectedTechnicianId, setSelectedTechnicianId] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
@@ -33,7 +38,6 @@ export default function SupervisorPanelPage() {
   const fetchRequests = async () => {
     setIsLoading(true);
     
-    // دریافت اطلاعات
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone), personnel_users!technician_id(full_name)`)
@@ -133,6 +137,15 @@ export default function SupervisorPanelPage() {
     }
   };
 
+  // تابعی برای باز کردن مدال تایید و دریافت همزمان قطعات
+  const handleOpenApproval = async (req: any) => {
+    setApprovalRequest(req);
+    setIsFetchingParts(true);
+    const { data } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
+    setApprovalParts(data || []);
+    setIsFetchingParts(false);
+  };
+
   const handleApproveTechnicianWork = async () => {
     setIsAssigning(true);
     try {
@@ -191,7 +204,6 @@ export default function SupervisorPanelPage() {
     }
   };
 
-  // اضافه شدن تمامی فیلدهای تکمیلی مشتری و بازرگانی
   const FullRequestDetails = ({ req }: { req: any }) => (
     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 mb-6" dir="rtl">
       <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات کامل تجهیز ارسالی</h4>
@@ -201,7 +213,6 @@ export default function SupervisorPanelPage() {
         <div><span className="text-slate-400">پارت نامبر:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.part_number || 'ثبت نشده'}</strong></div>
         <div><span className="text-slate-400">شماره سریال:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.serial_number || 'ثبت نشده'}</strong></div>
         
-        {/* فیلدهای بازرگانی */}
         {req.tr_code && <div><span className="text-slate-400">TR کد:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.tr_code}</strong></div>}
         {req.delivery_list_number && <div><span className="text-slate-400">شماره لیست تحویل:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.delivery_list_number}</strong></div>}
         {req.email_group && <div><span className="text-slate-400">گروه ایمیل بازرگانی:</span> <strong className="text-slate-800">{req.email_group}</strong></div>}
@@ -277,7 +288,7 @@ export default function SupervisorPanelPage() {
                   <th className="pb-3 px-3">مشتری / بازرگانی</th>
                   <th className="pb-3 px-3">دستگاه و برند</th>
                   <th className="pb-3 px-3">وضعیت فعلی</th>
-                  <th className="pb-3 px-3 text-center">{activeTab === 'pending' ? 'عملیات فنی' : 'تکنسین مسئول تعمیر'}</th>
+                  <th className="pb-3 px-3 text-center">{activeTab === 'pending' ? 'عملیات فنی' : 'تکنسین / عملیات'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -322,20 +333,25 @@ export default function SupervisorPanelPage() {
                               )}
 
                               {req.status === 'pending_supervisor_approval' && (
-                                <button onClick={() => setApprovalRequest(req)} className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
+                                <button onClick={() => handleOpenApproval(req)} className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
                                   <CheckSquare size={16} /> بررسی گزارش و تایید
                                 </button>
                               )}
 
-                              {/* اگر قطعه غیرقابل تعمیر بود، دکمه‌ای برای تغییر وضعیت یا بایگانی نمایش داده می‌شود (یا فعلاً فقط یک لیبل) */}
                               {req.status === 'unrepairable' && (
                                 <span className="text-xs text-red-500 font-bold">نیازمند اقدام / خروج</span>
                               )}
                             </div>
                           ) : (
-                            <span className="inline-block bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-xs border border-indigo-100">
-                              👨‍🔧 {req.personnel_users?.full_name || 'تکنسین تعیین‌شده'}
-                            </span>
+                            <div className="flex flex-col items-center gap-2">
+                              <span className="inline-block bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded-xl text-xs border border-indigo-100 w-full">
+                                👨‍🔧 {req.personnel_users?.full_name || 'تکنسین تعیین‌شده'}
+                              </span>
+                              {/* اضافه شدن دکمه مشاهده جزئیات در تب در حال تعمیر */}
+                              <button onClick={() => setViewRequest(req)} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors w-full flex justify-center items-center gap-1.5">
+                                <Search size={14} /> مشاهده جزئیات
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -347,6 +363,23 @@ export default function SupervisorPanelPage() {
           </div>
         </div>
       </main>
+
+      {/* مدال مشاهده جزئیات (برای تب درحال تعمیر) */}
+      {viewRequest && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">جزئیات کامل درخواست</h3>
+                <p className="text-sm text-slate-500 font-mono mt-1">کد پیگیری: {viewRequest.tracking_code}</p>
+              </div>
+              <button onClick={() => setViewRequest(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
+            </div>
+            <FullRequestDetails req={viewRequest} />
+            <button onClick={() => setViewRequest(null)} className="w-full mt-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">بستن پنجره</button>
+          </div>
+        </div>
+      )}
 
       {/* مدال بررسی اولیه */}
       {reviewRequest && (
@@ -422,6 +455,29 @@ export default function SupervisorPanelPage() {
               <div className="mb-4">
                 <span className="text-slate-400 block mb-1">گزارش کار تکنسین ({approvalRequest.personnel_users?.full_name}):</span>
                 <p className="font-bold text-slate-800 leading-relaxed whitespace-pre-wrap">{approvalRequest.supervisor_report}</p>
+              </div>
+              
+              {/* بخش نمایش قطعات اضافه شده */}
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <span className="text-slate-400 block mb-2">قطعات مصرفی ثبت شده توسط تکنسین:</span>
+                {isFetchingParts ? (
+                  <div className="text-slate-500 text-xs flex items-center gap-2">
+                    <Loader2 className="animate-spin" size={14}/> در حال دریافت قطعات...
+                  </div>
+                ) : approvalParts.length === 0 ? (
+                  <div className="text-slate-500 text-xs bg-white p-2 rounded border border-slate-100">
+                    هیچ قطعه‌ای برای این درخواست ثبت نشده است.
+                  </div>
+                ) : (
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {approvalParts.map((part, idx) => (
+                      <li key={idx} className="flex justify-between items-center bg-white px-3 py-2 rounded-lg border border-slate-100 text-xs">
+                        <span className="font-bold text-slate-700">{part.part_name}</span>
+                        <span className="bg-slate-100 px-2 py-0.5 rounded font-mono">{part.quantity} عدد</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 
