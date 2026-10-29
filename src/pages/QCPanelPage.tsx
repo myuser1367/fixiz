@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Key, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { LogOut, Home, Key, CheckCircle, XCircle, Loader2, Wrench, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -19,6 +19,9 @@ export default function QCPanelPage() {
   const [selectedReq, setSelectedReq] = useState<any | null>(null);
   const [qcReport, setQcReport] = useState('');
   const [qcFile, setQcFile] = useState<File | null>(null);
+  const [qcDecision, setQcDecision] = useState<'approve' | 'reject'>('approve'); // انتخاب وضعیت تایید یا عدم تایید
+  const [partsList, setPartsList] = useState<any[]>([]);
+  const [isFetchingParts, setIsFetchingParts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -43,15 +46,23 @@ export default function QCPanelPage() {
     setIsLoading(false);
   };
 
-  const handleOpenQcModal = (req: any) => {
+  const handleOpenQcModal = async (req: any) => {
     setSelectedReq(req);
     setQcReport('');
     setQcFile(null);
+    setQcDecision('approve');
+    
+    // دریافت قطعات مصرفی ثبت شده توسط تکنسین
+    setIsFetchingParts(true);
+    const { data, error } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
+    if (!error) setPartsList(data || []);
+    setIsFetchingParts(false);
   };
 
-  const handleProcessQC = async (isApproved: boolean) => {
+  const handleSubmitQC = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!selectedReq) return;
-    if (!qcReport.trim()) return toast.error('لطفاً توضیحات کنترل کیفیت را وارد کنید');
+    if (!qcReport.trim()) return toast.error('لطفاً توضیحات و نتیجه تست QC را وارد کنید');
 
     setIsSubmitting(true);
     try {
@@ -66,7 +77,12 @@ export default function QCPanelPage() {
           .from('qc_files')
           .upload(filePath, qcFile);
 
-        if (uploadError) throw new Error('خطا در آپلود فایل: ' + uploadError.message);
+        if (uploadError) {
+          console.error("Storage upload error:", uploadError);
+          toast.error('خطا در آپلود فایل به سرور. لطفا پالیسی Storage را بررسی کنید.');
+          setIsSubmitting(false);
+          return;
+        }
 
         const { data: publicUrlData } = supabase.storage
           .from('qc_files')
@@ -75,6 +91,7 @@ export default function QCPanelPage() {
         fileUrl = publicUrlData.publicUrl;
       }
 
+      const isApproved = qcDecision === 'approve';
       const nextStatus = isApproved ? 'pending_supervisor_approval' : 'repairing';
 
       const { error: updateError } = await supabase
@@ -211,19 +228,42 @@ export default function QCPanelPage() {
               <button onClick={() => setSelectedReq(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 text-xs space-y-2">
-              <div><span className="text-slate-400">نام دستگاه:</span> <strong className="text-slate-800">{selectedReq.device_info}</strong></div>
-              <div><span className="text-slate-400">گزارش کار تکنسین:</span> <p className="text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200 mt-1 leading-relaxed">{selectedReq.supervisor_report}</p></div>
-            </div>
+            <form onSubmit={handleSubmitQC} className="space-y-4">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3">
+                <div><span className="text-slate-400">نام دستگاه:</span> <strong className="text-slate-800">{selectedReq.device_info}</strong></div>
+                <div>
+                  <span className="text-slate-400 block mb-1">گزارش کار تکنسین:</span> 
+                  <p className="text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed">{selectedReq.supervisor_report}</p>
+                </div>
 
-            <div className="space-y-4">
+                {/* نمایش قطعات مصرفی تکنسین */}
+                <div>
+                  <span className="text-slate-400 block mb-1">قطعات مصرفی ثبت‌شده توسط تکنسین:</span>
+                  {isFetchingParts ? (
+                    <div className="text-slate-500">در حال دریافت قطعات...</div>
+                  ) : partsList.length === 0 ? (
+                    <div className="text-slate-500 bg-white p-2 rounded border border-slate-100">هیچ قطعه‌ای ثبت نشده است.</div>
+                  ) : (
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                      {partsList.map((p: any, idx: number) => (
+                        <li key={idx} className="flex justify-between items-center bg-white px-3 py-2 rounded-lg border border-slate-100">
+                          <span className="font-bold text-slate-700">{p.part_name}</span>
+                          <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono">{p.quantity} عدد</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">توضیحات و نتیجه تست QC <span className="text-red-500">*</span></label>
                 <textarea 
                   rows={3} 
+                  required
                   value={qcReport} 
                   onChange={e => setQcReport(e.target.value)} 
-                  placeholder="نتیجه تست دستگاه، بررسی ولتاژها یا تست‌های عملکردی را بنویسید..." 
+                  placeholder="نتیجه تست دستگاه را بنویسید..." 
                   className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 outline-none focus:border-purple-500 resize-none text-sm" 
                 />
               </div>
@@ -238,23 +278,58 @@ export default function QCPanelPage() {
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              {/* بخش انتخاب تایید یا عدم تایید (جایگزین دکمه قرمز جداگانه) */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                <label className="block text-sm font-bold text-slate-700">نتیجه نهایی کنترل کیفیت (QC) <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${qcDecision === 'approve' ? 'border-emerald-500 bg-emerald-50/50 text-emerald-900 font-bold' : 'border-slate-200 bg-white text-slate-700'}`}>
+                    <input 
+                      type="radio" 
+                      name="qc_decision" 
+                      checked={qcDecision === 'approve'} 
+                      onChange={() => setQcDecision('approve')} 
+                      className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={18} className="text-emerald-600" />
+                      <span>تایید کیفیت (ارسال به سرپرست)</span>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${qcDecision === 'reject' ? 'border-red-500 bg-red-50/50 text-red-900 font-bold' : 'border-slate-200 bg-white text-slate-700'}`}>
+                    <input 
+                      type="radio" 
+                      name="qc_decision" 
+                      checked={qcDecision === 'reject'} 
+                      onChange={() => setQcDecision('reject')} 
+                      className="w-4 h-4 text-red-600 focus:ring-red-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <XCircle size={18} className="text-red-600" />
+                      <span>عدم تایید (بازگشت به تکنسین)</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
                 <button 
-                  onClick={() => handleProcessQC(true)} 
+                  type="submit" 
                   disabled={isSubmitting} 
-                  className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2 shadow-sm"
+                  className="flex-1 py-3.5 bg-brand-primary hover:bg-brand-600 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2 shadow-md"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />} تایید نهایی و ارسال به سرپرست
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <FileText size={18} />} 
+                  ثبت نهایی و اعمال نتیجه
                 </button>
                 <button 
-                  onClick={() => handleProcessQC(false)} 
-                  disabled={isSubmitting} 
-                  className="px-6 py-3.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl font-bold transition-colors flex justify-center items-center gap-2"
+                  type="button"
+                  onClick={() => setSelectedReq(null)} 
+                  className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
                 >
-                  <XCircle size={18} /> عدم تایید (بازگشت به تکنسین)
+                  انصراف
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
