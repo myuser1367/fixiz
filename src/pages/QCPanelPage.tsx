@@ -57,7 +57,6 @@ export default function QCPanelPage() {
     try {
       let fileUrl = selectedReq.qc_file_url || '';
 
-      // اگر فایلی انتخاب شده بود، آن را در استوریج qc_files آپلود می‌کنیم
       if (qcFile) {
         const fileExt = qcFile.name.split('.').pop();
         const fileName = `${selectedReq.id}_${Date.now()}.${fileExt}`;
@@ -76,7 +75,6 @@ export default function QCPanelPage() {
         fileUrl = publicUrlData.publicUrl;
       }
 
-      // تعیین وضعیت بعدی: اگر تایید شد میره برای سرپرست، اگه رد شد برمیگرده به تکنسین برای تعمیر مجدد
       const nextStatus = isApproved ? 'pending_supervisor_approval' : 'repairing';
 
       const { error: updateError } = await supabase
@@ -134,7 +132,7 @@ export default function QCPanelPage() {
             </div>
             <div>
               <h1 className="text-xl font-extrabold text-slate-800">سامانه تعمیرات فرافن</h1>
-              <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md">کنترل کیفیت (QC)</span>
+              <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md">پنل QC</span>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -155,7 +153,7 @@ export default function QCPanelPage() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-800">کارتابل دستگاه‌های نیازمند کنترل کیفیت (QC)</h2>
+            <h2 className="text-xl font-bold text-slate-800">درخواست‌های در انتظار تست</h2>
             <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">{requests.length} دستگاه</span>
           </div>
           
@@ -174,7 +172,7 @@ export default function QCPanelPage() {
                 {isLoading ? (
                   <tr><td colSpan={5} className="py-8 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>
                 ) : requests.length === 0 ? (
-                  <tr><td colSpan={5} className="py-8 text-center text-slate-400">هیچ دستگاهی در کارتابل QC وجود ندارد.</td></tr>
+                  <tr><td colSpan={5} className="py-8 text-center text-slate-400">هیچ درخواستی در انتظار تست وجود ندارد.</td></tr>
                 ) : (
                   requests.map(req => (
                     <tr key={req.id} className="hover:bg-slate-50 transition-colors">
