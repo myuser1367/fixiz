@@ -10,7 +10,7 @@ export async function onRequestPost(context: any) {
     }
 
     const emailPayload: any = {
-      from: "سامانه تعمیرات فرافن <info@elparts.ir>",
+      from: "سامانه تعمیرات فرافن <info@fixiz.ir>",
       to: [to],
       subject: subject,
       text: text,
