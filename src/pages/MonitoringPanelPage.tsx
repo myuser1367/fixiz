@@ -21,11 +21,16 @@ export default function MonitoringPanelPage() {
 
   const fetchActiveRequests = async () => {
     setIsLoading(true);
-    // فیلتر کردن دقیق بر اساس وضعیت‌هایی که در کارتابل سرپرست تعمیر قرار دارد
+    // دریافت اطلاعات صرفاً برای ۵ وضعیت اصلی پنل تعمیرات
     const { data, error } = await supabase
       .from('repair_requests')
-      .select(`*, profiles!customer_id(full_name, phone)`)
-      .in('status', ['pending_supervisor', 'accepted', 'waiting_for_device', 'repairing'])
+      .select(`*, profiles!customer_id(full_name, phone), personnel_users!technician_id(full_name)`)
+      .in('status', [
+        'pending_supervisor', 
+        'waiting_for_device', 
+        'repairing',
+        'pending_supervisor_approval'
+      ])
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -36,28 +41,22 @@ export default function MonitoringPanelPage() {
     setIsLoading(false);
   };
 
-  // ترجمه کامل و فارسی وضعیت‌ها برای جلوگیری از نمایش کلمات انگلیسی
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'pending_coordinator': return 'ثبت اولیه';
-      case 'pending_supervisor': return 'بررسی سرپرست';
-      case 'waiting_for_device': return 'در انتظار دریافت دستگاه';
-      case 'accepted': return 'پذیرش شده';
-      case 'repairing': return 'در حال تعمیر';
-      case 'estimated': return 'برآورد هزینه';
-      case 'pending_commercial': return 'در انتظار بازرگانی';
-      case 'pending_finance': return 'در انتظار واحد مالی';
-      case 'invoiced': return 'فاکتور شده';
-      case 'completed': return 'پایان کار';
-      case 'rejected': return 'عدم پذیرش';
-      default: return status;
+  // ترجمه و نمایش دقیق نام مراحل بر اساس فرآیند داخلی واحد تعمیر
+  const getStatusText = (req: any) => {
+    switch (req.status) {
+      case 'pending_supervisor': return 'منتظر بررسی';
+      case 'waiting_for_device': return 'در انتظار دستگاه';
+      case 'pending_supervisor_approval': return 'تایید گزارش';
+      case 'repairing': return req.technician_id ? 'در حال تعمیر' : 'نیازمند ارجاع به کارشناس';
+      default: return req.status;
     }
   };
 
   const filteredRequests = requests.filter(r => 
     r.tracking_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.device_info?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.serial_number?.toLowerCase().includes(searchTerm.toLowerCase())
+    r.serial_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.personnel_users?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -74,7 +73,7 @@ export default function MonitoringPanelPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400">ناظر: {profile?.full_name || 'همکار گرامی'}</span>
+            <span className="text-xs text-slate-400 hidden sm:inline">ناظر: {profile?.full_name || 'همکار گرامی'}</span>
             <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl font-bold transition-colors">
               <Home size={16} /> صفحه اصلی
             </button>
@@ -89,7 +88,7 @@ export default function MonitoringPanelPage() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-white">تجهیزات فعال ارجاع‌شده به واحد تعمیرات</h2>
-            <span className="bg-brand-primary text-slate-950 font-black px-3 py-0.5 rounded-full text-xs">{requests.length} دستگاه</span>
+            <span className="bg-brand-primary text-slate-950 font-black px-3 py-0.5 rounded-full text-xs">{filteredRequests.length} دستگاه</span>
           </div>
           
           <div className="relative w-full md:w-80">
@@ -98,8 +97,8 @@ export default function MonitoringPanelPage() {
               type="text" 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
-              placeholder="جستجو با کد پیگیری، نام یا سریال..." 
-              className="w-full pr-10 pl-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:border-brand-primary"
+              placeholder="جستجو با کد پیگیری، نام تکنسین یا سریال..." 
+              className="w-full pr-10 pl-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white outline-none focus:border-brand-primary transition-colors"
             />
           </div>
         </div>
@@ -113,14 +112,14 @@ export default function MonitoringPanelPage() {
                   <th className="py-4 px-4">نام دستگاه / تجهیز</th>
                   <th className="py-4 px-4">شماره سریال (S/N)</th>
                   <th className="py-4 px-4">وضعیت فعلی</th>
-                  <th className="py-4 px-4">کارشناس مسئول </th>
+                  <th className="py-4 px-4 text-center">کارشناس مسئول </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700 text-sm">
                 {isLoading ? (
                   <tr><td colSpan={5} className="py-10 text-center text-slate-400">در حال بارگذاری اطلاعات مانیتورینگ...</td></tr>
                 ) : filteredRequests.length === 0 ? (
-                  <tr><td colSpan={5} className="py-10 text-center text-slate-400">هیچ دستگاه فعالی در کارتابل واحد تعمیرات یافت نشد.</td></tr>
+                  <tr><td colSpan={5} className="py-10 text-center text-slate-400">هیچ دستگاهی با این مشخصات در کارتابل واحد تعمیرات یافت نشد.</td></tr>
                 ) : (
                   filteredRequests.map(req => (
                     <tr key={req.id} className="hover:bg-slate-700/50 transition-colors">
@@ -129,12 +128,20 @@ export default function MonitoringPanelPage() {
                       <td className="py-4 px-4 font-mono text-slate-300" dir="ltr">{req.serial_number || '---'}</td>
                       <td className="py-4 px-4">
                         <span className="bg-brand-primary/10 text-brand-light border border-brand-primary/20 px-3 py-1 rounded-full text-xs font-bold">
-                          {getStatusText(req.status)}
+                          {getStatusText(req)}
                         </span>
                       </td>
-                      <td className="py-4 px-4 flex items-center gap-2 text-slate-300">
-                        <Wrench size={16} className="text-orange-400" />
-                        <span>سرپرست تعمیر (سروش آبیار)</span>
+                      <td className="py-4 px-4 text-center">
+                        {req.personnel_users?.full_name ? (
+                          <div className="inline-flex items-center gap-2 text-slate-200">
+                            <Wrench size={14} className="text-orange-400" />
+                            <span className="font-bold">{req.personnel_users.full_name}</span>
+                          </div>
+                        ) : (
+                          <div className="text-slate-400 text-xs font-bold bg-slate-700/50 px-3 py-1.5 rounded-lg border border-slate-600/50 inline-block">
+                            ارجاع نشده
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))
