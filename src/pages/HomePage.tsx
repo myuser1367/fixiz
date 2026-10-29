@@ -286,11 +286,13 @@ export default function HomePage() {
     } 
   };
 
-  const handleCancelPersonnelOtp = () => {
+  const handleCancelPersonnelOtp = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
     setPersStep('login');
     setPersOtp('');
     setPersNewPassword('');
     setGeneratedPersOtp('');
+    setPersPassword(''); // این خط اضافه شد تا رمز عبور پاک شود و مرورگر خودکار سابمیت نکند
   };
 
   return (
