@@ -190,11 +190,15 @@ export default function HomePage() {
     if (!persUsername || !persPassword) return toast.error('نام کاربری و رمز عبور الزامی است');
     setIsLoading(true);
     try {
-      // دریافت نقش و شماره موبایل به صورت مستقیم
       const { isFirstLogin, role, phone } = await personnelLogin(persUsername, persPassword);
       
-      // فقط مانیتورینگ‌ها بدون پیامک وارد می‌شوند
-      if (role === 'monitoring' || role === 'monitoring_manager') {
+      // =============================================================================
+      // غیرفعال‌سازی موقت پیامک ورود پرسنل
+      // برای فعال‌سازی مجدد کد پیامک برای سایر پنل‌ها، مقدار زیر را به false تغییر دهید:
+      const DISABLE_OTP_FOR_ALL = true;
+      // =============================================================================
+
+      if (DISABLE_OTP_FOR_ALL || role === 'monitoring' || role === 'monitoring_manager') {
          if (isFirstLogin) {
            setPersStep('first_login_no_otp');
            toast.success('اولین ورود: لطفاً رمز عبور خود را تغییر دهید', { duration: 6000 });
@@ -206,6 +210,7 @@ export default function HomePage() {
          return;
       }
         
+      // کدهای زیر تا زمانی که متغیر بالا true باشد، اجرا نمی‌شوند (نادیده گرفته می‌شوند)
       let code = '';
       if (IS_SIMULATION_MODE) {
          code = '123456';
@@ -213,7 +218,6 @@ export default function HomePage() {
       } else {
          code = Math.floor(100000 + Math.random() * 900000).toString();
          if (phone) {
-           // ارسال پیامک واقعی به شماره موبایل پرسنل یا ادمین
            await sendOtpSMS(phone, code);
            toast.success('کد تایید به شماره موبایل شما پیامک شد', { duration: 6000 });
          } else {
@@ -236,6 +240,7 @@ export default function HomePage() {
       setIsLoading(false); 
     }
   };
+
   const handlePersVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (persOtp !== generatedPersOtp) {
@@ -292,7 +297,7 @@ export default function HomePage() {
     setPersOtp('');
     setPersNewPassword('');
     setGeneratedPersOtp('');
-    setPersPassword(''); // این خط اضافه شد تا رمز عبور پاک شود و مرورگر خودکار سابمیت نکند
+    setPersPassword('');
   };
 
   return (
