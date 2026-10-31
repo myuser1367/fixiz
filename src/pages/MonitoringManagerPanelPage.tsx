@@ -83,11 +83,13 @@ export default function MonitoringManagerPanelPage() {
       case 'repairing': return 'در حال تعمیر';
       case 'pending_qc': return 'در انتظار تست QC';
       case 'pending_supervisor_approval': return 'منتظر تایید نهایی سرپرست';
+      case 'unrepairable': return 'غیرقابل تعمیر';
       case 'estimated': return 'برآورد هزینه نهایی';
       case 'pending_commercial': return 'در انتظار بازرگانی';
       case 'pending_finance': return 'در انتظار واحد مالی';
       case 'invoiced': return 'فاکتور شده';
-      case 'pending_commercial_checkout': return 'تایید مالی';
+      case 'pending_commercial_checkout':
+      case 'pending_commercial_final': return 'تایید مالی';
       case 'ready_for_delivery': return 'آماده تحویل';
       case 'pending_ceo_final': return 'تایید نهایی مدیر';
       case 'completed': return 'پایان کار';
@@ -179,21 +181,52 @@ export default function MonitoringManagerPanelPage() {
   const maxChartValue = Math.max(...chartData.map(d => d.value), 1);
   const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'];
 
-  // تولید گرادیان برای نمودار دایره‌ای (Pie)
-  let currentAngle = 0;
-  const pieSlices = chartData.map((d, i) => {
-    const percentage = (d.value / (filteredRequests.length || 1)) * 100;
-    const slice = `${chartColors[i % chartColors.length]} ${currentAngle}% ${currentAngle + percentage}%`;
-    currentAngle += percentage;
-    return slice;
-  }).join(', ');
+  // محاسبه بخش‌های نمودار دایره‌ای به صورت برداری (SVG) برای تضمین چاپ در همه مرورگرها
+  let cumulativePercent = 0;
+  const svgPieSlices = chartData.map((d, i) => {
+    const slicePercent = d.value / (filteredRequests.length || 1);
+    const startPercent = cumulativePercent;
+    const endPercent = cumulativePercent + slicePercent;
+    cumulativePercent = endPercent;
+
+    const startAngle = startPercent * 2 * Math.PI;
+    const endAngle = endPercent * 2 * Math.PI;
+
+    const x1 = Math.cos(startAngle);
+    const y1 = Math.sin(startAngle);
+    const x2 = Math.cos(endAngle);
+    const y2 = Math.sin(endAngle);
+
+    const largeArcFlag = slicePercent > 0.5 ? 1 : 0;
+    const pathData = `M 0 0 L ${x1} ${y1} A 1 1 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+
+    return {
+      pathData,
+      color: chartColors[i % chartColors.length],
+      isFullCircle: slicePercent >= 0.9999
+    };
+  });
 
   const handlePrintChart = () => {
     window.print();
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-vazir" dir="rtl">
+    <div className="min-h-screen bg-slate-900 text-slate-100 font-vazir print:bg-white print:min-h-0" dir="rtl">
+      {/* استایل ویژه چاپ برای حفظ کامل رنگ‌ها و گرافیک نمودار در پرینت و PDF */}
+      <style>{`
+        @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          html, body {
+            background-color: #ffffff !important;
+          }
+        }
+      `}</style>
+
       {/* در زمان پرینت، هدر مخفی می‌شود */}
       <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-40 print:hidden">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
@@ -454,6 +487,7 @@ export default function MonitoringManagerPanelPage() {
                   <option value="repairing">در حال تعمیر</option>
                   <option value="pending_qc">در انتظار تست QC</option>
                   <option value="pending_supervisor_approval">منتظر تایید سرپرست</option>
+                  <option value="unrepairable">غیرقابل تعمیر</option>
                   <option value="estimated">برآورد هزینه شده</option>
                   <option value="pending_finance">در انتظار واحد مالی</option>
                   <option value="invoiced">فاکتور شده</option>
@@ -502,7 +536,7 @@ export default function MonitoringManagerPanelPage() {
 
       {/* مودال نمودار گرافیکی - قابل چاپ */}
       {isChartModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 z-50 print:static print:bg-white print:p-0 print:block">
           {/* پنل تنظیمات نمودار - فقط روی صفحه نمایش داده می‌شود (هنگام چاپ مخفی می‌شود) */}
           <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-wrap gap-4 items-center shadow-xl print:hidden z-10 w-full max-w-3xl justify-between">
              <div className="flex gap-4 items-center">
@@ -532,7 +566,7 @@ export default function MonitoringManagerPanelPage() {
           </div>
 
           {/* محتوای اصلی نمودار (روی صفحه و در نسخه چاپی نمایش داده می‌شود) */}
-          <div className="bg-white text-slate-900 p-8 rounded-3xl w-full max-w-4xl shadow-2xl relative mt-20 print:mt-0 print:shadow-none print:bg-white" id="chart-print-area">
+          <div className="bg-white text-slate-900 p-8 rounded-3xl w-full max-w-4xl shadow-2xl relative mt-20 print:mt-0 print:shadow-none print:bg-white print:max-w-full" id="chart-print-area">
              <div className="text-center mb-10 border-b pb-6">
                 <h2 className="text-2xl font-black text-slate-800">نمودار گزارشات سامانه فرافن</h2>
                 <p className="text-slate-500 mt-2 font-medium">گزارش آماری بر اساس: {chartField === 'status' ? 'وضعیت درخواست‌ها' : 'تاریخ ثبت'}</p>
@@ -545,40 +579,59 @@ export default function MonitoringManagerPanelPage() {
                <div className="flex justify-center">
                  {chartType === 'bar' ? (
                    <div className="w-full space-y-4">
-                     {chartData.map((d, i) => (
-                       <div key={i} className="flex items-center gap-4">
-                         <div className="w-1/3 text-left text-sm font-bold text-slate-700 truncate" title={d.label}>{d.label}</div>
-                         <div className="w-2/3 flex items-center gap-3">
-                           <div className="h-6 rounded-full bg-slate-100 flex-1 relative overflow-hidden">
-                             <div 
-                               className="absolute top-0 right-0 h-full rounded-full transition-all duration-1000 ease-out"
-                               style={{ 
-                                 width: `${(d.value / maxChartValue) * 100}%`,
-                                 backgroundColor: chartColors[i % chartColors.length]
-                               }}
-                             ></div>
+                     {chartData.map((d, i) => {
+                       const color = chartColors[i % chartColors.length];
+                       return (
+                         <div key={i} className="flex items-center gap-4">
+                           <div className="w-1/3 text-left text-sm font-bold text-slate-700 truncate" title={d.label}>{d.label}</div>
+                           <div className="w-2/3 flex items-center gap-3">
+                             <div className="h-6 rounded-full bg-slate-100 flex-1 relative overflow-hidden border border-slate-200">
+                               <div 
+                                 className="absolute top-0 right-0 h-full rounded-full transition-all duration-1000 ease-out"
+                                 style={{ 
+                                   width: `${(d.value / maxChartValue) * 100}%`,
+                                   backgroundColor: color,
+                                   boxShadow: `inset 0 0 0 1000px ${color}`,
+                                   WebkitPrintColorAdjust: 'exact',
+                                   printColorAdjust: 'exact'
+                                 }}
+                               ></div>
+                             </div>
+                             <span className="font-mono font-black text-slate-800 w-8">{d.value}</span>
                            </div>
-                           <span className="font-mono font-black text-slate-800 w-8">{d.value}</span>
                          </div>
-                       </div>
-                     ))}
+                       );
+                     })}
                    </div>
                  ) : (
-                   <div className="flex flex-col md:flex-row items-center gap-10">
-                     {/* نمودار دایره‌ای با CSS */}
-                     <div 
-                       className="w-64 h-64 rounded-full shadow-inner border-4 border-slate-50"
-                       style={{ background: `conic-gradient(${pieSlices})` }}
-                     ></div>
+                   <div className="flex flex-col md:flex-row print:flex-row items-center gap-10">
+                     {/* نمودار دایره‌ای برداری (SVG) که در پرینت و PDF همیشه کامل چاپ می‌شود */}
+                     <svg 
+                       viewBox="-1 -1 2 2" 
+                       className="w-64 h-64 rounded-full shadow-inner border-4 border-slate-50 -rotate-90 shrink-0"
+                     >
+                       {svgPieSlices.map((slice, idx) => (
+                         slice.isFullCircle ? (
+                           <circle key={idx} cx="0" cy="0" r="1" fill={slice.color} />
+                         ) : (
+                           <path key={idx} d={slice.pathData} fill={slice.color} />
+                         )
+                       ))}
+                     </svg>
                      
                      <div className="grid grid-cols-1 gap-3">
-                       {chartData.map((d, i) => (
-                         <div key={i} className="flex items-center gap-3 text-sm">
-                           <span className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: chartColors[i % chartColors.length] }}></span>
-                           <span className="font-bold text-slate-700">{d.label}</span>
-                           <span className="font-mono text-slate-500 bg-slate-100 px-2 rounded">({d.value}) - {((d.value/filteredRequests.length)*100).toFixed(1)}%</span>
-                         </div>
-                       ))}
+                       {chartData.map((d, i) => {
+                         const color = chartColors[i % chartColors.length];
+                         return (
+                           <div key={i} className="flex items-center gap-3 text-sm">
+                             <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16">
+                               <circle cx="8" cy="8" r="8" fill={color} />
+                             </svg>
+                             <span className="font-bold text-slate-700">{d.label}</span>
+                             <span className="font-mono text-slate-500 bg-slate-100 px-2 rounded">({d.value}) - {((d.value/filteredRequests.length)*100).toFixed(1)}%</span>
+                           </div>
+                         );
+                       })}
                      </div>
                    </div>
                  )}
