@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, FileSpreadsheet, DollarSign, Loader2, Key, BarChart3, Search, List, Activity, CheckCircle, Wrench, Clock, Filter, Printer, PieChart, X } from 'lucide-react';
+import { LogOut, Home, FileSpreadsheet, DollarSign, Loader2, Key, BarChart3, Search, List, Activity, CheckCircle, XCircle, Wrench, Clock, Filter, Printer, PieChart, X, FileText, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -83,20 +83,26 @@ export default function CeoPanelPage() {
     }
   };
 
+  const isRequestUnrepairable = (req: any) => {
+    return Boolean(req?.is_unrepairable || req?.supervisor_report?.includes('[دستگاه غیرقابل تعمیر اعلام شد]'));
+  };
+
   const handleOpenPricingModal = async (req: any) => {
     setSelectedRequest(req);
     setPriceInput(req.status === 'pending_ceo_initial' ? (req.estimated_price?.toString() || '') : (req.final_price?.toString() || ''));
     setPricingModalOpen(true);
     
-    // دریافت قطعات برای وضعیت‌های بعد از تعمیر (گزارش نهایی یا مشاهده جزئیات پرونده)
-    if (['estimated', 'pending_commercial', 'pending_finance', 'invoiced', 'pending_commercial_checkout', 'ready_for_delivery', 'pending_ceo_final', 'completed'].includes(req.status)) {
-      setIsFetchingParts(true);
-      const { data, error } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
-      if (!error) setPartsList(data || []);
-      setIsFetchingParts(false);
+    // دریافت قطعات مصرفی برای نمایش در جزئیات پرونده
+    setIsFetchingParts(true);
+    const { data, error } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
+    if (!error && data && data.length > 0) {
+      setPartsList(data);
+    } else if (Array.isArray(req.used_parts) && req.used_parts.length > 0) {
+      setPartsList(req.used_parts);
     } else {
       setPartsList([]);
     }
+    setIsFetchingParts(false);
   };
 
   const submitPricing = async (e: React.FormEvent) => {
@@ -169,6 +175,8 @@ export default function CeoPanelPage() {
       case 'waiting_for_device': return 'در انتظار دریافت دستگاه';
       case 'accepted': return 'پذیرش شده';
       case 'repairing': return 'در حال تعمیر';
+      case 'pending_qc': return 'در انتظار تست QC';
+      case 'pending_supervisor_approval': return 'منتظر تایید نهایی سرپرست';
       case 'estimated': return 'نیازمند برآورد نهایی';
       case 'pending_commercial': return 'در انتظار بازرگانی';
       case 'pending_finance': return 'در انتظار مالی';
@@ -193,6 +201,8 @@ export default function CeoPanelPage() {
       case 'waiting_for_device': return <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
       case 'accepted': return <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'pending_qc': return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
+      case 'pending_supervisor_approval': return <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
       case 'estimated': return <span className="bg-fuchsia-100 text-fuchsia-800 px-2 py-1 rounded text-xs font-bold animate-pulse">{text}</span>;
       case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
       case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-2 py-1 rounded text-xs font-bold">{text}</span>;
@@ -412,6 +422,11 @@ export default function CeoPanelPage() {
                         <td className="py-4 px-3">
                           <div className="font-bold text-slate-800">{req.device_info}</div>
                           <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
+                          {isRequestUnrepairable(req) && (
+                            <span className="inline-block mt-1 bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                              ⚠️ اعلام غیرقابل تعمیر
+                            </span>
+                          )}
                         </td>
                         <td className="py-4 px-3">
                           {getStatusBadge(req.status)}
@@ -512,6 +527,11 @@ export default function CeoPanelPage() {
                           <td className="py-4 px-3">
                             <div className="font-bold text-slate-800">{req.device_info}</div>
                             <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
+                            {isRequestUnrepairable(req) && (
+                              <span className="inline-block mt-1 bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                                ⚠️ اعلام غیرقابل تعمیر
+                              </span>
+                            )}
                           </td>
                           <td className="py-4 px-3">
                             <div className="font-bold text-slate-800">
@@ -585,6 +605,8 @@ export default function CeoPanelPage() {
                   <option value="pending_coordinator">ثبت اولیه (هماهنگی)</option>
                   <option value="pending_supervisor">در انتظار بررسی سرپرست</option>
                   <option value="repairing">در حال تعمیر</option>
+                  <option value="pending_qc">در انتظار تست QC</option>
+                  <option value="pending_supervisor_approval">منتظر تایید سرپرست</option>
                   <option value="estimated">برآورد هزینه شده / در انتظار قیمت</option>
                   <option value="pending_finance">در انتظار واحد مالی</option>
                   <option value="invoiced">فاکتور شده</option>
@@ -730,7 +752,7 @@ export default function CeoPanelPage() {
                 <h3 className="text-xl font-bold text-slate-800">
                   {selectedRequest.status === 'pending_ceo_initial' ? 'تعیین برآورد هزینه اولیه (پیش از شروع کار)' : 
                    selectedRequest.status === 'estimated' ? 'تعیین برآورد هزینه نهایی' : 
-                   selectedRequest.status === 'pending_ceo_final' ? 'جزئیات و بررسی نهایی پرونده' : 'جزئیات درخواست'}
+                   selectedRequest.status === 'pending_ceo_final' ? 'جزئیات و بررسی نهایی پرونده' : 'جزئیات کامل درخواست'}
                 </h3>
                 <p className="text-sm text-slate-500 font-mono mt-1" dir="ltr">{selectedRequest.tracking_code}</p>
               </div>
@@ -748,11 +770,18 @@ export default function CeoPanelPage() {
                   <div><span className="text-slate-400">پارت نامبر (Part Number):</span> <strong className="font-mono text-slate-800" dir="ltr">{selectedRequest.part_number || '---'}</strong></div>
                   <div><span className="text-slate-400">شماره سریال (S/N):</span> <strong className="font-mono text-slate-800" dir="ltr">{selectedRequest.serial_number || '---'}</strong></div>
                   
-                  <div className="sm:col-span-2">
-                    <span className="text-slate-400">تکنسین تعمیر:</span> 
-                    <strong className="text-slate-800">
-                      {selectedRequest.personnel_users?.full_name ? `👨‍🔧 ${selectedRequest.personnel_users.full_name}` : 'ارجاع نشده'}
-                    </strong>
+                  <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-slate-400">تکنسین تعمیر: </span> 
+                      <strong className="text-slate-800">
+                        {selectedRequest.personnel_users?.full_name ? `👨‍🔧 ${selectedRequest.personnel_users.full_name}` : 'ارجاع نشده'}
+                      </strong>
+                    </div>
+                    {isRequestUnrepairable(selectedRequest) && (
+                      <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2.5 py-1 rounded-lg font-bold border border-red-200">
+                        <AlertTriangle size={14} /> اعلام شده به عنوان غیرقابل تعمیر
+                      </span>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2"><span className="text-slate-400">نام پروژه / ارجاع کار:</span> <strong className="text-slate-800">{selectedRequest.project_name || '---'}</strong></div>
@@ -774,15 +803,27 @@ export default function CeoPanelPage() {
                  </div>
               </div>
 
-              {/* اگر وضعیت بررسی نهایی یا مشاهده جزئیات است، گزارش سرپرست و قطعات نمایش داده شود */}
+              {/* نمایش گزارشات تکنسین، قطعات و QC */}
               {selectedRequest.status !== 'pending_ceo_initial' && selectedRequest.status !== 'pending_coordinator' && (
                 <>
-                  <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                    <span className="text-xs text-blue-400 block mb-1">گزارش فنی سرپرست تعمیر</span>
-                    <p className="text-sm text-blue-900 leading-relaxed font-medium">
+                  <div className="bg-blue-50/70 p-4 rounded-2xl border border-blue-100 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 pb-2">
+                      <span className="text-xs font-bold text-blue-800">گزارش فنی تکنسین / سرپرست تعمیر</span>
+                      {isRequestUnrepairable(selectedRequest) ? (
+                        <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2.5 py-0.5 rounded-lg text-xs font-bold">
+                          <AlertTriangle size={13} /> غیرقابل تعمیر
+                        </span>
+                      ) : selectedRequest.supervisor_report ? (
+                        <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-lg text-xs font-bold">
+                          تعمیر شده (قابل تعمیر)
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-sm text-blue-950 bg-white p-3 rounded-xl border border-blue-100 leading-relaxed font-medium whitespace-pre-wrap">
                       {selectedRequest.supervisor_report || 'گزارشی ثبت نشده است.'}
                     </p>
                   </div>
+
                   <div>
                     <h4 className="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
                       <Wrench size={16} className="text-slate-400"/> لیست قطعات مصرفی یا تعویضی
@@ -793,13 +834,46 @@ export default function CeoPanelPage() {
                       <div className="text-sm text-slate-500 p-4 bg-slate-50 rounded-xl border border-slate-100">هیچ قطعه‌ای برای این درخواست ثبت نشده است.</div>
                     ) : (
                       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {partsList.map((part: any) => (
-                          <li key={part.id} className="flex justify-between items-center bg-white px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+                        {partsList.map((part: any, idx: number) => (
+                          <li key={part.id || idx} className="flex justify-between items-center bg-white px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
                             <span className="font-bold text-slate-700">{part.part_name}</span>
                             <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono font-bold">{part.quantity} عدد</span>
                           </li>
                         ))}
                       </ul>
+                    )}
+                  </div>
+
+                  {/* نمایش گزارش و مستندات کنترل کیفیت (QC) */}
+                  <div className="bg-purple-50/60 p-4 rounded-2xl border border-purple-100 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-100 pb-2">
+                      <span className="text-xs font-bold text-purple-900">گزارش و نتیجه کنترل کیفیت (QC):</span>
+                      {selectedRequest.qc_status === 'approved' ? (
+                        <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg text-xs font-bold border border-emerald-200">
+                          <CheckCircle size={14} /> مورد تایید QC
+                        </span>
+                      ) : selectedRequest.qc_status === 'rejected' ? (
+                        <span className="inline-flex items-center gap-1 bg-red-100 text-red-800 px-2.5 py-1 rounded-lg text-xs font-bold border border-red-200">
+                          <XCircle size={14} /> عدم تایید QC
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">ثبت نشده</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-800 bg-white p-3 rounded-xl border border-purple-100 leading-relaxed whitespace-pre-wrap">
+                      {selectedRequest.qc_report || 'گزارشی توسط واحد QC ثبت نشده است.'}
+                    </p>
+                    {selectedRequest.qc_file_url && (
+                      <div>
+                        <a 
+                          href={selectedRequest.qc_file_url} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="inline-flex items-center gap-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl font-bold transition-colors shadow-sm"
+                        >
+                          <FileText size={15} /> مشاهده فایل / مستندات تست QC
+                        </a>
+                      </div>
                     )}
                   </div>
                 </>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, BarChart3, FileSpreadsheet, Search, Filter, Printer, PieChart, X } from 'lucide-react';
+import { LogOut, Home, BarChart3, FileSpreadsheet, Search, Filter, Printer, PieChart, X, FileText, CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -28,6 +28,11 @@ export default function MonitoringManagerPanelPage() {
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar');
   const [chartField, setChartField] = useState<'status' | 'date'>('status');
 
+  // استیت‌های مودال مشاهده جزئیات در پنل مانیتورینگ
+  const [viewRequest, setViewRequest] = useState<any | null>(null);
+  const [partsList, setPartsList] = useState<any[]>([]);
+  const [isFetchingParts, setIsFetchingParts] = useState(false);
+
   useEffect(() => {
     fetchAllRequests();
   }, []);
@@ -36,7 +41,7 @@ export default function MonitoringManagerPanelPage() {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('repair_requests')
-      .select(`*, profiles!customer_id(full_name, phone)`)
+      .select(`*, profiles!customer_id(full_name, phone), personnel_users!technician_id(full_name)`)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -45,6 +50,24 @@ export default function MonitoringManagerPanelPage() {
       setRequests(data || []);
     }
     setIsLoading(false);
+  };
+
+  const isRequestUnrepairable = (req: any) => {
+    return Boolean(req?.is_unrepairable || req?.supervisor_report?.includes('[دستگاه غیرقابل تعمیر اعلام شد]'));
+  };
+
+  const handleOpenDetailsModal = async (req: any) => {
+    setViewRequest(req);
+    setIsFetchingParts(true);
+    const { data, error } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
+    if (!error && data && data.length > 0) {
+      setPartsList(data);
+    } else if (Array.isArray(req.used_parts) && req.used_parts.length > 0) {
+      setPartsList(req.used_parts);
+    } else {
+      setPartsList([]);
+    }
+    setIsFetchingParts(false);
   };
 
   // ترجمه کامل و فارسی وضعیت‌ها
@@ -58,6 +81,8 @@ export default function MonitoringManagerPanelPage() {
       case 'waiting_for_device': return 'در انتظار دریافت دستگاه';
       case 'accepted': return 'پذیرش شده';
       case 'repairing': return 'در حال تعمیر';
+      case 'pending_qc': return 'در انتظار تست QC';
+      case 'pending_supervisor_approval': return 'منتظر تایید نهایی سرپرست';
       case 'estimated': return 'برآورد هزینه نهایی';
       case 'pending_commercial': return 'در انتظار بازرگانی';
       case 'pending_finance': return 'در انتظار واحد مالی';
@@ -231,18 +256,26 @@ export default function MonitoringManagerPanelPage() {
                   <th className="py-4 px-4">وضعیت</th>
                   <th className="py-4 px-4">مبلغ نهایی (ریال)</th>
                   <th className="py-4 px-4">تاریخ ثبت</th>
+                  <th className="py-4 px-4 text-center">جزئیات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700 text-sm">
                 {isLoading ? (
-                  <tr><td colSpan={6} className="py-10 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>
+                  <tr><td colSpan={7} className="py-10 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>
                 ) : filteredRequests.length === 0 ? (
-                  <tr><td colSpan={6} className="py-10 text-center text-slate-400">موردی با این فیلترها یافت نشد.</td></tr>
+                  <tr><td colSpan={7} className="py-10 text-center text-slate-400">موردی با این فیلترها یافت نشد.</td></tr>
                 ) : (
                   filteredRequests.map(req => (
                     <tr key={req.id} className="hover:bg-slate-700/50 transition-colors">
                       <td className="py-4 px-4 font-mono font-bold text-brand-light" dir="ltr">{req.tracking_code}</td>
-                      <td className="py-4 px-4 font-bold text-white">{req.device_info}</td>
+                      <td className="py-4 px-4">
+                        <div className="font-bold text-white">{req.device_info}</div>
+                        {isRequestUnrepairable(req) && (
+                          <span className="inline-block mt-1 bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded text-[11px] font-bold">
+                            ⚠️ اعلام غیرقابل تعمیر
+                          </span>
+                        )}
+                      </td>
                       <td className="py-4 px-4 text-slate-300">{req.profiles?.full_name || '---'}</td>
                       <td className="py-4 px-4">
                         <span className="bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-600">
@@ -251,6 +284,14 @@ export default function MonitoringManagerPanelPage() {
                       </td>
                       <td className="py-4 px-4 font-mono font-bold text-emerald-400" dir="ltr">{req.final_price ? req.final_price.toLocaleString() : '---'}</td>
                       <td className="py-4 px-4 font-mono text-xs text-slate-400" dir="ltr">{new Date(req.created_at).toLocaleDateString('fa-IR')}</td>
+                      <td className="py-4 px-4 text-center">
+                        <button 
+                          onClick={() => handleOpenDetailsModal(req)} 
+                          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5 border border-slate-600"
+                        >
+                          <Search size={14} /> مشاهده جزئیات
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -259,6 +300,124 @@ export default function MonitoringManagerPanelPage() {
           </div>
         </div>
       </main>
+
+      {/* مودال مشاهده جزئیات کامل در پنل مانیتورینگ مدیر */}
+      {viewRequest && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden">
+          <div className="bg-slate-800 text-slate-100 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border border-slate-700 animate-slide-up max-h-[90vh] overflow-y-auto" dir="rtl">
+            <div className="border-b border-slate-700 pb-4 mb-5 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-white">جزئیات کامل پرونده تعمیرات</h3>
+                <p className="text-sm text-brand-primary font-mono mt-1" dir="ltr">{viewRequest.tracking_code}</p>
+              </div>
+              <button onClick={() => setViewRequest(null)} className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 font-bold">✕</button>
+            </div>
+
+            <div className="space-y-5">
+              {/* مشخصات تجهیز */}
+              <div className="bg-slate-900/70 p-4 rounded-2xl border border-slate-700 space-y-3">
+                <h4 className="font-bold text-slate-400 text-xs uppercase tracking-wider">مشخصات دستگاه و درخواست‌کننده</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div><span className="text-slate-400">نام تجهیز:</span> <strong className="text-white">{viewRequest.device_info}</strong></div>
+                  <div><span className="text-slate-400">برند سازنده:</span> <strong className="text-white">{viewRequest.brand || '---'}</strong></div>
+                  <div><span className="text-slate-400">پارت نامبر:</span> <strong className="font-mono text-white" dir="ltr">{viewRequest.part_number || '---'}</strong></div>
+                  <div><span className="text-slate-400">شماره سریال:</span> <strong className="font-mono text-white" dir="ltr">{viewRequest.serial_number || '---'}</strong></div>
+                  <div><span className="text-slate-400">درخواست‌کننده:</span> <strong className="text-white">{viewRequest.profiles?.full_name || '---'}</strong></div>
+                  <div><span className="text-slate-400">وضعیت فعلی:</span> <strong className="text-brand-primary">{getStatusText(viewRequest.status)}</strong></div>
+                  <div className="sm:col-span-2"><span className="text-slate-400">نام پروژه / ارجاع:</span> <strong className="text-white">{viewRequest.project_name || '---'}</strong></div>
+                </div>
+                <div className="pt-2 border-t border-slate-700">
+                  <span className="text-slate-400 text-xs block mb-1">شرح مشکل اولیه:</span>
+                  <p className="text-xs text-slate-200 bg-slate-800 p-3 rounded-xl border border-slate-700 leading-relaxed">{viewRequest.fault_description}</p>
+                </div>
+              </div>
+
+              {/* گزارش تکنسین و قطعات مصرفی */}
+              <div className="bg-slate-900/70 p-4 rounded-2xl border border-slate-700 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700 pb-2.5">
+                  <div className="text-xs">
+                    <span className="text-slate-400">تکنسین انجام‌دهنده: </span>
+                    <strong className="text-white">👨‍🔧 {viewRequest.personnel_users?.full_name || 'تعیین نشده'}</strong>
+                  </div>
+                  {isRequestUnrepairable(viewRequest) ? (
+                    <span className="inline-flex items-center gap-1.5 bg-red-500/20 text-red-400 px-3 py-1 rounded-lg text-xs font-bold border border-red-500/30">
+                      <AlertTriangle size={14} /> اعلام شده به عنوان غیرقابل تعمیر
+                    </span>
+                  ) : viewRequest.supervisor_report ? (
+                    <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-bold border border-emerald-500/30">
+                      تعمیر شده (قابل تعمیر)
+                    </span>
+                  ) : null}
+                </div>
+
+                <div>
+                  <span className="text-xs font-bold text-blue-400 block mb-1">گزارش فنی تکنسین:</span>
+                  <p className="text-xs text-slate-200 bg-slate-800 p-3 rounded-xl border border-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {viewRequest.supervisor_report || 'گزارشی ثبت نشده است.'}
+                  </p>
+                </div>
+
+                <div>
+                  <span className="text-xs font-bold text-blue-400 block mb-1">قطعات مصرفی ثبت‌شده توسط تکنسین:</span>
+                  {isFetchingParts ? (
+                    <div className="text-xs text-slate-400 flex items-center gap-1.5"><Loader2 size={14} className="animate-spin"/> در حال دریافت قطعات...</div>
+                  ) : partsList.length === 0 ? (
+                    <div className="text-xs text-slate-400 bg-slate-800 p-2.5 rounded-xl border border-slate-700">هیچ قطعه‌ای ثبت نشده است.</div>
+                  ) : (
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {partsList.map((part: any, idx: number) => (
+                        <li key={part.id || idx} className="flex justify-between items-center bg-slate-800 px-3 py-2 rounded-xl border border-slate-700 text-xs">
+                          <span className="font-bold text-slate-200">{part.part_name}</span>
+                          <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono font-bold">{part.quantity} عدد</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* گزارش و فایل کنترل کیفیت (QC) */}
+              <div className="bg-slate-900/70 p-4 rounded-2xl border border-slate-700 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700 pb-2.5">
+                  <span className="text-xs font-bold text-purple-400">نتیجه و گزارش کنترل کیفیت (QC):</span>
+                  {viewRequest.qc_status === 'approved' ? (
+                    <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-bold border border-emerald-500/30">
+                      <CheckCircle size={14} /> مورد تایید QC
+                    </span>
+                  ) : viewRequest.qc_status === 'rejected' ? (
+                    <span className="inline-flex items-center gap-1 bg-red-500/20 text-red-400 px-2.5 py-1 rounded-lg text-xs font-bold border border-red-500/30">
+                      <XCircle size={14} /> عدم تایید QC
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-500">ثبت نشده</span>
+                  )}
+                </div>
+
+                <p className="text-xs text-slate-200 bg-slate-800 p-3 rounded-xl border border-slate-700 leading-relaxed whitespace-pre-wrap">
+                  {viewRequest.qc_report || 'گزارشی توسط واحد QC ثبت نشده است.'}
+                </p>
+
+                {viewRequest.qc_file_url && (
+                  <div>
+                    <a 
+                      href={viewRequest.qc_file_url} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="inline-flex items-center gap-1.5 text-xs bg-purple-600 hover:bg-purple-500 text-white px-3.5 py-2 rounded-xl font-bold transition-colors shadow-sm"
+                    >
+                      <FileText size={15} /> مشاهده فایل / مستندات تست QC
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button onClick={() => setViewRequest(null)} className="w-full mt-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-colors text-sm">
+              بستن پنجره
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* مودال فیلتر پیشرفته */}
       {isFilterModalOpen && (
@@ -293,6 +452,8 @@ export default function MonitoringManagerPanelPage() {
                   <option value="pending_coordinator">ثبت اولیه (هماهنگی)</option>
                   <option value="pending_supervisor">در انتظار بررسی سرپرست</option>
                   <option value="repairing">در حال تعمیر</option>
+                  <option value="pending_qc">در انتظار تست QC</option>
+                  <option value="pending_supervisor_approval">منتظر تایید سرپرست</option>
                   <option value="estimated">برآورد هزینه شده</option>
                   <option value="pending_finance">در انتظار واحد مالی</option>
                   <option value="invoiced">فاکتور شده</option>

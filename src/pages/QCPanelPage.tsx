@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Key, CheckCircle, XCircle, Loader2, FileText } from 'lucide-react';
+import { LogOut, Home, Key, CheckCircle, XCircle, Loader2, FileText, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -19,7 +19,7 @@ export default function QCPanelPage() {
   const [selectedReq, setSelectedReq] = useState<any | null>(null);
   const [qcReport, setQcReport] = useState('');
   const [qcFile, setQcFile] = useState<File | null>(null);
-  const [qcDecision, setQcDecision] = useState<'approve' | 'reject'>('approve'); // انتخاب وضعیت تایید یا عدم تایید
+  const [qcDecision, setQcDecision] = useState<'approve' | 'reject'>('approve');
   const [partsList, setPartsList] = useState<any[]>([]);
   const [isFetchingParts, setIsFetchingParts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,14 +48,20 @@ export default function QCPanelPage() {
 
   const handleOpenQcModal = async (req: any) => {
     setSelectedReq(req);
-    setQcReport('');
+    setQcReport(req.qc_report || '');
     setQcFile(null);
-    setQcDecision('approve');
+    setQcDecision(req.qc_status === 'rejected' ? 'reject' : 'approve');
     
     // دریافت قطعات مصرفی ثبت شده توسط تکنسین
     setIsFetchingParts(true);
     const { data, error } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
-    if (!error) setPartsList(data || []);
+    if (!error && data && data.length > 0) {
+      setPartsList(data);
+    } else if (Array.isArray(req.used_parts) && req.used_parts.length > 0) {
+      setPartsList(req.used_parts);
+    } else {
+      setPartsList([]);
+    }
     setIsFetchingParts(false);
   };
 
@@ -92,7 +98,8 @@ export default function QCPanelPage() {
       }
 
       const isApproved = qcDecision === 'approve';
-      const nextStatus = isApproved ? 'pending_supervisor_approval' : 'repairing';
+      // در هر دو حالت تایید یا عدم تایید، درخواست به پنل سرپرست تعمیرات ارجاع می‌شود
+      const nextStatus = 'pending_supervisor_approval';
 
       const { error: updateError } = await supabase
         .from('repair_requests')
@@ -107,7 +114,11 @@ export default function QCPanelPage() {
 
       if (updateError) throw updateError;
 
-      toast.success(isApproved ? 'گزارش QC تایید و به سرپرست ارسال شد' : 'گزارش رد شد و به کارتابل تکنسین بازگشت');
+      toast.success(
+        isApproved 
+          ? 'گزارش QC با وضعیت «تایید» ثبت و به سرپرست تعمیرات ارسال شد' 
+          : 'گزارش QC با وضعیت «عدم تایید» ثبت و به سرپرست تعمیرات ارسال شد'
+      );
       setSelectedReq(null);
       fetchRequests();
     } catch (err: any) {
@@ -138,6 +149,40 @@ export default function QCPanelPage() {
       setIsUpdatingPassword(false);
     }
   };
+
+  const isRequestUnrepairable = (req: any) => {
+    return Boolean(req?.is_unrepairable || req?.supervisor_report?.includes('[دستگاه غیرقابل تعمیر اعلام شد]'));
+  };
+
+  const FullRequestDetails = ({ req }: { req: any }) => (
+    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3" dir="rtl">
+      <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">مشخصات کامل درخواست و تجهیز</h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div><span className="text-slate-400">نام تجهیز:</span> <strong className="text-slate-800">{req.device_info}</strong></div>
+        <div><span className="text-slate-400">کارخانه سازنده:</span> <strong className="text-slate-800">{req.brand || 'ثبت نشده'}</strong></div>
+        <div><span className="text-slate-400">پارت نامبر:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.part_number || 'ثبت نشده'}</strong></div>
+        <div><span className="text-slate-400">شماره سریال:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.serial_number || 'ثبت نشده'}</strong></div>
+        
+        {req.tr_code && <div><span className="text-slate-400">TR کد:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.tr_code}</strong></div>}
+        {req.delivery_list_number && <div><span className="text-slate-400">شماره لیست تحویل:</span> <strong className="font-mono text-slate-800" dir="ltr">{req.delivery_list_number}</strong></div>}
+        {req.email_group && <div><span className="text-slate-400">گروه ایمیل بازرگانی:</span> <strong className="text-slate-800">{req.email_group}</strong></div>}
+        
+        <div className="sm:col-span-2"><span className="text-slate-400">نام پروژه / ارجاع کار:</span> <strong className="text-slate-800">{req.project_name || 'ثبت نشده'}</strong></div>
+        
+        {req.needs_price_estimate && (
+          <div className="sm:col-span-2 mt-1">
+            <span className="inline-block bg-amber-100 text-amber-800 px-2.5 py-1 rounded font-bold border border-amber-200">
+              ⚠️ این دستگاه نیاز به برآورد قیمت پیش از تعمیر نهایی دارد
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="pt-2 border-t border-slate-200">
+        <span className="text-slate-400 text-xs block mb-1">شرح مشکل (اظهار مشتری / بازرگانی):</span>
+        <p className="text-xs text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 leading-relaxed">{req.fault_description}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 font-vazir" dir="rtl">
@@ -200,7 +245,12 @@ export default function QCPanelPage() {
                         <div className="text-xs text-slate-500">{req.brand || 'بدون برند'}</div>
                       </td>
                       <td className="py-4 px-3 font-medium text-slate-700">
-                        👨‍🔧 {req.personnel_users?.full_name || 'تعیین نشده'}
+                        <div>👨‍🔧 {req.personnel_users?.full_name || 'تعیین نشده'}</div>
+                        {isRequestUnrepairable(req) && (
+                          <span className="inline-block mt-1 bg-red-100 text-red-700 px-2 py-0.5 rounded text-[11px] font-bold">
+                            اعلام غیرقابل تعمیر
+                          </span>
+                        )}
                       </td>
                       <td className="py-4 px-3 text-center">
                         <button onClick={() => handleOpenQcModal(req)} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-sm">
@@ -229,24 +279,45 @@ export default function QCPanelPage() {
             </div>
 
             <form onSubmit={handleSubmitQC} className="space-y-4">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3">
-                <div><span className="text-slate-400">نام دستگاه:</span> <strong className="text-slate-800">{selectedReq.device_info}</strong></div>
+              {/* نمایش مشخصات کامل درخواست */}
+              <FullRequestDetails req={selectedReq} />
+
+              {/* بخش اطلاعات ثبت‌شده توسط تکنسین */}
+              <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 text-xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 pb-2">
+                  <div>
+                    <span className="text-slate-500">تکنسین انجام‌دهنده: </span>
+                    <strong className="text-slate-800 text-sm">👨‍🔧 {selectedReq.personnel_users?.full_name || 'نامشخص'}</strong>
+                  </div>
+                  {isRequestUnrepairable(selectedReq) ? (
+                    <span className="inline-flex items-center gap-1.5 bg-red-100 text-red-700 px-3 py-1 rounded-lg font-bold border border-red-200">
+                      <AlertTriangle size={14} /> اعلام شده به عنوان غیرقابل تعمیر
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg font-bold">
+                      تعمیر شده (قابل تعمیر)
+                    </span>
+                  )}
+                </div>
+
                 <div>
-                  <span className="text-slate-400 block mb-1">گزارش کار تکنسین:</span> 
-                  <p className="text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed">{selectedReq.supervisor_report}</p>
+                  <span className="text-slate-500 font-bold block mb-1">گزارش کار و توضیحات تکنسین:</span> 
+                  <p className="text-slate-800 bg-white p-3 rounded-xl border border-slate-200 leading-relaxed whitespace-pre-wrap">
+                    {selectedReq.supervisor_report || 'گزارشی ثبت نشده است.'}
+                  </p>
                 </div>
 
                 {/* نمایش قطعات مصرفی تکنسین */}
                 <div>
-                  <span className="text-slate-400 block mb-1">قطعات مصرفی ثبت‌شده توسط تکنسین:</span>
+                  <span className="text-slate-500 font-bold block mb-1">قطعات مصرفی ثبت‌شده توسط تکنسین:</span>
                   {isFetchingParts ? (
                     <div className="text-slate-500">در حال دریافت قطعات...</div>
                   ) : partsList.length === 0 ? (
-                    <div className="text-slate-500 bg-white p-2 rounded border border-slate-100">هیچ قطعه‌ای ثبت نشده است.</div>
+                    <div className="text-slate-500 bg-white p-2.5 rounded-xl border border-slate-200">هیچ قطعه‌ای ثبت نشده است.</div>
                   ) : (
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                       {partsList.map((p: any, idx: number) => (
-                        <li key={idx} className="flex justify-between items-center bg-white px-3 py-2 rounded-lg border border-slate-100">
+                        <li key={idx} className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-slate-200">
                           <span className="font-bold text-slate-700">{p.part_name}</span>
                           <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono">{p.quantity} عدد</span>
                         </li>
@@ -278,7 +349,7 @@ export default function QCPanelPage() {
                 />
               </div>
 
-              {/* بخش انتخاب تایید یا عدم تایید (جایگزین دکمه قرمز جداگانه) */}
+              {/* بخش انتخاب تایید یا عدم تایید (هر دو به سرپرست تعمیر ارسال می‌شوند) */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
                 <label className="block text-sm font-bold text-slate-700">نتیجه نهایی کنترل کیفیت (QC) <span className="text-red-500">*</span></label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -306,7 +377,7 @@ export default function QCPanelPage() {
                     />
                     <div className="flex items-center gap-2">
                       <XCircle size={18} className="text-red-600" />
-                      <span>عدم تایید (بازگشت به تکنسین)</span>
+                      <span>عدم تایید (ارسال به سرپرست)</span>
                     </div>
                   </label>
                 </div>
@@ -319,7 +390,7 @@ export default function QCPanelPage() {
                   className="flex-1 py-3.5 bg-brand-primary hover:bg-brand-600 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2 shadow-md"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <FileText size={18} />} 
-                  ثبت نهایی و اعمال نتیجه
+                  ثبت نهایی و ارسال به سرپرست تعمیرات
                 </button>
                 <button 
                   type="button"

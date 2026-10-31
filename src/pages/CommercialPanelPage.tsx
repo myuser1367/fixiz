@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Home, Key, ShoppingCart, Plus, CheckCircle, Loader2, List, Clock, Wrench, XCircle, AlertCircle, FileText, Check, Search, Edit, Trash2, Send } from 'lucide-react';
+import { LogOut, Home, Key, ShoppingCart, Plus, CheckCircle, Loader2, List, Clock, Wrench, XCircle, AlertCircle, FileText, Check, Search, Edit, Trash2, Send, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -22,6 +22,8 @@ interface RepairRequest {
   tr_code?: string;
   delivery_list_number?: string;
   email_group?: string;
+  is_unrepairable?: boolean;
+  supervisor_report?: string;
 }
 
 export default function CommercialPanelPage() {
@@ -109,6 +111,10 @@ export default function CommercialPanelPage() {
     }
 
     setIsLoading(false);
+  };
+
+  const isRequestUnrepairable = (req: any) => {
+    return Boolean(req?.is_unrepairable || req?.supervisor_report?.includes('[دستگاه غیرقابل تعمیر اعلام شد]'));
   };
 
   const handleApprovePrice = async (req: any) => {
@@ -292,6 +298,8 @@ export default function CommercialPanelPage() {
       case 'accepted': return <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={14}/> پذیرش شده</span>;
       case 'rejected': return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><XCircle size={14}/> عدم پذیرش</span>;
       case 'repairing': return <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Loader2 size={14} className="animate-spin"/> در حال تعمیر</span>;
+      case 'pending_qc': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> در حال تست QC</span>;
+      case 'pending_supervisor_approval': return <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={14}/> بررسی نهایی سرپرست</span>;
       case 'estimated': return <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><AlertCircle size={14}/> برآورد هزینه نهایی</span>;
       case 'pending_commercial': return <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><ShoppingCart size={14}/> در انتظار بازرگانی</span>;
       case 'pending_finance': return <span className="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><FileText size={14}/> در انتظار واحد مالی</span>;
@@ -315,7 +323,7 @@ export default function CommercialPanelPage() {
 
     let activeIndex = 0;
     if (['pending_supervisor', 'accepted', 'waiting_for_device'].includes(currentStatus)) activeIndex = 1;
-    else if (currentStatus === 'repairing') activeIndex = 2;
+    else if (['repairing', 'pending_qc', 'pending_supervisor_approval'].includes(currentStatus)) activeIndex = 2;
     else if (['estimated', 'pending_commercial', 'pending_finance'].includes(currentStatus)) activeIndex = 3;
     else if (['invoiced', 'pending_commercial_checkout', 'ready_for_delivery', 'pending_ceo_final', 'completed'].includes(currentStatus)) activeIndex = 4;
     else if (currentStatus === 'rejected') activeIndex = 1;
@@ -424,6 +432,11 @@ export default function CommercialPanelPage() {
                         <td className="py-4 px-3">
                           <div className="font-bold text-slate-800">{req.device_info}</div>
                           <div className="text-xs text-slate-500">{req.brand || 'برند نامشخص'}</div>
+                          {isRequestUnrepairable(req) && (
+                            <span className="inline-flex items-center gap-1 mt-1 bg-red-100 text-red-700 px-2 py-0.5 rounded text-[11px] font-bold">
+                              <AlertTriangle size={12} /> اعلام شده به عنوان غیرقابل تعمیر
+                            </span>
+                          )}
                         </td>
                         <td className="py-4 px-3 font-mono font-bold text-blue-700 text-lg" dir="ltr">
                           {req.final_price ? req.final_price.toLocaleString() : '---'}
@@ -531,9 +544,14 @@ export default function CommercialPanelPage() {
                 <div key={req.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col gap-4 transition-hover hover:border-brand-300">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="space-y-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h4 className="text-lg font-bold text-slate-800">{req.device_info}</h4>
                         {getStatusBadge(req.status)}
+                        {isRequestUnrepairable(req) && (
+                          <span className="bg-red-100 text-red-700 border border-red-200 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                            <AlertTriangle size={14} /> اعلام شده به عنوان غیرقابل تعمیر
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-slate-500 flex-wrap">
                         <span className="font-mono bg-slate-100 px-2.5 py-1 rounded text-slate-700 font-bold" dir="ltr">{req.tracking_code}</span>
@@ -684,10 +702,18 @@ export default function CommercialPanelPage() {
                   <span className="text-slate-500">تاریخ ثبت:</span>
                   <span className="font-mono font-bold text-slate-700" dir="ltr">{new Date(selectedTrackingReq.created_at).toLocaleDateString('fa-IR')}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-slate-500">وضعیت کنونی:</span>
                   <span>{getStatusBadge(selectedTrackingReq.status)}</span>
                 </div>
+                {isRequestUnrepairable(selectedTrackingReq) && (
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-red-700 font-bold">
+                    <span>نتیجه بررسی فنی:</span>
+                    <span className="bg-red-100 px-2.5 py-1 rounded-lg border border-red-200 flex items-center gap-1">
+                      <AlertTriangle size={14} /> دستگاه غیرقابل تعمیر اعلام شده است
+                    </span>
+                  </div>
+                )}
               </div>
 
               {renderWorkflowSteps(selectedTrackingReq.status)}

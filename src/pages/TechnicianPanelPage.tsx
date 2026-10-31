@@ -49,11 +49,24 @@ export default function TechnicianPanelPage() {
     setIsLoading(false);
   };
 
-  const openReportModal = (req: any) => {
+  const openReportModal = async (req: any) => {
     setSelectedRequest(req);
-    setTechnicianReport(req.supervisor_report || '');
-    setParts([]);
-    setIsUnrepairable(false);
+    const rawReport = req.supervisor_report || '';
+    const hasUnrepairablePrefix = rawReport.startsWith('[دستگاه غیرقابل تعمیر اعلام شد]');
+    const cleanReport = rawReport.replace('[دستگاه غیرقابل تعمیر اعلام شد]\n', '').replace('[دستگاه غیرقابل تعمیر اعلام شد]', '');
+
+    setTechnicianReport(cleanReport);
+    setIsUnrepairable(Boolean(req.is_unrepairable || hasUnrepairablePrefix));
+
+    // بارگذاری قطعات قبلی در صورتی که دستگاه از طرف سرپرست برای بررسی بیشتر برگشت خورده باشد
+    const { data, error } = await supabase.from('repair_parts').select('*').eq('request_id', req.id);
+    if (!error && data && data.length > 0) {
+      setParts(data.map((p: any) => ({ part_name: p.part_name, quantity: p.quantity })));
+    } else if (Array.isArray(req.used_parts) && req.used_parts.length > 0) {
+      setParts(req.used_parts);
+    } else {
+      setParts([]);
+    }
   };
 
   const handleAddPart = () => {
@@ -76,21 +89,37 @@ export default function TechnicianPanelPage() {
 
     setIsSubmittingReport(true);
     try {
+      const cleanReport = technicianReport.replace('[دستگاه غیرقابل تعمیر اعلام شد]\n', '').trim();
       const finalReport = isUnrepairable 
-        ? `[دستگاه غیرقابل تعمیر اعلام شد]\n${technicianReport}`
-        : technicianReport;
+        ? `[دستگاه غیرقابل تعمیر اعلام شد]\n${cleanReport}`
+        : cleanReport;
 
-      // تغییر وضعیت به pending_qc برای ارسال به واحد کنترل کیفیت
-      const { error: reqError } = await supabase
+      // ذخیره در جدول درخواست‌ها و ارسال به واحد کنترل کیفیت
+      let { error: reqError } = await supabase
         .from('repair_requests')
         .update({ 
           supervisor_report: finalReport,
+          is_unrepairable: isUnrepairable,
+          used_parts: parts,
           status: 'pending_qc' 
         })
         .eq('id', selectedRequest.id);
+
+      if (reqError && reqError.message?.includes('column')) {
+        const { error: fallbackError } = await supabase
+          .from('repair_requests')
+          .update({ 
+            supervisor_report: finalReport,
+            status: 'pending_qc' 
+          })
+          .eq('id', selectedRequest.id);
+        reqError = fallbackError;
+      }
       
       if (reqError) throw reqError;
 
+      // بروزرسانی جدول قطعات مصرفی
+      await supabase.from('repair_parts').delete().eq('request_id', selectedRequest.id);
       if (parts.length > 0) {
         const partsToInsert = parts.map(p => ({
           request_id: selectedRequest.id,
@@ -231,6 +260,11 @@ export default function TechnicianPanelPage() {
                         <td className="py-4 px-3">
                           <div className="font-bold text-slate-800">{req.device_info}</div>
                           <div className="text-xs text-slate-500">{req.brand || 'بدون برند'}</div>
+                          {req.qc_report && (
+                            <span className="inline-block mt-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[11px] font-bold">
+                              برگشت خورده جهت بررسی مجدد
+                            </span>
+                          )}
                         </td>
                         <td className="py-4 px-3 text-center">
                           <div className="flex flex-col gap-2">
@@ -282,6 +316,14 @@ export default function TechnicianPanelPage() {
             </div>
 
             <FullRequestDetails req={selectedRequest} />
+
+            {/* نمایش توضیحات QC در صورتی که دستگاه از طرف سرپرست برای بررسی مجدد برگشت خورده باشد */}
+            {selectedRequest.qc_report && (
+              <div className="bg-purple-50 p-3.5 rounded-2xl border border-purple-200 mb-6 text-xs space-y-1">
+                <span className="font-bold text-purple-800 block">نتیجه و توضیحات ثبت‌شده در تست QC:</span>
+                <p className="text-slate-700 leading-relaxed">{selectedRequest.qc_report}</p>
+              </div>
+            )}
 
             <div className="space-y-6">
               <div>

@@ -21,7 +21,7 @@ export default function MonitoringPanelPage() {
 
   const fetchActiveRequests = async () => {
     setIsLoading(true);
-    // دریافت اطلاعات صرفاً برای ۵ وضعیت اصلی پنل تعمیرات
+    // دریافت اطلاعات برای وضعیت‌های اصلی پنل تعمیرات و QC
     const { data, error } = await supabase
       .from('repair_requests')
       .select(`*, profiles!customer_id(full_name, phone), personnel_users!technician_id(full_name)`)
@@ -29,6 +29,7 @@ export default function MonitoringPanelPage() {
         'pending_supervisor', 
         'waiting_for_device', 
         'repairing',
+        'pending_qc',
         'pending_supervisor_approval'
       ])
       .order('created_at', { ascending: false });
@@ -46,6 +47,7 @@ export default function MonitoringPanelPage() {
     switch (req.status) {
       case 'pending_supervisor': return 'منتظر بررسی';
       case 'waiting_for_device': return 'در انتظار دستگاه';
+      case 'pending_qc': return 'در انتظار تست QC';
       case 'pending_supervisor_approval': return 'تایید گزارش';
       case 'repairing': return req.technician_id ? 'در حال تعمیر' : 'نیازمند ارجاع به کارشناس';
       default: return req.status;
@@ -56,7 +58,8 @@ export default function MonitoringPanelPage() {
     r.tracking_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.device_info?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.serial_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.personnel_users?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    r.personnel_users?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (r.status === 'pending_qc' && 'qc'.includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -132,7 +135,11 @@ export default function MonitoringPanelPage() {
                         </span>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        {req.personnel_users?.full_name ? (
+                        {req.status === 'pending_qc' ? (
+                          <div className="inline-flex items-center gap-2 text-purple-300 bg-purple-500/20 px-3 py-1 rounded-lg border border-purple-500/30">
+                            <span className="font-bold">QC</span>
+                          </div>
+                        ) : req.personnel_users?.full_name ? (
                           <div className="inline-flex items-center gap-2 text-slate-200">
                             <Wrench size={14} className="text-orange-400" />
                             <span className="font-bold">{req.personnel_users.full_name}</span>
