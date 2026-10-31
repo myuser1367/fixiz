@@ -363,7 +363,7 @@ export default function QCPanelPage() {
                     />
                     <div className="flex items-center gap-2">
                       <CheckCircle size={18} className="text-emerald-600" />
-                      <span>تایید کیفیت (ارسال به سرپرست)</span>
+                      <span>تایید کیفیت </span>
                     </div>
                   </label>
 
@@ -377,7 +377,7 @@ export default function QCPanelPage() {
                     />
                     <div className="flex items-center gap-2">
                       <XCircle size={18} className="text-red-600" />
-                      <span>عدم تایید (ارسال به سرپرست)</span>
+                      <span>عدم تایید </span>
                     </div>
                   </label>
                 </div>

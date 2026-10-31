@@ -102,7 +102,7 @@ export default function SupervisorPanelPage() {
         if (profile?.id && !finalTechList.some((t: any) => t.id === profile.id)) {
           finalTechList.unshift({
             id: profile.id,
-            full_name: `${profile.full_name || 'سرپرست تعمیرات'} (شما)`,
+            full_name: `${profile.full_name || 'سرپرست تعمیرات'} `,
             role: profile.role
           });
         }
