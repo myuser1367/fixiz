@@ -107,7 +107,7 @@ export default function FinancePanelPage() {
 
       // متن ایمیل فاکتور
       const emailSubject = `صدور فاکتور رسمی خدمات - کد پیگیری: ${req.tracking_code}`;
-      const emailBody = `با سلام،\n\nفاکتور نهایی خدمات تعمیر تجهیز "${req.device_info}" (کد پیگیری: ${req.tracking_code}) صادر گردید.\n\nمبلغ قابل پرداخت: ${req.final_price?.toLocaleString() || 0} ریال\n\nلطفاً جهت تسویه حساب و تحویل دستگاه اقدام فرمایید.\n\nسامانه تعمیرات فرافن`;
+      const emailBody = `با سلام،\n\nفاکتور نهایی خدمات تعمیر تجهیز "${req.device_info}" (کد پیگیری: ${req.tracking_code}) صادر گردید.\n\nمبلغ قابل پرداخت: ${req.final_price?.toLocaleString() || 0} ریال\n\nلطفاً جهت تسویه حساب اقدام فرمایید.\n\nسامانه تعمیرات فرافن`;
 
       // ارسال ایمیل به تک‌تک مخاطبین استخراج شده (حفظ حریم خصوصی ایمیل‌ها نسبت به هم)
       for (const email of recipientEmails) {
