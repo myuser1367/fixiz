@@ -195,7 +195,8 @@ export default function HomePage() {
       // =============================================================================
       // غیرفعال‌سازی موقت پیامک ورود پرسنل
       // برای فعال‌سازی مجدد کد پیامک برای سایر پنل‌ها، مقدار زیر را به false تغییر دهید:
-      const DISABLE_OTP_FOR_ALL = true;
+      //const DISABLE_OTP_FOR_ALL = true;
+      const DISABLE_OTP_FOR_ALL = false;
       // =============================================================================
 
       if (DISABLE_OTP_FOR_ALL || role === 'monitoring' || role === 'monitoring_manager') {
